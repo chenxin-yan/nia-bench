@@ -239,7 +239,7 @@
         "Run `bun run lint` to ensure code quality"
       ],
       "notes": "The combined score formula is `0.6 * test_score + 0.4 * judge_score` as specified in BENCHMARK.md Section 5.3, EXCEPT for audit tasks which rely entirely on the judge (no AST checks possible for free-text analysis responses). The evaluator accepts `extractedFiles: Record<string, string>` (filename -> code) from the agent runner, supporting both single and multi-file outputs. The evaluator should be independent from the agent runner — it takes extracted files as input so evaluation can be re-run on existing outputs. The skip-judge flag is useful for development/testing. Integration tests use skipJudge mode to avoid real API calls — the judge module itself was tested in task 8. See SPEC.md Architecture Phase 3.",
-      "passed": false
+      "passed": true
     },
     {
       "description": "Build the CLI orchestrator with configurable parallelism, work queue, and result storage",

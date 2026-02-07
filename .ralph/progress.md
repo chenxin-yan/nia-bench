@@ -511,3 +511,57 @@
 - When building the reporter (task 15), use `HallucinationResult.types` for the hallucination rate metric (% of tasks with >= 1 type) and `HallucinationResult.details` for per-type distribution
 - The classifier combines signals from both AST checks (structural correctness) and judge verdicts (semantic correctness) — this two-layer approach catches both programmatically detectable issues (wrong imports, wrong await patterns) and semantically detectable issues (correct structure but wrong intent)
 - When no specific type can be determined from judge evidence, it defaults to `invented_method` — this is the safest fallback as it indicates the judge detected something wrong but the specific category is unclear
+
+---
+
+## Task: Build the combined evaluator that orchestrates AST checks, type checking, and LLM judge scoring
+
+### Completed
+
+- Created `src/runner/evaluator.ts` with `evaluateCode(task, extractedFiles, condition, runIndex, config)` function that orchestrates all evaluation layers
+- Defined `EvaluationResult` type with all fields: `taskId`, `condition`, `runIndex`, `testScore`, `judgeScore`, `finalScore`, `astResults`, `typeCheckResult`, `judgeResult`, `hallucinations`, `extractedFiles`
+- Defined `EvaluatorConfig` type with options: `skipJudge`, `scorerConfig`, `typecheckEnvsDir`
+- Implemented multi-file AST check support: checks are grouped by the `file` field, each group is run against the corresponding extracted file. File resolution supports exact match and partial path matching (e.g., `page.tsx` matches `app/page.tsx`).
+- Layer 1: AST checks via `runAstChecks()` — computes `testScore = passedChecks / totalChecks`
+- Layer 1b: Type checking via `runTypeCheck()`/`runTypeCheckMultiFile()` when `task.test_spec.type_check` is true — adds one pass/fail assertion to the test score
+- Layer 2: LLM judge via `scoreWithRubric()` — gets `judgeScore` (0.0-1.0)
+- Combined score formula: `finalScore = 0.6 * testScore + 0.4 * judgeScore`
+- Special case for audit tasks: when no AST checks exist AND no type_check, `finalScore = judgeScore` (100% judge weight)
+- Skip-judge mode: when `skipJudge: true`, `finalScore = testScore` for tasks with AST checks, or `finalScore = 0` for audit tasks
+- Hallucination classification runs with all signals (AST results + judge results)
+- All extracted files are concatenated with filename headers for the LLM judge context
+- Exported `evaluateCode`, `EvaluationResult`, and `EvaluatorConfig` from `src/runner/index.ts`
+- Wrote comprehensive integration test `src/runner/__tests__/evaluator.test.ts` with 14 tests across 6 describe blocks:
+  - **Test case 1 (skip-judge, reference code)**: proxy task + reference solution passes all 4 AST checks, testScore=1.0, no hallucinations, finalScore=1.0. Also tested with sync APIs task.
+  - **Test case 2 (skip-judge, bad code)**: proxy task + hallucinated middleware.ts fails AST checks, testScore<1.0, hallucinations detected. Also tested sync APIs task with await (v15 pattern) — correctly detects future_api hallucinations.
+  - **Test case 3 (audit task, skip-judge)**: audit task with no AST checks returns finalScore=0 (judge skipped), no crashes. Also tested with empty extracted files.
+  - **Test case 4 (score formula)**: verified combined formula math 0.6*0.8+0.4*0.6=0.72, verified skip-judge sets finalScore=testScore, verified audit finalScore=judgeScore.
+  - **Multi-file support (2 tests)**: file-specific AST checks against multiple extracted files, missing file causes targeted failures.
+  - **Edge cases (3 tests)**: empty extracted files, metadata field presence, partial path matching for file keys.
+- Verified: `bun test` (242 tests pass across 9 files, 0 fail), `bun run typecheck` passes, `bun run lint` clean
+
+### Files Changed
+
+- `src/runner/evaluator.ts` — Combined evaluator module with all evaluation layers
+- `src/runner/index.ts` — Updated barrel exports to include evaluator types and function
+- `src/runner/__tests__/evaluator.test.ts` — Integration test suite (14 tests)
+
+### Decisions
+
+- The evaluator accepts `extractedFiles: Record<string, string>` (filename -> code) as input, decoupled from the agent runner. This allows re-running evaluation on existing outputs (needed for `--eval-only` mode in the CLI).
+- Multi-file AST check resolution uses a three-tier strategy: (1) exact filename match, (2) partial suffix match (handles `page.tsx` matching `app/page.tsx`), (3) for checks without a `file` field, uses the first file if single, or concatenates all files if multiple.
+- All extracted files are concatenated with `// --- filename ---` headers for the LLM judge — the judge needs full cross-file context.
+- When the judge is skipped, a dummy `JudgeResult` with empty criteria is passed to the hallucination classifier. This ensures the classifier still runs on AST check signals even without judge data.
+- The `hasAstChecks` flag considers both `ast_checks.length > 0` and `type_check: true` — if either is present, the standard 60/40 formula applies. Audit tasks have neither.
+- Tests use `skipJudge: true` exclusively to avoid real API calls — the judge module itself was tested in task 8 with comprehensive unit tests.
+
+### Notes for Future Agent
+
+- The evaluator is designed to be called from the CLI orchestrator (task 11): `evaluateCode(task, agentResult.extractedFiles, agentResult.condition, agentResult.runIndex, config)`
+- The `EvaluatorConfig.scorerConfig` passes through to the LLM judge — set `scorerConfig.runs` to control judge repetitions (default 3)
+- For `--eval-only` mode, the orchestrator should read existing `AgentResult` JSON files and re-run `evaluateCode()` on them
+- The `skipJudge` flag is crucial for development — without it, every evaluation costs real OpenRouter API credits
+- The evaluator is fully independent from the agent runner — it takes extracted files as input, making it safe to run standalone
+- When building the result storage (task 11), serialize the full `EvaluationResult` including `astResults`, `judgeResult`, and `hallucinations` as JSON
+- The `extractedFiles` field in `EvaluationResult` preserves what was evaluated — useful for debugging and report generation
+- Multi-file tasks work transparently: the evaluator handles file routing for AST checks and concatenation for judge/classifier

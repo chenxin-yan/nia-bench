@@ -8,3 +8,6 @@ export {
   injectContext,
   runAgent,
 } from './agent';
+
+export type { EvaluationResult, EvaluatorConfig } from './evaluator';
+export { evaluateCode } from './evaluator';
