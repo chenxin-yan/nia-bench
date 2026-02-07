@@ -185,3 +185,86 @@
 - JSX element detection (for `call_exists` with `Suspense`, etc.) works via `JsxOpeningElement` and `JsxSelfClosingElement` syntax kinds
 - The checker correctly handles dotted call patterns like `ReactDOM.render` via `PropertyAccessExpression` traversal
 - All 5 pilot task reference solutions are verified to pass all their AST checks in the test suite — this ensures the checks are correctly defined in the task JSON files
+
+---
+
+## Task: Create version-grouped type-check environments with pinned library versions
+
+### Completed
+
+- Created 14 typecheck-envs subdirectories, each with a `package.json` using exact pinned version specifiers:
+  - `next-13` (next@13.5.6, react@18.2.0, @types/react@18.2.79)
+  - `next-14` (next@14.2.35, react@18.3.1, @types/react@18.3.28)
+  - `next-15` (next@15.5.12, react@19.2.4, @types/react@19.2.13)
+  - `next-16` (next@16.1.6, react@19.2.4, @types/react@19.2.13)
+  - `react-17` (react@17.0.2, react-dom@17.0.2, @types/react@17.0.91, @types/react-dom@17.0.26)
+  - `react-18` (react@18.3.1, react-dom@18.3.1, @types/react@18.3.28, @types/react-dom@18.3.7)
+  - `react-19` (react@19.2.4, react-dom@19.2.4, @types/react@19.2.13, @types/react-dom@19.1.6)
+  - `ai-sdk-3` (ai@3.4.33, @ai-sdk/openai@0.0.72, zod@3.23.8)
+  - `ai-sdk-4` (ai@4.3.19, @ai-sdk/openai@1.3.24, zod@3.25.76)
+  - `ai-sdk-5` (ai@5.0.129, @ai-sdk/openai@1.3.24, zod@4.3.6)
+  - `trpc-10` (@trpc/server@10.45.4, @trpc/client@10.45.4, @trpc/react-query@10.45.4, @tanstack/react-query@4.36.1, superjson@2.2.2, zod@3.23.8)
+  - `trpc-11` (@trpc/server@11.9.0, @trpc/client@11.9.0, superjson@2.2.2, zod@3.25.76)
+  - `zod-3` (zod@3.23.8)
+  - `zod-4` (zod@4.3.6)
+- Created `tsconfig.json` in each environment with: strict mode, ES2022 target, bundler moduleResolution, skipLibCheck: true, typeRoots constrained to local node_modules/@types, jsx: react-jsx (where needed)
+- Ran `bun install` in all 14 environments — all dependencies resolved and installed successfully
+- Created `src/tests/type-checker.ts` with `runTypeCheck()` and `runTypeCheckMultiFile()` functions that:
+  - Map library+version to the correct typecheck-envs directory (e.g., `{library: 'ai', version: '3'}` → `ai-sdk-3`)
+  - Write code to temp files in the env directory
+  - Run `tsc --noEmit` using the environment's local TypeScript binary
+  - Parse errors filtering only to the temp file (not library internal errors)
+  - Clean up temp files after checking
+- Updated `src/tests/index.ts` to re-export `TypeCheckResult`, `LibraryVersion`, `runTypeCheck`, `runTypeCheckMultiFile`
+- Wrote comprehensive test file `src/tests/__tests__/type-checker.test.ts` with 18 tests across 6 describe blocks:
+  - **Positive cases (3 tests)**: React 17 ReactDOM.render passes, Next.js 13 sync cookies passes, Zod v3 chained validators passes
+  - **Negative cases (3 tests)**: React 18 createRoot fails in React 17 env (TS2307: module not found), same code passes in React 18 env, non-existent import fails
+  - **Edge cases (4 tests)**: syntax errors detected, empty code passes (valid empty file), non-existent env returns descriptive error, non-existent base dir returns error
+  - **Version mapping (3 tests)**: AI SDK maps to `ai-sdk-N` naming, patch version string extracts major correctly, tRPC env resolves
+  - **Multi-file (3 tests)**: multiple valid files pass, file with type error fails, non-existent env returns error
+  - **Cross-environment (2 tests)**: Zod v3 code passes in zod-3 env, React 17 ReactDOM.render fails in React 19 env (removed API)
+- Verified: `bun test` (94 tests pass across 3 files, 0 fail), `bun run typecheck` passes, `bun run lint` clean
+
+### Files Changed
+
+- `typecheck-envs/next-13/package.json` — Next.js 13 pinned dependencies
+- `typecheck-envs/next-14/package.json` — Next.js 14 pinned dependencies
+- `typecheck-envs/next-15/package.json` — Next.js 15 pinned dependencies
+- `typecheck-envs/next-16/package.json` — Next.js 16 pinned dependencies
+- `typecheck-envs/react-17/package.json` — React 17 pinned dependencies
+- `typecheck-envs/react-18/package.json` — React 18 pinned dependencies
+- `typecheck-envs/react-19/package.json` — React 19 pinned dependencies
+- `typecheck-envs/ai-sdk-3/package.json` — AI SDK v3 pinned dependencies
+- `typecheck-envs/ai-sdk-4/package.json` — AI SDK v4 pinned dependencies
+- `typecheck-envs/ai-sdk-5/package.json` — AI SDK v5 pinned dependencies
+- `typecheck-envs/trpc-10/package.json` — tRPC v10 pinned dependencies
+- `typecheck-envs/trpc-11/package.json` — tRPC v11 pinned dependencies
+- `typecheck-envs/zod-3/package.json` — Zod v3 pinned dependencies
+- `typecheck-envs/zod-4/package.json` — Zod v4 pinned dependencies
+- `typecheck-envs/*/tsconfig.json` — 14 tsconfig files with strict mode and typeRoots
+- `src/tests/type-checker.ts` — Type checker module with runTypeCheck and runTypeCheckMultiFile
+- `src/tests/index.ts` — Updated barrel exports to include type checker
+- `src/tests/__tests__/type-checker.test.ts` — Comprehensive test suite (18 tests)
+
+### Decisions
+
+- Used `skipLibCheck: true` in all typecheck-envs tsconfigs — this is required because older library type definitions (especially Next.js 13) have internal type inconsistencies with newer TypeScript versions. We only care about type-checking OUR generated code against the library's public API surface, not the library's internal types.
+- Used `typeRoots: ["./node_modules/@types"]` to prevent TypeScript from walking up and picking up bun-types from the parent project's node_modules. Without this, the parent project's `bun-types` global declarations conflicted with the library types.
+- Used `baseUrl: "."` to anchor module resolution to each environment's own directory.
+- The type checker writes temp files prefixed with `_typecheck_` to avoid conflicts with existing files. Files are cleaned up in a `finally` block.
+- `runTypeCheck` defaults to `.tsx` extension for temp files (JSX support), but callers can override to `.ts` for non-JSX code.
+- `runTypeCheckMultiFile` prefixes temp files with `_typecheck_` to namespace them.
+- Library name mapping: AI SDK uses `ai-sdk-N` naming convention (not just `ai-N`), matching the directory names.
+- Version extraction uses the major version only: `"17.0.2"` → `"17"`, `"3"` → `"3"`.
+- Error parsing filters tsc output to only include errors from the temp file(s), ignoring any library-internal warnings.
+
+### Notes for Future Agent
+
+- The type checker is designed to be called from the evaluator (task 9): `runTypeCheck(code, {library: task.library, version: task.target_version})`
+- For multi-file tasks, use `runTypeCheckMultiFile(extractedFiles, libraryVersion)` instead
+- The `typecheckEnvsDir` option exists for testing — in production, the default path resolution (`../../typecheck-envs` relative to the module) works correctly
+- `await cookies()` in Next.js 13 does NOT produce a type error even though it's semantically wrong (await on non-Promise is valid TS). This is expected — the type checker catches module-level errors (wrong imports, missing APIs), while AST checks catch semantic pattern errors (await vs no-await).
+- React 19 types have removed `ReactDOM.render` — this is confirmed to produce a type error when checked against the react-19 environment
+- Some peer dependency warnings during install (e.g., AI SDK v3 with zod, AI SDK v5 with @ai-sdk/openai) are benign — the packages still function correctly
+- The `trpc-10` environment includes `@tanstack/react-query@4.36.1` as a dependency of `@trpc/react-query` — needed for type resolution
+- All 14 environments have `bun.lock` files generated (excluded from git via `.gitignore`)

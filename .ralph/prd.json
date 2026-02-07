@@ -112,7 +112,7 @@
         "Run `bun run lint` to ensure code quality"
       ],
       "notes": "Use exact version specifiers (e.g., `next@13.5.6`) not ranges, to ensure reproducibility. The type checker should copy the generated code into a temp file inside the appropriate env directory, run `tsc --noEmit` via Bun's shell, and parse the output. Clean up temp files after checking. For some libraries (AI SDK v3/v4/v5), verify which exact versions exist on npm before pinning. The type checker returns `{passed: boolean, errors: string[]}`. IMPORTANT: Negative testing is critical — the type checker's whole purpose is to catch version-incorrect code, so we must verify it actually rejects wrong code.",
-      "passed": false
+      "passed": true
     },
     {
       "description": "Create Version API Surface reference JSON files for all library versions",

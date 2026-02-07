@@ -1,0 +1,10 @@
+{
+  "name": "typecheck-env-ai-sdk-3",
+  "private": true,
+  "dependencies": {
+    "ai": "3.4.33",
+    "@ai-sdk/openai": "0.0.72",
+    "zod": "3.23.8",
+    "typescript": "5.7.3"
+  }
+}
