@@ -332,8 +332,8 @@
         "Run `bun run typecheck` to ensure no type errors",
         "Run `bun run lint` to ensure code quality"
       ],
-      "notes": "All task content is in BENCHMARK.md Section 4.2. The 2 pilot tasks (nextjs-13-sync-request-apis, react-17-render-entry) are already done. Version-locked write tasks must include the `context` field with relevant package.json snippets showing the pinned version, so the agent knows which version to target. CRITICAL VERIFICATION: Every task's reference solution MUST pass all its own AST checks. IMPORTANT from task 12: (1) call_exists for method calls like result.toAIStreamResponse() requires the dotted pattern 'result.toAIStreamResponse' — the checker matches property access calls with object.method format. (2) async_generator check now handles FunctionExpression nodes (callback arguments). (3) Use scripts/validate-bleeding-edge-tasks.ts as a template for validation. (4) Multi-file tasks use the 'file' field on AST checks to route checks to the correct file.",
-      "passed": false
+      "notes": "COMPLETED: All 14 version-locked-write tasks authored and validated. AST checker was fixed to handle CallExpressions with arguments in await_present/await_absent checks. The fix extracts the callee expression text from CallExpression nodes, so `await experimental_streamText({...})` correctly matches pattern `experimental_streamText`. Validation script at scripts/validate-version-locked-write-tasks.ts. All tasks have context.package_json with pinned versions. property_location check used for tRPC v10 to verify transformer is inside createTRPCProxyClient (not httpBatchLink).",
+      "passed": true
     },
     {
       "description": "Author all remaining Version-Locked Audit task JSON files (8 remaining after 1 pilot task)",

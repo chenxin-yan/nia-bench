@@ -1,0 +1,53 @@
+{
+  "id": "trpc-10-middleware-raw-input",
+  "category": "version_locked_write",
+  "library": "trpc",
+  "target_version": "10.45.0",
+  "prompt": "This project uses **tRPC v10**. Create an authentication middleware that checks for a `userId` in the context and extends the context with user data. Use the v10 middleware API with direct `rawInput` access.",
+  "context": {
+    "package_json": "{\n  \"dependencies\": {\n    \"@trpc/server\": \"10.45.4\",\n    \"@trpc/client\": \"10.45.4\"\n  }\n}"
+  },
+  "reference_solution": "import { initTRPC, TRPCError } from '@trpc/server';\n\nconst t = initTRPC.context<{ userId?: string }>().create();\n\nconst isAuthed = t.middleware(({ ctx, rawInput, next }) => {\n  if (!ctx.userId) {\n    throw new TRPCError({ code: 'UNAUTHORIZED' });\n  }\n\n  return next({\n    ctx: { userId: ctx.userId },\n  });\n});\n\nexport const protectedProcedure = t.procedure.use(isAuthed);",
+  "test_spec": {
+    "ast_checks": [
+      {
+        "type": "call_exists",
+        "call": "t.middleware"
+      },
+      {
+        "type": "call_absent",
+        "call": "getRawInput"
+      }
+    ],
+    "type_check": false
+  },
+  "rubric": {
+    "criteria": [
+      {
+        "name": "raw_input_direct",
+        "weight": 0.4,
+        "description": "Uses `rawInput` property directly"
+      },
+      {
+        "name": "not_get_raw_input",
+        "weight": 0.3,
+        "description": "Does NOT use `getRawInput()` (v11 method)"
+      },
+      {
+        "name": "correct_middleware_api",
+        "weight": 0.15,
+        "description": "Properly chains with `next()`"
+      },
+      {
+        "name": "no_hallucination",
+        "weight": 0.15,
+        "description": "No v11 patterns"
+      }
+    ]
+  },
+  "common_hallucinations": [
+    "Using `getRawInput()` async method (v11 pattern)",
+    "Using `opts.getRawInput()` instead of `opts.rawInput` direct access",
+    "Using `await getRawInput()` (v11 async method)"
+  ]
+}

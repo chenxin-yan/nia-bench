@@ -1,0 +1,62 @@
+{
+  "id": "trpc-10-ssg-helpers",
+  "category": "version_locked_write",
+  "library": "trpc",
+  "target_version": "10.45.0",
+  "prompt": "This project uses **tRPC v10** with Next.js Pages Router. Create `getStaticProps` for a blog page that prefetches the `post.bySlug` procedure using tRPC's SSG helpers. Use the correct v10 helper function.",
+  "context": {
+    "package_json": "{\n  \"dependencies\": {\n    \"@trpc/server\": \"10.45.4\",\n    \"@trpc/client\": \"10.45.4\",\n    \"@trpc/react-query\": \"10.45.4\",\n    \"superjson\": \"2.2.2\"\n  }\n}"
+  },
+  "reference_solution": "import { createProxySSGHelpers } from '@trpc/react-query/ssg';\nimport superjson from 'superjson';\nimport { appRouter } from '../../server/router';\n\nexport async function getStaticProps(context: { params: { slug: string } }) {\n  const ssg = createProxySSGHelpers({\n    router: appRouter,\n    ctx: {},\n    transformer: superjson,\n  });\n\n  await ssg.post.bySlug.prefetch({ slug: context.params.slug });\n\n  return {\n    props: {\n      trpcState: ssg.dehydrate(),\n    },\n    revalidate: 60,\n  };\n}",
+  "test_spec": {
+    "ast_checks": [
+      {
+        "type": "import_exists",
+        "name": "createProxySSGHelpers",
+        "from": "@trpc/react-query/ssg"
+      },
+      {
+        "type": "call_exists",
+        "call": "createProxySSGHelpers"
+      },
+      {
+        "type": "import_absent",
+        "name": "createSSGHelpers"
+      },
+      {
+        "type": "call_absent",
+        "call": "createSSGHelpers"
+      }
+    ],
+    "type_check": false
+  },
+  "rubric": {
+    "criteria": [
+      {
+        "name": "correct_helper_fn",
+        "weight": 0.4,
+        "description": "Uses `createProxySSGHelpers`, not `createSSGHelpers` (v11 name)"
+      },
+      {
+        "name": "correct_import_path",
+        "weight": 0.25,
+        "description": "Imports from `@trpc/react-query/ssg`"
+      },
+      {
+        "name": "correct_usage",
+        "weight": 0.2,
+        "description": "Properly calls `prefetch` and `dehydrate`"
+      },
+      {
+        "name": "no_hallucination",
+        "weight": 0.15,
+        "description": "No v11 patterns"
+      }
+    ]
+  },
+  "common_hallucinations": [
+    "Using `createSSGHelpers` (v11 name, renamed from createProxySSGHelpers)",
+    "Importing from wrong path (not `@trpc/react-query/ssg`)",
+    "Using `createServerSideHelpers` (different helper)"
+  ]
+}

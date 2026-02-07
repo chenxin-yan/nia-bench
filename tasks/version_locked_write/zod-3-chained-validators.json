@@ -1,0 +1,71 @@
+{
+  "id": "zod-3-chained-validators",
+  "category": "version_locked_write",
+  "library": "zod",
+  "target_version": "3.23.0",
+  "prompt": "This project uses **Zod v3**. Create a schema for a server configuration object that validates: email (valid format), API endpoint (valid URL), request ID (valid UUID), and server IP (valid IP address, either v4 or v6). Use Zod v3's chained string validator pattern.",
+  "context": {
+    "package_json": "{\n  \"dependencies\": {\n    \"zod\": \"3.23.8\"\n  }\n}"
+  },
+  "reference_solution": "import { z } from 'zod';\n\nconst serverConfigSchema = z.object({\n  adminEmail: z.string().email(),\n  apiEndpoint: z.string().url(),\n  requestId: z.string().uuid(),\n  serverIp: z.string().ip(),\n});",
+  "test_spec": {
+    "ast_checks": [
+      {
+        "type": "call_exists",
+        "call": "z.string"
+      },
+      {
+        "type": "call_absent",
+        "call": "z.email"
+      },
+      {
+        "type": "call_absent",
+        "call": "z.url"
+      },
+      {
+        "type": "call_absent",
+        "call": "z.ipv4"
+      },
+      {
+        "type": "call_absent",
+        "call": "z.ipv6"
+      }
+    ],
+    "type_check": false
+  },
+  "rubric": {
+    "criteria": [
+      {
+        "name": "chained_email",
+        "weight": 0.2,
+        "description": "Uses `z.string().email()`"
+      },
+      {
+        "name": "chained_url",
+        "weight": 0.2,
+        "description": "Uses `z.string().url()`"
+      },
+      {
+        "name": "chained_uuid",
+        "weight": 0.2,
+        "description": "Uses `z.string().uuid()`"
+      },
+      {
+        "name": "chained_ip",
+        "weight": 0.25,
+        "description": "Uses `z.string().ip()`, not `z.ipv4()`"
+      },
+      {
+        "name": "no_hallucination",
+        "weight": 0.15,
+        "description": "No v4 patterns"
+      }
+    ]
+  },
+  "common_hallucinations": [
+    "`z.email()` (v4 top-level pattern, not available in v3)",
+    "`z.url()` (v4 top-level pattern, not available in v3)",
+    "`z.ipv4()` (v4 replacement for `z.string().ip()`)",
+    "`z.uuid()` (v4 top-level pattern, not available in v3)"
+  ]
+}

@@ -750,3 +750,65 @@
 - The `async_generator` check now handles 3 node types: FunctionDeclaration, MethodDeclaration, and FunctionExpression — this covers all patterns used across the 40 benchmark tasks
 - The validation script `scripts/validate-bleeding-edge-tasks.ts` can be used as a template for validating version-locked tasks in tasks 13 and 14
 - When creating version-locked tasks, remember to include the `context` field with `package_json` showing the pinned library version
+
+---
+
+## Task: Author all remaining Version-Locked Write task JSON files (12 remaining after 2 pilot tasks)
+
+### Completed
+
+- Created all 12 remaining version-locked-write task JSON files:
+  - `tasks/version_locked_write/nextjs-14-direct-params.json` — Task B1-NX-2: direct params/searchParams access in v14 (no await, no Promise types)
+  - `tasks/version_locked_write/nextjs-15-middleware-ts.json` — Task B1-NX-3: middleware.ts (not proxy.ts) in v15
+  - `tasks/version_locked_write/react-17-data-fetching.json` — Task B1-RX-1: useEffect data fetching in v17 (no use(), no useTransition, no Suspense)
+  - `tasks/version_locked_write/react-18-forward-ref.json` — Task B1-RX-3: forwardRef in React 18 (not ref as prop)
+  - `tasks/version_locked_write/ai-sdk-3-async-stream.json` — Task B1-AI-1: experimental_streamText with await in v3
+  - `tasks/version_locked_write/ai-sdk-3-type-names.json` — Task B1-AI-2: ExperimentalMessage, TokenUsage v3 type names
+  - `tasks/version_locked_write/trpc-10-client-transformer.json` — Task B1-TR-1: client-level transformer in v10 (createTRPCProxyClient, not createTRPCClient)
+  - `tasks/version_locked_write/trpc-10-middleware-raw-input.json` — Task B1-TR-2: rawInput (not getRawInput) in v10 middleware
+  - `tasks/version_locked_write/trpc-10-ssg-helpers.json` — Task B1-TR-3: createProxySSGHelpers in v10 (not createSSGHelpers)
+  - `tasks/version_locked_write/zod-3-chained-validators.json` — Task B1-ZD-1: z.string().email(), z.string().url(), etc. (not z.email())
+  - `tasks/version_locked_write/zod-3-error-message.json` — Task B1-ZD-2: required_error, invalid_type_error, message param (not error)
+  - `tasks/version_locked_write/zod-3-record-single-arg.json` — Task B1-ZD-3: z.record(z.string()) single argument
+- All 14 version-locked-write tasks load successfully via the task loader (29 total tasks loaded)
+- All rubric criteria weights sum to exactly 1.00 for every task
+- All tasks have `context.package_json` with pinned library versions
+- All reference solutions pass 100% of their AST checks (verified with validation script)
+- Fixed AST checker `await_present` and `await_absent` to handle CallExpressions with arguments — previously only matched calls with empty parens `()`, now also extracts the callee name from calls with argument bodies like `experimental_streamText({...})`
+- Created `scripts/validate-version-locked-write-tasks.ts` comprehensive validation script
+- Re-validated bleeding-edge tasks still pass after the AST checker fix
+- Verified: `bun test` (281 tests pass, 0 fail), `bun run typecheck` passes, `bun run lint` clean
+
+### Files Changed
+
+- `tasks/version_locked_write/nextjs-14-direct-params.json` — New task: Next.js 14 direct params
+- `tasks/version_locked_write/nextjs-15-middleware-ts.json` — New task: Next.js 15 middleware.ts
+- `tasks/version_locked_write/react-17-data-fetching.json` — New task: React 17 useEffect data fetching
+- `tasks/version_locked_write/react-18-forward-ref.json` — New task: React 18 forwardRef
+- `tasks/version_locked_write/ai-sdk-3-async-stream.json` — New task: AI SDK v3 async streamText
+- `tasks/version_locked_write/ai-sdk-3-type-names.json` — New task: AI SDK v3 type names
+- `tasks/version_locked_write/trpc-10-client-transformer.json` — New task: tRPC v10 client transformer
+- `tasks/version_locked_write/trpc-10-middleware-raw-input.json` — New task: tRPC v10 rawInput middleware
+- `tasks/version_locked_write/trpc-10-ssg-helpers.json` — New task: tRPC v10 SSG helpers
+- `tasks/version_locked_write/zod-3-chained-validators.json` — New task: Zod v3 chained validators
+- `tasks/version_locked_write/zod-3-error-message.json` — New task: Zod v3 error message API
+- `tasks/version_locked_write/zod-3-record-single-arg.json` — New task: Zod v3 record single arg
+- `src/tests/ast-checker.ts` — Fixed await_present/await_absent to handle CallExpressions with arguments
+- `scripts/validate-version-locked-write-tasks.ts` — New validation script
+
+### Decisions
+
+- All version-locked tasks include `context.package_json` with exact pinned versions matching the typecheck-envs — this simulates a real project workspace where the agent can see which version is in use
+- For the trpc-10-client-transformer task, used `property_location` check to verify `transformer` is inside `createTRPCProxyClient()` (not inside `httpBatchLink()`) — this is the inverse of the bleeding-edge trpc-11-transformer-link task
+- For the zod-3-error-message task, used `property_absent` without `inObject` to check ALL object literals in the file for absence of `error` property — this catches both the schema-level and method-level v4 patterns
+- Fixed the AST checker's `await_present` and `await_absent` handlers to also check the callee expression of CallExpressions. Previously, `matchesCallPattern` only worked when the full expression text exactly matched (e.g., `cookies()` → `cookies`), but failed for calls with argument bodies (e.g., `experimental_streamText({...})` wouldn't match `experimental_streamText`). The fix extracts the callee using `expression.getExpression().getText()` for CallExpression nodes.
+- Task content (prompts, reference solutions, test specs, rubrics, common hallucinations) was adapted from BENCHMARK.md Section 4.2 with adjustments to fit the existing JSON schema structure
+
+### Notes for Future Agent
+
+- All 14 version-locked-write tasks are complete. The next task to create is version-locked-audit (task 14, 8 remaining after 1 pilot task)
+- The `await_present`/`await_absent` fix now handles 3 patterns: (1) exact match on full expression text, (2) match after stripping trailing `()`, (3) match on the callee of a CallExpression. This covers `await foo`, `await foo()`, and `await foo({...})`
+- The `property_location` check for tRPC v10 client-transformer verifies `transformer` is inside `createTRPCProxyClient()` (client level), which is the opposite of the v11 check where it's inside `httpBatchLink()` (link level)
+- The validation script `scripts/validate-version-locked-write-tasks.ts` follows the same pattern as the bleeding-edge validation script and also checks for `context.package_json` presence
+- When creating version-locked-audit tasks (task 14), note that audit tasks have `test_spec.ast_checks` as an empty array and rely entirely on the LLM judge
+- The `call_absent` for method calls uses dotted pattern (e.g., `result.toDataStreamResponse`) — same convention established in the bleeding-edge tasks

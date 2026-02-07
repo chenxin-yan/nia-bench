@@ -1,0 +1,53 @@
+{
+  "id": "zod-3-record-single-arg",
+  "category": "version_locked_write",
+  "library": "zod",
+  "target_version": "3.23.0",
+  "prompt": "This project uses **Zod v3**. Create a schema for an HTTP headers object where keys are strings and values are strings. Also create a schema for environment variables where keys from a known set (`DATABASE_URL`, `API_KEY`, `PORT`) map to string values. Use `z.record()` with Zod v3 syntax.",
+  "context": {
+    "package_json": "{\n  \"dependencies\": {\n    \"zod\": \"3.23.8\"\n  }\n}"
+  },
+  "reference_solution": "import { z } from 'zod';\n\n// Simple record: string -> string\nconst headersSchema = z.record(z.string());\n\n// Enum-keyed record\nconst envSchema = z.record(\n  z.enum(['DATABASE_URL', 'API_KEY', 'PORT']),\n  z.string()\n);\n\ntype Headers = z.infer<typeof headersSchema>;\ntype Env = z.infer<typeof envSchema>;",
+  "test_spec": {
+    "ast_checks": [
+      {
+        "type": "call_exists",
+        "call": "z.record"
+      },
+      {
+        "type": "call_exists",
+        "call": "z.enum"
+      }
+    ],
+    "type_check": false
+  },
+  "rubric": {
+    "criteria": [
+      {
+        "name": "single_arg_record",
+        "weight": 0.4,
+        "description": "Uses `z.record(z.string())` with one arg"
+      },
+      {
+        "name": "enum_keyed_record",
+        "weight": 0.3,
+        "description": "Correctly creates enum-keyed record"
+      },
+      {
+        "name": "correct_types",
+        "weight": 0.15,
+        "description": "`z.infer` produces correct types"
+      },
+      {
+        "name": "no_hallucination",
+        "weight": 0.15,
+        "description": "No v4 patterns"
+      }
+    ]
+  },
+  "common_hallucinations": [
+    "Using `z.record(z.string(), z.string())` with two args for simple case (v4 requires 2 args, v3 allows 1)",
+    "Inventing a `z.map()` or `z.dict()` type that doesn't exist",
+    "Using `z.object()` with dynamic keys instead of `z.record()`"
+  ]
+}

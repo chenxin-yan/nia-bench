@@ -276,6 +276,17 @@ function checkAwaitPresent(
         message: `Found 'await ${check.call}' pattern`,
       };
     }
+    // Also check the callee of CallExpressions (e.g., `await foo({...})` should match pattern `foo`)
+    if (Node.isCallExpression(expression)) {
+      const calleeText = expression.getExpression().getText();
+      if (matchesCallPattern(calleeText, check.call)) {
+        return {
+          check,
+          passed: true,
+          message: `Found 'await ${check.call}(...)' pattern`,
+        };
+      }
+    }
   }
 
   return {
@@ -302,6 +313,17 @@ function checkAwaitAbsent(
         passed: false,
         message: `Found unwanted 'await ${check.call}' — this call should NOT be awaited`,
       };
+    }
+    // Also check the callee of CallExpressions (e.g., `await foo({...})` should match pattern `foo`)
+    if (Node.isCallExpression(expression)) {
+      const calleeText = expression.getExpression().getText();
+      if (matchesCallPattern(calleeText, check.call)) {
+        return {
+          check,
+          passed: false,
+          message: `Found unwanted 'await ${check.call}(...)' — this call should NOT be awaited`,
+        };
+      }
     }
   }
 

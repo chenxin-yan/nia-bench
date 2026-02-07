@@ -1,0 +1,53 @@
+{
+  "id": "react-18-forward-ref",
+  "category": "version_locked_write",
+  "library": "react",
+  "target_version": "18.3.1",
+  "prompt": "This project uses **React 18**. Create a reusable `CustomInput` component that exposes its internal `<input>` element's ref to parent components. Use the correct React 18 approach for ref forwarding. Then create a parent that focuses the input on button click.",
+  "context": {
+    "package_json": "{\n  \"dependencies\": {\n    \"react\": \"18.3.1\",\n    \"react-dom\": \"18.3.1\"\n  }\n}"
+  },
+  "reference_solution": "import { forwardRef, useRef } from 'react';\n\nconst CustomInput = forwardRef<HTMLInputElement, { placeholder?: string }>(\n  ({ placeholder }, ref) => {\n    return <input ref={ref} placeholder={placeholder} />;\n  }\n);\nCustomInput.displayName = 'CustomInput';\n\nexport default function SearchForm() {\n  const inputRef = useRef<HTMLInputElement>(null);\n\n  return (\n    <div>\n      <CustomInput ref={inputRef} placeholder=\"Search...\" />\n      <button onClick={() => inputRef.current?.focus()}>Focus</button>\n    </div>\n  );\n}",
+  "test_spec": {
+    "ast_checks": [
+      {
+        "type": "import_exists",
+        "name": "forwardRef",
+        "from": "react"
+      },
+      {
+        "type": "call_exists",
+        "call": "forwardRef"
+      }
+    ],
+    "type_check": false
+  },
+  "rubric": {
+    "criteria": [
+      {
+        "name": "uses_forward_ref",
+        "weight": 0.4,
+        "description": "Uses `forwardRef` wrapper"
+      },
+      {
+        "name": "correct_generic_types",
+        "weight": 0.2,
+        "description": "Typed with `forwardRef<HTMLInputElement, Props>`"
+      },
+      {
+        "name": "ref_not_in_props",
+        "weight": 0.25,
+        "description": "`ref` is the second argument of forwardRef, not in props"
+      },
+      {
+        "name": "no_hallucination",
+        "weight": 0.15,
+        "description": "No React 19 patterns"
+      }
+    ]
+  },
+  "common_hallucinations": [
+    "Using `ref` as a regular prop (React 19 pattern)",
+    "Not using `forwardRef` at all"
+  ]
+}
