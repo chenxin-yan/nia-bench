@@ -1,0 +1,61 @@
+{
+  "id": "nextjs-16-audit-v15-code",
+  "category": "version_locked_audit",
+  "library": "next",
+  "target_version": "16.1.6",
+  "prompt": "This project is upgrading from **Next.js 15 to Next.js 16**. Audit the following code and identify every pattern that is broken, deprecated, or renamed in Next.js 16. For each issue, provide the correct v16 replacement.\n\n```typescript\n// middleware.ts\nimport { NextResponse } from 'next/server';\nimport type { NextRequest } from 'next/server';\n\nexport function middleware(request: NextRequest) {\n  return NextResponse.next();\n}\n\nexport const config = {\n  matcher: '/dashboard/:path*',\n};\n\n// next.config.js\nmodule.exports = {\n  experimental: {\n    turbopack: { /* options */ },\n    dynamicIO: true,\n    ppr: true,\n  },\n  eslint: { dirs: ['src'] },\n  serverRuntimeConfig: { secret: process.env.SECRET },\n};\n\n// package.json scripts\n// \"lint\": \"next lint\"\n```",
+  "context": {
+    "package_json": "{\n  \"dependencies\": {\n    \"next\": \"16.1.6\",\n    \"react\": \"19.2.4\",\n    \"react-dom\": \"19.2.4\"\n  }\n}"
+  },
+  "reference_solution": "Issues identified:\n\n1. `middleware.ts` / `export function middleware()` — Renamed to `proxy.ts` / `export function proxy()` in Next.js 16.\n2. `experimental.turbopack` — Moved to top-level `turbopack` configuration in v16 (no longer experimental).\n3. `experimental.dynamicIO` — Renamed to `cacheComponents` in v16.\n4. `experimental.ppr` — Removed in v16, use `cacheComponents: true` instead.\n5. `eslint` config in `next.config.js` — Removed in v16 (`next lint` command was removed).\n6. `serverRuntimeConfig` — Removed in v16, use environment variables directly instead.\n7. `next lint` script — Command removed in v16, use `eslint` CLI directly.",
+  "test_spec": {
+    "ast_checks": [],
+    "type_check": false
+  },
+  "rubric": {
+    "criteria": [
+      {
+        "name": "identify_middleware_rename",
+        "weight": 0.2,
+        "description": "Identifies middleware.ts/middleware() renamed to proxy.ts/proxy() in v16"
+      },
+      {
+        "name": "identify_turbopack_move",
+        "weight": 0.15,
+        "description": "Identifies experimental.turbopack moved to top-level turbopack"
+      },
+      {
+        "name": "identify_dynamicio_rename",
+        "weight": 0.15,
+        "description": "Identifies experimental.dynamicIO renamed to cacheComponents"
+      },
+      {
+        "name": "identify_ppr_removal",
+        "weight": 0.1,
+        "description": "Identifies experimental.ppr removed in v16"
+      },
+      {
+        "name": "identify_eslint_removal",
+        "weight": 0.1,
+        "description": "Identifies eslint config and next lint command removed in v16"
+      },
+      {
+        "name": "identify_runtime_config",
+        "weight": 0.1,
+        "description": "Identifies serverRuntimeConfig removed in v16"
+      },
+      {
+        "name": "correct_replacements",
+        "weight": 0.2,
+        "description": "Provides correct Next.js 16 alternatives for each identified issue"
+      }
+    ]
+  },
+  "common_hallucinations": [
+    "Not recognizing middleware.ts -> proxy.ts rename",
+    "Missing the turbopack promotion from experimental to top-level",
+    "Not identifying dynamicIO -> cacheComponents rename",
+    "Not recognizing next lint removal",
+    "Suggesting serverRuntimeConfig alternatives that don't exist in v16"
+  ]
+}

@@ -353,8 +353,8 @@
         "Run `bun run typecheck` to ensure no type errors",
         "Run `bun run lint` to ensure code quality"
       ],
-      "notes": "All task content is in BENCHMARK.md Sections 4.3. The 1 pilot task (react-17-audit-v19-code) is already done. Audit tasks have a different structure: the prompt includes code to audit, and the reference_solution lists expected issues. The rubric criteria map to specific issues that should be identified. Audit tasks do NOT have code-generation AST checks — instead, the LLM judge evaluates whether the agent identified the correct issues and provided correct alternatives. For audit tasks, set `test_spec.ast_checks` to an empty array and rely solely on the judge (`finalScore = judgeScore`). VERIFICATION: Since audit tasks have no AST checks, we verify structural correctness instead — empty ast_checks, non-empty rubric, correct weight distribution.",
-      "passed": false
+      "notes": "COMPLETED: All 9 version-locked audit tasks authored and validated. All tasks have empty ast_checks (correct for audit tasks), non-empty rubric criteria with weights summing to 1.0, context.package_json with pinned versions, and non-empty reference solutions. Validation script at scripts/validate-version-locked-audit-tasks.ts. Library coverage: Next.js (3), React (3), Zod (1), tRPC (1), AI SDK (1). Total benchmark tasks now at 37 (14 + 14 + 9).",
+      "passed": true
     },
     {
       "description": "Build the results reporter generating comparison tables and per-task breakdowns",

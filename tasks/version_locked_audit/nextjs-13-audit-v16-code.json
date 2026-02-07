@@ -1,0 +1,61 @@
+{
+  "id": "nextjs-13-audit-v16-code",
+  "category": "version_locked_audit",
+  "library": "next",
+  "target_version": "13.5.6",
+  "prompt": "This project uses **Next.js 13**. Audit the following code and identify all APIs or patterns that are NOT available in Next.js 13. For each issue, explain why it's invalid and provide the correct Next.js 13 alternative.\n\n```typescript\n// proxy.ts\nimport { NextResponse } from 'next/server';\nimport type { NextRequest } from 'next/server';\n\nexport function proxy(request: NextRequest) {\n  const token = request.cookies.get('auth-token');\n  if (!token) return NextResponse.redirect(new URL('/login', request.url));\n  return NextResponse.next();\n}\n\n// app/dashboard/page.tsx\n'use cache';\nimport { cookies } from 'next/headers';\nimport { after } from 'next/server';\nimport { cacheTag, cacheLife, updateTag } from 'next/cache';\n\ncacheLife('hours');\ncacheTag('dashboard');\n\nexport default async function Dashboard({ params }: { params: Promise<{ id: string }> }) {\n  const { id } = await params;\n  const cookieStore = await cookies();\n  const token = cookieStore.get('token');\n\n  after(() => {\n    console.log('Dashboard viewed:', id);\n  });\n\n  return <div>Dashboard {id}</div>;\n}\n```",
+  "context": {
+    "package_json": "{\n  \"dependencies\": {\n    \"next\": \"13.5.6\",\n    \"react\": \"18.2.0\",\n    \"react-dom\": \"18.2.0\"\n  }\n}"
+  },
+  "reference_solution": "Issues identified:\n\n1. `proxy.ts` / `export function proxy()` — Next.js 13 uses `middleware.ts` / `export function middleware()`. The `proxy.ts` naming is a v16-only feature.\n2. `'use cache'` directive — Does not exist in Next.js 13. This is a v16-only feature for cache components.\n3. `await params` with `params: Promise<{ id: string }>` — In Next.js 13, params are direct objects (not Promises). Access directly as `params.id` with type `{ id: string }`.\n4. `await cookies()` — In Next.js 13, `cookies()` is synchronous. Call it without `await`.\n5. `after()` — Does not exist in Next.js 13. This was introduced in v15+.\n6. `cacheTag()`, `cacheLife()`, `updateTag()` from `next/cache` — Do not exist in Next.js 13. These are v16-only cache APIs.\n7. `params: Promise<{ id: string }>` — Wrong type for v13. Should be `{ params: { id: string } }` (direct object, not Promise).",
+  "test_spec": {
+    "ast_checks": [],
+    "type_check": false
+  },
+  "rubric": {
+    "criteria": [
+      {
+        "name": "identify_proxy_rename",
+        "weight": 0.15,
+        "description": "Identifies proxy.ts/proxy() as v16-only, should be middleware.ts/middleware()"
+      },
+      {
+        "name": "identify_use_cache",
+        "weight": 0.15,
+        "description": "Identifies 'use cache' directive as v16-only"
+      },
+      {
+        "name": "identify_async_params",
+        "weight": 0.15,
+        "description": "Identifies await params as invalid for v13 — params are direct objects, not Promises"
+      },
+      {
+        "name": "identify_async_cookies",
+        "weight": 0.15,
+        "description": "Identifies await cookies() as invalid for v13 — cookies() is synchronous"
+      },
+      {
+        "name": "identify_after",
+        "weight": 0.1,
+        "description": "Identifies after() as v15+ only, not available in v13"
+      },
+      {
+        "name": "identify_cache_apis",
+        "weight": 0.1,
+        "description": "Identifies cacheTag/cacheLife/updateTag as v16-only"
+      },
+      {
+        "name": "correct_alternatives",
+        "weight": 0.2,
+        "description": "Provides correct Next.js 13 alternatives for each identified issue"
+      }
+    ]
+  },
+  "common_hallucinations": [
+    "Not recognizing proxy.ts as a v16 rename from middleware.ts",
+    "Not identifying 'use cache' as v16-only",
+    "Suggesting await cookies() is correct for all Next.js versions",
+    "Not identifying after() as v15+ only",
+    "Missing the params Promise type change"
+  ]
+}

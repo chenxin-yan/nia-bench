@@ -1,0 +1,56 @@
+{
+  "id": "react-19-audit-removed-apis",
+  "category": "version_locked_audit",
+  "library": "react",
+  "target_version": "19.2.4",
+  "prompt": "This project just upgraded to **React 19**. Audit the following code for APIs that were removed or deprecated in React 19 and suggest the correct replacements.\n\n```tsx\nimport React from 'react';\nimport ReactDOM from 'react-dom';\nimport PropTypes from 'prop-types';\n\nconst MyInput = React.forwardRef((props, ref) => {\n  return <input ref={ref} {...props} />;\n});\n\nMyInput.defaultProps = { placeholder: 'Enter text...' };\nMyInput.propTypes = { placeholder: PropTypes.string };\n\nfunction App() {\n  return (\n    <MyContext.Provider value=\"dark\">\n      <MyInput ref=\"inputRef\" />\n    </MyContext.Provider>\n  );\n}\n\nReactDOM.render(<App />, document.getElementById('root'));\n```",
+  "context": {
+    "package_json": "{\n  \"dependencies\": {\n    \"react\": \"19.2.4\",\n    \"react-dom\": \"19.2.4\"\n  }\n}"
+  },
+  "reference_solution": "Issues identified:\n\n1. `ReactDOM.render` — Removed in React 19. Use `createRoot` from `react-dom/client`: `createRoot(document.getElementById('root')).render(<App />)`.\n2. `defaultProps` on function component — Removed in React 19. Use JavaScript default parameters instead: `function MyInput({ placeholder = 'Enter text...' })`.\n3. `PropTypes` — Removed from React core in v19. Use TypeScript for type checking instead.\n4. `React.forwardRef` — Deprecated in React 19. Pass `ref` as a regular prop: `function MyInput({ ref, ...props })` and use it directly.\n5. `ref=\"inputRef\"` — String refs removed in React 19. Use `useRef()` hook: `const inputRef = useRef(null)` and pass `ref={inputRef}`.\n6. `<MyContext.Provider>` — Can use `<MyContext>` directly in React 19 (the `.Provider` suffix is optional/deprecated).",
+  "test_spec": {
+    "ast_checks": [],
+    "type_check": false
+  },
+  "rubric": {
+    "criteria": [
+      {
+        "name": "identify_render_removed",
+        "weight": 0.2,
+        "description": "Identifies ReactDOM.render as removed in React 19, should use createRoot"
+      },
+      {
+        "name": "identify_defaultprops",
+        "weight": 0.2,
+        "description": "Identifies defaultProps as removed on function components in React 19"
+      },
+      {
+        "name": "identify_proptypes",
+        "weight": 0.15,
+        "description": "Identifies PropTypes as removed from React core in v19"
+      },
+      {
+        "name": "identify_forwardref",
+        "weight": 0.15,
+        "description": "Identifies forwardRef as deprecated in React 19, ref can be a regular prop"
+      },
+      {
+        "name": "identify_string_ref",
+        "weight": 0.15,
+        "description": "Identifies string refs (ref=\"inputRef\") as removed in React 19"
+      },
+      {
+        "name": "correct_replacements",
+        "weight": 0.15,
+        "description": "Provides correct React 19 alternatives for each identified issue"
+      }
+    ]
+  },
+  "common_hallucinations": [
+    "Not recognizing forwardRef as deprecated in React 19",
+    "Not identifying string refs as removed",
+    "Missing defaultProps removal on function components",
+    "Suggesting React 18 patterns instead of React 19 patterns",
+    "Not mentioning Context.Provider simplification"
+  ]
+}

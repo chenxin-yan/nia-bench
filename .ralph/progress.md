@@ -812,3 +812,57 @@
 - The validation script `scripts/validate-version-locked-write-tasks.ts` follows the same pattern as the bleeding-edge validation script and also checks for `context.package_json` presence
 - When creating version-locked-audit tasks (task 14), note that audit tasks have `test_spec.ast_checks` as an empty array and rely entirely on the LLM judge
 - The `call_absent` for method calls uses dotted pattern (e.g., `result.toDataStreamResponse`) — same convention established in the bleeding-edge tasks
+
+---
+
+## Task: Author all remaining Version-Locked Audit task JSON files (8 remaining after 1 pilot task)
+
+### Completed
+
+- Created all 8 remaining version-locked audit task JSON files:
+  - `tasks/version_locked_audit/nextjs-13-audit-v16-code.json` — Task B2-NX-1: audit Next.js 16 code for v13 compatibility (proxy.ts, use cache, async params/cookies, after(), cacheTag/cacheLife/updateTag)
+  - `tasks/version_locked_audit/nextjs-16-audit-v15-code.json` — Task B2-NX-2: audit v15 code upgrading to v16 (middleware rename, turbopack move, dynamicIO rename, ppr removal, eslint removal, serverRuntimeConfig removal)
+  - `tasks/version_locked_audit/nextjs-16-audit-parallel-routes.json` — Task B2-NX-3: audit missing parallel route defaults (@sidebar/default.tsx, @modal/default.tsx)
+  - `tasks/version_locked_audit/react-19-audit-removed-apis.json` — Task B2-RX-2: detect removed APIs in React 19 (ReactDOM.render, defaultProps, PropTypes, forwardRef, string refs, Context.Provider)
+  - `tasks/version_locked_audit/react-18-audit-missed-features.json` — Task B2-RX-3: audit React 17 code for v18 migration (createRoot, useTransition, useDeferredValue)
+  - `tasks/version_locked_audit/zod-4-audit-v3-code.json` — Task B2-ZD-1: audit Zod v3 code for v4 migration (message->error, .ip() removal, record change, required_error removal, deepPartial removal, format/flatten deprecation)
+  - `tasks/version_locked_audit/trpc-11-audit-v10-code.json` — Task B2-TR-1: audit tRPC v10 code for v11 migration (client rename, SSG rename, transformer move, rawInput->getRawInput)
+  - `tasks/version_locked_audit/ai-sdk-4-audit-v3-code.json` — Task B2-AI-1: audit AI SDK v3 code for v4 migration (experimental_ prefix, async change, provider init, roundtrips rename, response rename)
+- All 9 version-locked audit tasks load successfully via the task loader (37 total tasks loaded)
+- All tasks have `test_spec.ast_checks` set to an empty array `[]` (correct for audit tasks relying entirely on LLM judge)
+- All tasks have non-empty rubric criteria (4-7 criteria per task)
+- All rubric criteria weights sum to exactly 1.00 for every task
+- All tasks have `context.package_json` with pinned library versions
+- All tasks have non-empty reference solutions and common_hallucinations
+- Created `scripts/validate-version-locked-audit-tasks.ts` comprehensive validation script
+- Verified: `bun test` (281 tests pass, 0 fail), `bun run typecheck` passes, `bun run lint` clean
+
+### Files Changed
+
+- `tasks/version_locked_audit/nextjs-13-audit-v16-code.json` — New task: Next.js 13 audit v16 code
+- `tasks/version_locked_audit/nextjs-16-audit-v15-code.json` — New task: Next.js 16 audit v15 code
+- `tasks/version_locked_audit/nextjs-16-audit-parallel-routes.json` — New task: Next.js 16 audit parallel routes
+- `tasks/version_locked_audit/react-19-audit-removed-apis.json` — New task: React 19 audit removed APIs
+- `tasks/version_locked_audit/react-18-audit-missed-features.json` — New task: React 18 audit missed features
+- `tasks/version_locked_audit/zod-4-audit-v3-code.json` — New task: Zod v4 audit v3 code
+- `tasks/version_locked_audit/trpc-11-audit-v10-code.json` — New task: tRPC v11 audit v10 code
+- `tasks/version_locked_audit/ai-sdk-4-audit-v3-code.json` — New task: AI SDK v4 audit v3 code
+- `scripts/validate-version-locked-audit-tasks.ts` — New validation script for audit tasks
+
+### Decisions
+
+- All audit tasks have `test_spec.ast_checks` as an empty array and `type_check: false` — audit tasks produce text analysis (not code), so AST checks and type checking are not applicable. They rely 100% on the LLM judge for evaluation.
+- All audit tasks include `context.package_json` with pinned library versions matching the typecheck-envs — this simulates a real project workspace where the agent can see which version is in use
+- Reference solutions for audit tasks are text descriptions listing expected issues with explanations, not code — this matches the audit task format where the agent produces analysis
+- Task content (prompts, expected issues, rubric criteria, weights) follows BENCHMARK.md Section 4.3 verbatim
+- Library coverage: Next.js (3 tasks), React (3 tasks), Zod (1 task), tRPC (1 task), AI SDK (1 task) = 9 total audit tasks
+- The prd.json description mentions "12 tasks" for audit category but BENCHMARK.md notes "room for 3 more" — 9 tasks are the currently specified set
+
+### Notes for Future Agent
+
+- All 37 benchmark tasks are now authored: 14 bleeding-edge + 14 version-locked-write + 9 version-locked-audit
+- The SPEC mentions 40 tasks total but BENCHMARK.md only specifies 37 (with "room for 3 more" audit tasks). The 37 are complete.
+- The next task to work on is the results reporter (task 15 in prd.json) — "Build the results reporter generating comparison tables and per-task breakdowns"
+- For the reporter, audit tasks have `finalScore = judgeScore` (100% judge weight, since no AST checks). The evaluator already handles this special case.
+- The validation script `scripts/validate-version-locked-audit-tasks.ts` can serve as a reference for verifying audit task structure
+- All validation scripts are in the `scripts/` directory: `validate-pilot-tasks.ts`, `validate-bleeding-edge-tasks.ts`, `validate-version-locked-write-tasks.ts`, `validate-version-locked-audit-tasks.ts`

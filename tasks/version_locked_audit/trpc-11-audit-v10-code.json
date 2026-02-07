@@ -1,0 +1,51 @@
+{
+  "id": "trpc-11-audit-v10-code",
+  "category": "version_locked_audit",
+  "library": "trpc",
+  "target_version": "11.9.0",
+  "prompt": "This project is upgrading from **tRPC v10 to v11**. Audit the following code and identify every pattern that is broken or renamed in tRPC v11.\n\n```typescript\nimport { createTRPCProxyClient, httpBatchLink } from '@trpc/client';\nimport { createProxySSGHelpers } from '@trpc/react-query/ssg';\nimport superjson from 'superjson';\n\nconst client = createTRPCProxyClient<AppRouter>({\n  transformer: superjson,\n  links: [httpBatchLink({ url: '/api/trpc' })],\n});\n\n// middleware\nconst myMiddleware = t.middleware(({ rawInput, next }) => {\n  console.log(rawInput);\n  return next();\n});\n```",
+  "context": {
+    "package_json": "{\n  \"dependencies\": {\n    \"@trpc/server\": \"11.9.0\",\n    \"@trpc/client\": \"11.9.0\",\n    \"superjson\": \"2.2.2\",\n    \"zod\": \"3.25.76\"\n  }\n}"
+  },
+  "reference_solution": "Issues identified:\n\n1. `createTRPCProxyClient` — Renamed to `createTRPCClient` in tRPC v11. Import and use `createTRPCClient` from `@trpc/client`.\n2. `createProxySSGHelpers` from `@trpc/react-query/ssg` — Renamed to `createSSGHelpers` in tRPC v11. The `Proxy` prefix was removed.\n3. `transformer: superjson` at client level — In tRPC v11, the transformer must be moved to the link configuration. Use `httpBatchLink({ url: '/api/trpc', transformer: superjson })` instead of setting it on the client.\n4. `rawInput` in middleware — Renamed to `getRawInput()` function in tRPC v11. It's now an async function call: `const input = await getRawInput();` instead of a direct property access.",
+  "test_spec": {
+    "ast_checks": [],
+    "type_check": false
+  },
+  "rubric": {
+    "criteria": [
+      {
+        "name": "identify_client_rename",
+        "weight": 0.25,
+        "description": "Identifies createTRPCProxyClient renamed to createTRPCClient in v11"
+      },
+      {
+        "name": "identify_ssg_rename",
+        "weight": 0.25,
+        "description": "Identifies createProxySSGHelpers renamed to createSSGHelpers in v11"
+      },
+      {
+        "name": "identify_transformer_move",
+        "weight": 0.25,
+        "description": "Identifies transformer must move from client level to link config in v11"
+      },
+      {
+        "name": "identify_raw_input",
+        "weight": 0.15,
+        "description": "Identifies rawInput property renamed to getRawInput() function in v11"
+      },
+      {
+        "name": "correct_replacements",
+        "weight": 0.1,
+        "description": "Provides correct tRPC v11 code replacements"
+      }
+    ]
+  },
+  "common_hallucinations": [
+    "Not recognizing createTRPCProxyClient -> createTRPCClient rename",
+    "Not identifying createProxySSGHelpers -> createSSGHelpers rename",
+    "Missing the transformer location change from client to link",
+    "Not recognizing rawInput -> getRawInput() change",
+    "Suggesting the @trpc/react-query/ssg import path changed when only the function name changed"
+  ]
+}

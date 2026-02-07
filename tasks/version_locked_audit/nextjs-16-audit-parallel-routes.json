@@ -1,0 +1,45 @@
+{
+  "id": "nextjs-16-audit-parallel-routes",
+  "category": "version_locked_audit",
+  "library": "next",
+  "target_version": "16.1.6",
+  "prompt": "This project uses **Next.js 16**. The build is failing with errors about parallel routes. Audit the following file structure and code, identify the issues, and explain the fixes.\n\n```\napp/\n  layout.tsx         # uses @sidebar and @modal slots\n  page.tsx\n  @sidebar/\n    page.tsx          # sidebar content\n  @modal/\n    (.)photo/\n      [id]/\n        page.tsx      # intercepted modal route\n```\n\n```typescript\n// app/layout.tsx\nexport default function RootLayout({\n  children,\n  sidebar,\n  modal,\n}: {\n  children: React.ReactNode;\n  sidebar: React.ReactNode;\n  modal: React.ReactNode;\n}) {\n  return (\n    <html>\n      <body>\n        <div>{sidebar}</div>\n        <main>{children}</main>\n        {modal}\n      </body>\n    </html>\n  );\n}\n```",
+  "context": {
+    "package_json": "{\n  \"dependencies\": {\n    \"next\": \"16.1.6\",\n    \"react\": \"19.2.4\",\n    \"react-dom\": \"19.2.4\"\n  }\n}"
+  },
+  "reference_solution": "Issues identified:\n\n1. `@sidebar/` is missing a `default.tsx` file — Required in Next.js 16 for all parallel route slots. Without it, the slot has no fallback when the URL doesn't match the slot's routes.\n2. `@modal/` is missing a `default.tsx` file — Required in Next.js 16 for all parallel route slots. Without it, navigating to routes that don't match the modal slot causes build errors.\n3. Each slot needs an explicit `default.tsx` that returns `null` (for invisible default) or calls `notFound()`. Example:\n   ```tsx\n   // app/@sidebar/default.tsx\n   export default function Default() { return null; }\n   // app/@modal/default.tsx\n   export default function Default() { return null; }\n   ```\n4. This is a v16 requirement — in v15, missing `default.tsx` was tolerated in some cases, but v16 enforces it strictly for all parallel route slots.",
+  "test_spec": {
+    "ast_checks": [],
+    "type_check": false
+  },
+  "rubric": {
+    "criteria": [
+      {
+        "name": "identify_sidebar_default",
+        "weight": 0.3,
+        "description": "Identifies @sidebar needs a default.tsx file"
+      },
+      {
+        "name": "identify_modal_default",
+        "weight": 0.3,
+        "description": "Identifies @modal needs a default.tsx file"
+      },
+      {
+        "name": "correct_fix",
+        "weight": 0.25,
+        "description": "Provides correct default.tsx implementation (return null or notFound)"
+      },
+      {
+        "name": "explains_v16_requirement",
+        "weight": 0.15,
+        "description": "Explains this is a v16 requirement (was optional in v15)"
+      }
+    ]
+  },
+  "common_hallucinations": [
+    "Not identifying missing default.tsx as the root cause",
+    "Suggesting layout.tsx changes instead of adding default.tsx files",
+    "Not recognizing this is a v16-specific enforcement",
+    "Providing incorrect default.tsx content"
+  ]
+}

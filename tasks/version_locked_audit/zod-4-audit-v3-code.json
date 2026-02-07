@@ -1,0 +1,62 @@
+{
+  "id": "zod-4-audit-v3-code",
+  "category": "version_locked_audit",
+  "library": "zod",
+  "target_version": "4.3.6",
+  "prompt": "This project is upgrading from **Zod v3 to v4**. Audit the following code and identify every pattern that is deprecated or broken in Zod v4. For each, provide the correct v4 replacement.\n\n```typescript\nimport { z } from 'zod';\n\nconst userSchema = z.object({\n  email: z.string().email({ message: 'Invalid email' }),\n  ip: z.string().ip({ version: 'v4' }),\n  config: z.record(z.number()),\n  name: z.string({\n    required_error: 'Name required',\n    invalid_type_error: 'Name must be text',\n  }).min(2, { message: 'Too short' }),\n}).deepPartial();\n\nconst result = userSchema.safeParse(data);\nif (!result.success) {\n  const formatted = result.error.format();\n  const flat = result.error.flatten();\n}\n```",
+  "context": {
+    "package_json": "{\n  \"dependencies\": {\n    \"zod\": \"4.3.6\"\n  }\n}"
+  },
+  "reference_solution": "Issues identified:\n\n1. `.email({ message: 'Invalid email' })` — `message` parameter is deprecated in Zod v4. Use `error` parameter instead: `.email({ error: 'Invalid email' })`. Or use top-level `z.email()`.\n2. `.ip({ version: 'v4' })` — `.ip()` method removed in Zod v4. Use `z.ipv4()` for IPv4 validation.\n3. `z.record(z.number())` — Single-argument `z.record()` removed in Zod v4. Use `z.record(z.string(), z.number())` with explicit key schema.\n4. `required_error` / `invalid_type_error` — Removed in Zod v4. Use `error` function parameter: `z.string({ error: (issue) => issue.input === undefined ? 'Name required' : 'Name must be text' })`.\n5. `{ message: 'Too short' }` — `message` parameter deprecated in Zod v4. Use `error`: `.min(2, { error: 'Too short' })`.\n6. `.deepPartial()` — Removed in Zod v4. No direct replacement; use `.partial()` for shallow partial, or restructure schema.\n7. `.format()` and `.flatten()` — Deprecated in Zod v4. Use `z.treeifyError()` instead.",
+  "test_spec": {
+    "ast_checks": [],
+    "type_check": false
+  },
+  "rubric": {
+    "criteria": [
+      {
+        "name": "identify_message_deprecation",
+        "weight": 0.15,
+        "description": "Identifies message parameter deprecated in favor of error parameter"
+      },
+      {
+        "name": "identify_ip_removal",
+        "weight": 0.15,
+        "description": "Identifies .ip() removed, should use z.ipv4()"
+      },
+      {
+        "name": "identify_record_change",
+        "weight": 0.15,
+        "description": "Identifies single-arg z.record() is broken, needs 2 args"
+      },
+      {
+        "name": "identify_error_params",
+        "weight": 0.15,
+        "description": "Identifies required_error/invalid_type_error removed, use error function"
+      },
+      {
+        "name": "identify_deep_partial",
+        "weight": 0.1,
+        "description": "Identifies .deepPartial() removed in Zod v4"
+      },
+      {
+        "name": "identify_format_flatten",
+        "weight": 0.1,
+        "description": "Identifies .format()/.flatten() deprecated in favor of z.treeifyError()"
+      },
+      {
+        "name": "correct_replacements",
+        "weight": 0.2,
+        "description": "Provides correct Zod v4 alternatives for each identified issue"
+      }
+    ]
+  },
+  "common_hallucinations": [
+    "Not recognizing message -> error parameter change",
+    "Not identifying .ip() removal in favor of z.ipv4()",
+    "Missing the single-arg z.record() change",
+    "Not recognizing required_error/invalid_type_error removal",
+    "Not identifying .deepPartial() removal",
+    "Suggesting .format()/.flatten() still work in v4"
+  ]
+}
