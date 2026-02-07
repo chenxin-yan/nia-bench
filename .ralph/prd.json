@@ -17,7 +17,7 @@
         "Run `bun test` to verify the test runner is configured (should report 0 tests, no errors)"
       ],
       "notes": "Use Bun runtime throughout. The CLI entry point will be expanded in later tasks. Path aliases help keep imports clean. Biome replaces ESLint+Prettier as a single fast tool. See SPEC.md Technical Stack section.",
-      "passed": false
+      "passed": true
     },
     {
       "description": "Define task JSON schema with Zod and create the task loader module",
