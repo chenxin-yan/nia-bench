@@ -565,3 +565,73 @@
 - When building the result storage (task 11), serialize the full `EvaluationResult` including `astResults`, `judgeResult`, and `hallucinations` as JSON
 - The `extractedFiles` field in `EvaluationResult` preserves what was evaluated — useful for debugging and report generation
 - Multi-file tasks work transparently: the evaluator handles file routing for AST checks and concatenation for judge/classifier
+
+---
+
+## Task: Build the CLI orchestrator with configurable parallelism, work queue, and result storage
+
+### Completed
+
+- Expanded `src/index.ts` from a placeholder into a full CLI entry point that parses args and calls `runBenchmark()`
+- Created `src/runner/orchestrator.ts` with the full orchestration pipeline:
+  - CLI argument parser supporting all flags: `--category`, `--library`, `--task`, `--condition`, `--reps`, `--parallel`, `--skip-judge`, `--keep-workdirs`, `--output-dir`, `--timeout`, `--seed`, `--dry-run`, `--eval-only`, `--report-only`, `--tasks-dir`
+  - Work queue generation: enumerates all (task, condition, rep) tuples into a flat array
+  - Seeded random (mulberry32 PRNG) for reproducible execution order shuffling via `--seed`
+  - Fisher-Yates shuffle with seeded RNG for randomizing work queue
+  - `AsyncSemaphore` for controlling parallel worker concurrency (configurable via `--parallel N`)
+  - `ProgressLogger` with rolling average ETA estimation and elapsed time display
+  - `formatDuration()` helper for human-readable time strings
+  - Graceful interruption handling (SIGINT/SIGTERM): stops spawning new workers, waits for in-flight workers, saves partial results with `status: 'interrupted'`
+  - `--dry-run` mode: prints the shuffled execution plan without running anything
+  - `--eval-only` and `--report-only` mode stubs (to be fully implemented in later tasks)
+  - Full execution pipeline: load tasks → generate queue → shuffle → run agent → evaluate → store result → update metadata
+- Created `src/runner/result-store.ts` with:
+  - `createRunDir()`: creates timestamped results directory at `results/{timestamp}/`
+  - `storeResult()`: writes each `EvaluationResult` as JSON to `results/{timestamp}/{taskId}/{condition}/run-{index}.json` with atomic writes (temp file + rename)
+  - `writeRunMetadata()`: writes/updates `run-meta.json` with run configuration, timing, and status
+- Updated `src/runner/index.ts` barrel exports to include all new modules
+- Wrote comprehensive test file `src/runner/__tests__/orchestrator.test.ts` with 30 tests across 8 describe blocks:
+  - **generateWorkQueue (5 tests)**: correct item count (3x2x2=12), all combos present, single task x 3 conditions, empty task list, 0-based rep indices
+  - **createSeededRandom (3 tests)**: same seed same sequence, different seeds different sequences, values in [0,1) range
+  - **shuffleArray (6 tests)**: same seed same order, different seeds different order, preserves all elements, does not mutate original, work queue reproducibility, work queue difference
+  - **parseCliArgs (4 tests)**: all flags parsed, defaults correct, eval-only/report-only, tasks-dir
+  - **formatDuration (4 tests)**: ms, seconds, minutes+seconds, hours+minutes
+  - **AsyncSemaphore (2 tests)**: respects max concurrency, sequential with concurrency=1
+  - **ProgressLogger (1 test)**: tracks completed count
+  - **result-store (5 tests)**: createRunDir, storeResult path structure, multiple runs, writeRunMetadata create, writeRunMetadata update
+- Verified --dry-run: `bun run bench --dry-run --reps 1` prints exactly 15 items (5 tasks x 3 conditions x 1 rep)
+- Verified --dry-run with filters: `bun run bench --dry-run --task nextjs-16-proxy-ts --condition baseline --reps 2` prints exactly 2 items
+- Verified --seed reproducibility: `bun run bench --dry-run --reps 1 --seed 42` produces identical output on two consecutive runs
+- Verified: `bun test` (272 tests pass across 10 files, 0 fail), `bun run typecheck` passes, `bun run lint` clean
+
+### Files Changed
+
+- `src/index.ts` — Expanded from placeholder to full CLI entry point
+- `src/runner/orchestrator.ts` — Main orchestrator with CLI parsing, work queue, parallel execution, progress logging
+- `src/runner/result-store.ts` — Result storage with atomic writes and run metadata
+- `src/runner/index.ts` — Updated barrel exports for new modules
+- `src/runner/__tests__/orchestrator.test.ts` — Comprehensive test suite (30 tests)
+
+### Decisions
+
+- Used a simple mulberry32 PRNG for seeded random instead of a library — it's lightweight, deterministic, and sufficient for shuffling. The algorithm is well-known and produces good distribution.
+- Used `Bun.spawn()` for process spawning (consistent with agent.ts) and `process.argv` parsing with a custom switch-based parser (no external dependency like `minimist` or `yargs`) — the flag set is small and well-defined.
+- Atomic writes for result storage: write to `.tmp` file then `rename()` — prevents corruption from parallel workers writing simultaneously.
+- The `AsyncSemaphore` is a simple promise-queue semaphore pattern — no external library needed. Workers acquire before starting, release on completion.
+- The `ProgressLogger` uses a rolling average of the last 10 execution durations for ETA estimation — more accurate than total average since execution times may vary.
+- Signal handling uses `process.on('SIGINT'/'SIGTERM')` with an `interrupted` flag that prevents new work from starting but lets in-flight workers finish. Metadata is updated to `status: 'interrupted'` on signal.
+- The `--eval-only` and `--report-only` modes are stubbed with console messages pointing to their respective future tasks (task 12 and task 15). The structural wiring is in place.
+- The orchestrator uses `Promise.allSettled()` (via map + semaphore pattern) to ensure all settled promises are awaited, even on error.
+
+### Notes for Future Agent
+
+- The CLI entry point at `src/index.ts` now imports and calls `runBenchmark()` from the orchestrator — no longer just a placeholder
+- For the pilot run (task 12), the orchestrator is ready to use. Just run `bun run bench --task nextjs-16-proxy-ts --condition baseline --reps 1 --skip-judge --keep-workdirs` to test end-to-end
+- The `--eval-only` mode needs full implementation in task 12 or later — it should read existing `AgentResult` JSON files from a results directory and re-run evaluation
+- The `--report-only` mode delegates to the reporter (task 15) — the placeholder message should be replaced with an actual call to `generateReport()`
+- Result files are stored at `results/{timestamp}/{taskId}/{condition}/run-{index}.json` — the reporter needs to scan this structure
+- Run metadata at `results/{timestamp}/run-meta.json` includes all configuration for reproducibility
+- The `RunMetadata` type includes `completedItems` and `totalItems` for tracking partial results on interruption
+- The worker pool creates all promises upfront (via `workQueue.map()`) and uses the semaphore to limit concurrency — this is simpler than a pull-based queue and works well with `Promise.allSettled()`
+- The `--tasks-dir` flag can override where tasks are loaded from (default: `{cwd}/tasks/`)
+- All CLI flags use `--kebab-case` convention (e.g., `--skip-judge`, `--keep-workdirs`, `--output-dir`)

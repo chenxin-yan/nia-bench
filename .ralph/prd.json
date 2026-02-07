@@ -265,7 +265,7 @@
         "Run `bun run lint` to ensure code quality"
       ],
       "notes": "PARALLELISM: The main bottleneck is the LLM provider's API rate limit (Anthropic for Claude Sonnet). With --parallel 5, we'd have 5 simultaneous Claude Sonnet requests. Users should set --parallel based on their API tier. Default is 1 (sequential) for safety.\n\nCONCURRENCY SAFETY: Each worker operates in its own temp dir (created by runAgent), so there are zero file system conflicts. opencode processes in different directories have no shared state (confirmed by code research — separate SQLite DBs, config, and sessions per CWD). The only shared resource is the results directory — use atomic file writes (write to temp file then rename) to avoid corruption.\n\nWORK QUEUE: The queue is generated upfront: for N tasks × 3 conditions × R reps = N*3*R items. Shuffling ensures no systematic ordering bias. The --seed flag allows reproducing the exact same execution order.\n\nETA CALCULATION: Track a rolling average of the last 10 execution durations to estimate remaining time. This is more accurate than total average since early tasks may be faster/slower.\n\nVERIFICATION: The --dry-run tests validate the orchestrator logic without any API calls. This is the cheapest and fastest way to verify the core orchestration works. The actual E2E execution is tested in the pilot run (task 12).",
-      "passed": false
+      "passed": true
     },
     {
       "description": "Pilot run: execute end-to-end pipeline on 5 pilot tasks and validate sandboxing, execution, and evaluation",
