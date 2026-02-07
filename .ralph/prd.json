@@ -49,7 +49,7 @@
         "Run `bun run lint` to ensure code quality"
       ],
       "notes": "These 5 pilot tasks are chosen to cover: 2 bleeding-edge (Next.js 16, React 19), 2 version-locked-write (Next.js 13, React 17), 1 version-locked-audit (React 17). They span 2 libraries (Next.js, React) and all 3 categories. Full task content is in BENCHMARK.md Section 4. Copy prompts, reference solutions, test specs, and rubrics verbatim from BENCHMARK.md. IMPORTANT: The task JSON must match the Zod schema in `src/types/task.ts`. Key points: (1) AST checks use a discriminated union on `type` field — see the 16 supported types in task.ts, (2) rubric criterion `weight` is a float 0-1 (e.g., 0.25 = 25%), (3) audit tasks should have `test_spec.ast_checks` as an empty array `[]`, (4) use `loadTasks()` from `src/loader` to validate all 5 files load correctly. You can write a quick validation script or test.",
-      "passed": false
+      "passed": true
     },
     {
       "description": "Build the AST checker engine using ts-morph for automated test assertions",
@@ -80,7 +80,7 @@
         "Run `bun run typecheck` to ensure no type errors",
         "Run `bun run lint` to ensure code quality"
       ],
-      "notes": "Use ts-morph's Project and SourceFile APIs. Create an in-memory project (no need to write files to disk) — use `project.createSourceFile('temp.ts', code)`. Each check type maps to a specific AST traversal pattern. The discriminated union in the task schema (from task 2) defines what params each check type accepts. Keep the checker stateless — it receives code string + checks array and returns results. IMPORTANT: Testing only positive cases is insufficient — you MUST verify the checker correctly rejects bad code. For example, test that `import_absent('useFormState')` fails when code contains `import { useFormState } from 'react-dom'`. See BENCHMARK.md Section 5.1 for the full list of test types.",
+      "notes": "Use ts-morph's Project and SourceFile APIs. Create an in-memory project (no need to write files to disk) — use `project.createSourceFile('temp.ts', code)`. Each check type maps to a specific AST traversal pattern. The discriminated union in the task schema (from task 2) defines what params each check type accepts. Keep the checker stateless — it receives code string + checks array and returns results. IMPORTANT: Testing only positive cases is insufficient — you MUST verify the checker correctly rejects bad code. For example, test that `import_absent('useFormState')` fails when code contains `import { useFormState } from 'react-dom'`. See BENCHMARK.md Section 5.1 for the full list of test types. NOTE from pilot tasks: (1) `call_exists` with `config.matcher` checks for property access in an exported object — needs to handle object property detection, (2) `call_exists` with `Suspense` needs to detect JSX element usage like `<Suspense>`, (3) `call_exists` with `ReactDOM.render` needs to handle method calls on objects (property access calls), (4) `call_exists` with `use` needs to detect plain function calls. The 5 pilot tasks use these check types: function_exported, function_absent, call_exists, property_absent, import_exists, import_absent, await_absent, module_import_absent. Test against all 5 pilot task reference solutions.",
       "passed": false
     },
     {

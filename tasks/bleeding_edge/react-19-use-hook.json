@@ -1,0 +1,68 @@
+{
+  "id": "react-19-use-hook",
+  "category": "bleeding_edge",
+  "library": "react",
+  "target_version": "19.0.0",
+  "prompt": "Using React 19, create a `Comments` component that receives a `commentsPromise` prop (a Promise that resolves to an array of comments). Use the `use()` hook to read the promise value. Wrap the component in Suspense in the parent. Each comment has `id`, `author`, and `text` fields.",
+  "reference_solution": "import { use, Suspense } from 'react';\n\ntype Comment = { id: string; author: string; text: string };\n\nfunction Comments({ commentsPromise }: { commentsPromise: Promise<Comment[]> }) {\n  const comments = use(commentsPromise);\n  return (\n    <ul>\n      {comments.map((comment) => (\n        <li key={comment.id}>\n          <strong>{comment.author}</strong>: {comment.text}\n        </li>\n      ))}\n    </ul>\n  );\n}\n\nexport default function CommentsSection({ commentsPromise }: { commentsPromise: Promise<Comment[]> }) {\n  return (\n    <Suspense fallback={<p>Loading comments...</p>}>\n      <Comments commentsPromise={commentsPromise} />\n    </Suspense>\n  );\n}",
+  "test_spec": {
+    "ast_checks": [
+      {
+        "type": "import_exists",
+        "name": "use",
+        "from": "react"
+      },
+      {
+        "type": "call_exists",
+        "call": "use"
+      },
+      {
+        "type": "call_exists",
+        "call": "Suspense"
+      },
+      {
+        "type": "import_absent",
+        "name": "useEffect"
+      },
+      {
+        "type": "import_absent",
+        "name": "useState"
+      }
+    ],
+    "type_check": false
+  },
+  "rubric": {
+    "criteria": [
+      {
+        "name": "use_hook_import",
+        "weight": 0.2,
+        "description": "Imports `use` from `react`"
+      },
+      {
+        "name": "use_hook_call",
+        "weight": 0.3,
+        "description": "Calls `use()` with the promise prop"
+      },
+      {
+        "name": "suspense_boundary",
+        "weight": 0.2,
+        "description": "Wraps component in `<Suspense>`"
+      },
+      {
+        "name": "no_useeffect_pattern",
+        "weight": 0.15,
+        "description": "Does not fall back to useEffect+useState"
+      },
+      {
+        "name": "no_hallucination",
+        "weight": 0.15,
+        "description": "No invented hooks"
+      }
+    ]
+  },
+  "common_hallucinations": [
+    "Using `useEffect` + `useState` pattern (React 17/18 approach)",
+    "Inventing `useSuspense()` or `usePromise()` hooks",
+    "Using `React.lazy()` instead of `use()`"
+  ]
+}

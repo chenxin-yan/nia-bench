@@ -84,3 +84,45 @@
 - `RubricCriterion.weight` is a number between 0 and 1 (e.g., 0.25 = 25%), not a percentage integer
 - `TaskContext` is optional — only version-locked tasks will have it. The `code` field maps filenames to their content, `package_json` is the raw package.json string
 - The loader accepts any directory as `tasksDir` — in production this will be the project's `tasks/` directory, in tests it's a temp directory
+
+---
+
+## Task: Create 5 pilot task JSON files covering all three categories and multiple libraries
+
+### Completed
+
+- Created `tasks/bleeding_edge/nextjs-16-proxy-ts.json` — Task A-NX-1: proxy.ts middleware rename in Next.js 16. Includes 4 AST checks (function_exported proxy, function_absent middleware, call_exists config.matcher, property_absent runtime), 5 rubric criteria summing to 1.0, and 4 common hallucinations.
+- Created `tasks/bleeding_edge/react-19-use-hook.json` — Task A-RX-1: use() hook in React 19. Includes 5 AST checks (import_exists use from react, call_exists use, call_exists Suspense, import_absent useEffect, import_absent useState), 5 rubric criteria summing to 1.0, and 3 common hallucinations.
+- Created `tasks/version_locked_write/nextjs-13-sync-request-apis.json` — Task B1-NX-1: sync cookies/headers in Next.js 13. Includes 4 AST checks (await_absent cookies, await_absent headers, import_exists cookies from next/headers, import_exists headers from next/headers), 4 rubric criteria summing to 1.0, 2 common hallucinations, and context with package.json showing next@13.5.6.
+- Created `tasks/version_locked_write/react-17-render-entry.json` — Task B1-RX-2: ReactDOM.render entry point in React 17. Includes 3 AST checks (call_exists ReactDOM.render, module_import_absent react-dom/client, import_absent createRoot), 4 rubric criteria summing to 1.0, 2 common hallucinations, and context with package.json showing react@17.0.2.
+- Created `tasks/version_locked_audit/react-17-audit-v19-code.json` — Task B2-RX-1: audit React 19 code for v17 compatibility. Has 0 AST checks (audit tasks rely entirely on LLM judge), 5 rubric criteria summing to 1.0, reference_solution listing all 7 expected issues, and context with package.json.
+- Validated all 5 task files load successfully using the task loader — all pass Zod schema validation, all rubric weights sum to exactly 1.00
+- Created `scripts/validate-pilot-tasks.ts` validation script
+- Verified: `bun run typecheck` passes, `bun run lint` passes, `bun test` (13 tests pass, 0 fail)
+
+### Files Changed
+
+- `tasks/bleeding_edge/nextjs-16-proxy-ts.json` — Pilot task: Next.js 16 proxy.ts
+- `tasks/bleeding_edge/react-19-use-hook.json` — Pilot task: React 19 use() hook
+- `tasks/version_locked_write/nextjs-13-sync-request-apis.json` — Pilot task: Next.js 13 sync APIs
+- `tasks/version_locked_write/react-17-render-entry.json` — Pilot task: React 17 ReactDOM.render
+- `tasks/version_locked_audit/react-17-audit-v19-code.json` — Pilot task: React 17 audit v19 code
+- `scripts/validate-pilot-tasks.ts` — Validation script for pilot tasks
+
+### Decisions
+
+- Version-locked tasks include a `context` object with `package_json` showing the pinned library version — this simulates a real project workspace where the agent can see which version is in use
+- Audit task (react-17-audit-v19-code) has `test_spec.ast_checks` as an empty array since audit tasks are evaluated entirely by the LLM judge
+- The `reference_solution` for the audit task is a text description of expected issues rather than code — this matches the audit task format where the agent produces analysis, not code
+- Used BENCHMARK.md Section 4 content verbatim for prompts, reference solutions, test specs, and rubrics
+- AST check types map to the discriminated union defined in `src/types/task.ts` from task 2 — all check types used (`function_exported`, `function_absent`, `call_exists`, `property_absent`, `import_exists`, `import_absent`, `await_absent`, `module_import_absent`) are valid members of the union
+
+### Notes for Future Agent
+
+- These 5 pilot tasks span 2 libraries (Next.js, React) and all 3 categories (2 bleeding_edge, 2 version_locked_write, 1 version_locked_audit)
+- When implementing the AST checker (task 4), test it against these 5 pilot tasks' reference solutions — all AST checks should PASS on the correct reference code
+- The `call_exists` check with `config.matcher` in the proxy.ts task checks that a `config` object with a `matcher` property is exported — the AST checker implementation needs to handle dotted access patterns
+- The `call_exists` check with `Suspense` in the use-hook task verifies JSX usage of `<Suspense>` — the AST checker needs to handle JSX element detection
+- The `call_exists` check with `ReactDOM.render` needs to handle property access calls (method calls on objects)
+- Version-locked write tasks have `context.package_json` — the runner will write this to the temp dir before agent execution
+- The `scripts/validate-pilot-tasks.ts` script can be reused/extended when authoring remaining tasks (tasks 12-14)
