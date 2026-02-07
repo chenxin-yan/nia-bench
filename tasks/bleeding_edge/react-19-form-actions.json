@@ -1,0 +1,75 @@
+{
+  "id": "react-19-form-actions",
+  "category": "bleeding_edge",
+  "library": "react",
+  "target_version": "19.0.0",
+  "prompt": "Using React 19, create a login form component that uses `useActionState` for form submission handling and `useFormStatus` for a submit button that shows loading state. The action should validate email and password and return `{ error: string | null }`. Use Server Actions with the `'use server'` directive.",
+  "reference_solution": "'use client';\n\nimport { useActionState } from 'react';\nimport { useFormStatus } from 'react-dom';\nimport { loginAction } from './actions';\n\nfunction SubmitButton() {\n  const { pending } = useFormStatus();\n  return (\n    <button type=\"submit\" disabled={pending}>\n      {pending ? 'Signing in...' : 'Sign In'}\n    </button>\n  );\n}\n\nexport default function LoginForm() {\n  const [state, formAction, isPending] = useActionState(loginAction, { error: null });\n\n  return (\n    <form action={formAction}>\n      <input name=\"email\" type=\"email\" required />\n      <input name=\"password\" type=\"password\" required />\n      <SubmitButton />\n      {state.error && <p>{state.error}</p>}\n    </form>\n  );\n}",
+  "test_spec": {
+    "ast_checks": [
+      {
+        "type": "import_exists",
+        "name": "useActionState",
+        "from": "react"
+      },
+      {
+        "type": "import_exists",
+        "name": "useFormStatus",
+        "from": "react-dom"
+      },
+      {
+        "type": "import_absent",
+        "name": "useFormState"
+      },
+      {
+        "type": "call_exists",
+        "call": "useActionState"
+      },
+      {
+        "type": "call_exists",
+        "call": "useFormStatus"
+      }
+    ],
+    "type_check": false
+  },
+  "rubric": {
+    "criteria": [
+      {
+        "name": "useActionState_import",
+        "weight": 0.2,
+        "description": "Imports `useActionState` from `react`"
+      },
+      {
+        "name": "useFormStatus_import",
+        "weight": 0.15,
+        "description": "Imports `useFormStatus` from `react-dom`"
+      },
+      {
+        "name": "not_useFormState",
+        "weight": 0.15,
+        "description": "Does NOT use the deprecated `useFormState` name"
+      },
+      {
+        "name": "three_return_values",
+        "weight": 0.15,
+        "description": "Destructures `[state, formAction, isPending]`"
+      },
+      {
+        "name": "child_component",
+        "weight": 0.15,
+        "description": "`useFormStatus` is in a child component of the form"
+      },
+      {
+        "name": "no_hallucination",
+        "weight": 0.2,
+        "description": "No invented patterns"
+      }
+    ]
+  },
+  "common_hallucinations": [
+    "Using `useFormState` (the old canary name) from `react-dom`",
+    "Importing `useActionState` from `react-dom` instead of `react`",
+    "Using `useFormStatus` in the same component as the form (must be a child)",
+    "Only destructuring 2 values from `useActionState` (missing `isPending`)"
+  ]
+}

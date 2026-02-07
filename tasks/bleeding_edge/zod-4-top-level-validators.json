@@ -1,0 +1,67 @@
+{
+  "id": "zod-4-top-level-validators",
+  "category": "bleeding_edge",
+  "library": "zod",
+  "target_version": "4.0.0",
+  "prompt": "Using Zod v4, create a schema for a user registration form that validates: email (valid email format), website (valid URL), user ID (valid UUID), and IP address (valid IPv4). Use the new v4 top-level format validators.",
+  "reference_solution": "import { z } from 'zod';\n\nconst registrationSchema = z.object({\n  email: z.email(),\n  website: z.url(),\n  userId: z.uuid(),\n  ipAddress: z.ipv4(),\n});\n\ntype Registration = z.infer<typeof registrationSchema>;",
+  "test_spec": {
+    "ast_checks": [
+      {
+        "type": "call_exists",
+        "call": "z.email"
+      },
+      {
+        "type": "call_exists",
+        "call": "z.url"
+      },
+      {
+        "type": "call_exists",
+        "call": "z.uuid"
+      },
+      {
+        "type": "call_exists",
+        "call": "z.ipv4"
+      },
+      {
+        "type": "call_absent",
+        "call": "z.string().ip"
+      }
+    ],
+    "type_check": false
+  },
+  "rubric": {
+    "criteria": [
+      {
+        "name": "top_level_email",
+        "weight": 0.2,
+        "description": "Uses `z.email()`"
+      },
+      {
+        "name": "top_level_url",
+        "weight": 0.2,
+        "description": "Uses `z.url()`"
+      },
+      {
+        "name": "top_level_uuid",
+        "weight": 0.2,
+        "description": "Uses `z.uuid()`"
+      },
+      {
+        "name": "ipv4_not_ip",
+        "weight": 0.25,
+        "description": "Uses `z.ipv4()`, not `z.string().ip()`"
+      },
+      {
+        "name": "no_hallucination",
+        "weight": 0.15,
+        "description": "No invented APIs"
+      }
+    ]
+  },
+  "common_hallucinations": [
+    "`z.string().email()` (v3 chained pattern — deprecated in v4)",
+    "`z.string().ip()` (removed in v4, no longer exists)",
+    "`z.string().ip({ version: \"v4\" })` (v3 pattern, removed)"
+  ]
+}

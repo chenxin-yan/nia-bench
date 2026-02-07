@@ -309,8 +309,8 @@
         "Run `bun run typecheck` to ensure no type errors",
         "Run `bun run lint` to ensure code quality"
       ],
-      "notes": "All task content (prompts, reference solutions, test specs, rubrics, common hallucinations) is fully defined in BENCHMARK.md Section 4.1. Copy verbatim but ensure the JSON structure matches our Zod schema. Double-check that test_spec AST checks cover all assertions listed in BENCHMARK.md for each task. The 2 pilot tasks (nextjs-16-proxy-ts, react-19-use-hook) are already done. CRITICAL VERIFICATION: Every task's reference solution MUST pass all its own AST checks. If it doesn't, either the reference solution or the AST check is wrong — fix before proceeding.",
-      "passed": false
+      "notes": "All task content (prompts, reference solutions, test specs, rubrics, common hallucinations) is fully defined in BENCHMARK.md Section 4.1. Copy verbatim but ensure the JSON structure matches our Zod schema. Double-check that test_spec AST checks cover all assertions listed in BENCHMARK.md for each task. The 2 pilot tasks (nextjs-16-proxy-ts, react-19-use-hook) are already done. CRITICAL VERIFICATION: Every task's reference solution MUST pass all its own AST checks. If it doesn't, either the reference solution or the AST check is wrong — fix before proceeding. COMPLETED: All 14 bleeding-edge tasks authored and validated. AST checker was fixed to handle FunctionExpression nodes for async_generator checks. call_exists for method calls requires dotted pattern (e.g., result.toDataStreamResponse not just toDataStreamResponse).",
+      "passed": true
     },
     {
       "description": "Author all remaining Version-Locked Write task JSON files (12 remaining after 2 pilot tasks)",
@@ -332,7 +332,7 @@
         "Run `bun run typecheck` to ensure no type errors",
         "Run `bun run lint` to ensure code quality"
       ],
-      "notes": "All task content is in BENCHMARK.md Section 4.2. The 2 pilot tasks (nextjs-13-sync-request-apis, react-17-render-entry) are already done. Version-locked write tasks must include the `context` field with relevant package.json snippets showing the pinned version, so the agent knows which version to target. CRITICAL VERIFICATION: Every task's reference solution MUST pass all its own AST checks.",
+      "notes": "All task content is in BENCHMARK.md Section 4.2. The 2 pilot tasks (nextjs-13-sync-request-apis, react-17-render-entry) are already done. Version-locked write tasks must include the `context` field with relevant package.json snippets showing the pinned version, so the agent knows which version to target. CRITICAL VERIFICATION: Every task's reference solution MUST pass all its own AST checks. IMPORTANT from task 12: (1) call_exists for method calls like result.toAIStreamResponse() requires the dotted pattern 'result.toAIStreamResponse' — the checker matches property access calls with object.method format. (2) async_generator check now handles FunctionExpression nodes (callback arguments). (3) Use scripts/validate-bleeding-edge-tasks.ts as a template for validation. (4) Multi-file tasks use the 'file' field on AST checks to route checks to the correct file.",
       "passed": false
     },
     {

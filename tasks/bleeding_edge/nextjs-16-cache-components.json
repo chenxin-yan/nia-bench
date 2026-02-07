@@ -1,0 +1,92 @@
+{
+  "id": "nextjs-16-cache-components",
+  "category": "bleeding_edge",
+  "library": "next",
+  "target_version": "16.0.0",
+  "prompt": "Using Next.js 16, create a blog post page component that uses the new `\"use cache\"` directive for caching. The component should fetch a blog post by slug from a database and use `cacheTag()` for tag-based revalidation and `cacheLife('hours')` for time-based caching. Also create a Server Action that revalidates the post using `updateTag()` (the new read-your-writes cache invalidation API).",
+  "reference_solution": "// app/blog/[slug]/page.tsx\n'use cache';\n\nimport { cacheLife, cacheTag } from 'next/cache';\n\ncacheLife('hours');\ncacheTag('blog-posts');\n\nexport default async function BlogPost({\n  params,\n}: {\n  params: Promise<{ slug: string }>;\n}) {\n  const { slug } = await params;\n  const post = await db.posts.findBySlug(slug);\n\n  cacheTag(`post-${slug}`);\n\n  return (\n    <article>\n      <h1>{post.title}</h1>\n      <p>{post.content}</p>\n    </article>\n  );\n}\n\n// app/blog/[slug]/actions.ts\n'use server';\n\nimport { updateTag } from 'next/cache';\n\nexport async function refreshPost(slug: string) {\n  await db.posts.touch(slug);\n  updateTag(`post-${slug}`);\n}",
+  "test_spec": {
+    "ast_checks": [
+      {
+        "type": "directive_present",
+        "directive": "use cache",
+        "file": "page.tsx"
+      },
+      {
+        "type": "import_exists",
+        "name": "cacheLife",
+        "from": "next/cache",
+        "file": "page.tsx"
+      },
+      {
+        "type": "import_exists",
+        "name": "cacheTag",
+        "from": "next/cache",
+        "file": "page.tsx"
+      },
+      {
+        "type": "call_exists",
+        "call": "cacheLife",
+        "file": "page.tsx"
+      },
+      {
+        "type": "call_exists",
+        "call": "cacheTag",
+        "file": "page.tsx"
+      },
+      {
+        "type": "import_exists",
+        "name": "updateTag",
+        "from": "next/cache",
+        "file": "actions.ts"
+      },
+      {
+        "type": "call_absent",
+        "call": "unstable_cacheLife",
+        "file": "page.tsx"
+      },
+      {
+        "type": "call_absent",
+        "call": "unstable_cacheTag",
+        "file": "page.tsx"
+      }
+    ],
+    "type_check": false
+  },
+  "rubric": {
+    "criteria": [
+      {
+        "name": "use_cache_directive",
+        "weight": 0.2,
+        "description": "`'use cache'` directive is present at file or function level"
+      },
+      {
+        "name": "cache_life",
+        "weight": 0.2,
+        "description": "Uses `cacheLife()` without `unstable_` prefix"
+      },
+      {
+        "name": "cache_tag",
+        "weight": 0.2,
+        "description": "Uses `cacheTag()` without `unstable_` prefix"
+      },
+      {
+        "name": "update_tag",
+        "weight": 0.2,
+        "description": "Uses `updateTag()` for read-your-writes invalidation"
+      },
+      {
+        "name": "no_hallucination",
+        "weight": 0.2,
+        "description": "No `unstable_` prefixes, no invented cache APIs"
+      }
+    ]
+  },
+  "common_hallucinations": [
+    "Using `unstable_cacheLife` or `unstable_cacheTag` (v15 experimental names)",
+    "Using `revalidateTag()` instead of `updateTag()` for immediate invalidation",
+    "Not including the `'use cache'` directive",
+    "Using `fetch()` with `{ next: { revalidate: 3600 } }` instead of the new caching API",
+    "Inventing a `cache()` wrapper function"
+  ]
+}

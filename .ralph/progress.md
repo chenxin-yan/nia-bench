@@ -689,3 +689,64 @@
 - Context7 and Nia MCP servers use `npx -y @context7/mcp` and `npx -y @nicepkg/nia-mcp` respectively — these still need live validation
 - The LLM judge (OpenRouter with GPT-5 Mini) has not been tested with a real call yet — test with `--task nextjs-16-proxy-ts --condition baseline --reps 1 --model anthropic/claude-sonnet-4-20250514` (without `--skip-judge`) when ready
 - The parallel execution test was not performed to save API costs — test with `--parallel 3` in a future run
+
+---
+
+## Task: Author all remaining Bleeding-Edge task JSON files (9 remaining after 2 pilot tasks)
+
+### Completed
+
+- Created all 12 remaining bleeding-edge task JSON files (the task description says 9 but there are actually 12 remaining from the 14 total minus the 2 pilot tasks):
+  - `tasks/bleeding_edge/nextjs-16-enforced-async.json` — Task A-NX-2: enforced async APIs + parallel route defaults
+  - `tasks/bleeding_edge/nextjs-16-cache-components.json` — Task A-NX-3: 'use cache' directive + cacheTag/cacheLife/updateTag (multi-file: page.tsx + actions.ts)
+  - `tasks/bleeding_edge/react-19-form-actions.json` — Task A-RX-2: useActionState + useFormStatus
+  - `tasks/bleeding_edge/react-19-ref-as-prop.json` — Task A-RX-3: ref as prop, no forwardRef
+  - `tasks/bleeding_edge/ai-sdk-5-ui-message-stream.json` — Task A-AI-1: createUIMessageStream/createUIMessageStreamResponse
+  - `tasks/bleeding_edge/ai-sdk-5-data-parts.json` — Task A-AI-2: data parts with transient state
+  - `tasks/bleeding_edge/ai-sdk-4-sync-stream-text.json` — Task A-AI-3: streamText without await in v4
+  - `tasks/bleeding_edge/trpc-11-transformer-link.json` — Task A-TR-1: transformer in link config
+  - `tasks/bleeding_edge/trpc-11-sse-subscriptions.json` — Task A-TR-2: SSE subscriptions with httpSubscriptionLink
+  - `tasks/bleeding_edge/trpc-11-shorthand-streaming.json` — Task A-TR-3: shorthand router + streaming query
+  - `tasks/bleeding_edge/zod-4-top-level-validators.json` — Task A-ZD-1: z.email(), z.url(), z.uuid(), z.ipv4()
+  - `tasks/bleeding_edge/zod-4-error-api.json` — Task A-ZD-2: error customization API overhaul
+- All 14 bleeding-edge tasks load successfully via the task loader (17 total tasks including version-locked pilot tasks)
+- All rubric criteria weights sum to exactly 1.00 for every task
+- All reference solutions pass 100% of their AST checks (verified with validation script)
+- Fixed AST checker `async_generator` check to also detect `FunctionExpression` nodes (e.g., `async function*()` used as a callback argument to `.query()` or `.subscription()`)
+- Adjusted `call_exists` patterns for method calls: `toDataStreamResponse` → `result.toDataStreamResponse`, `toUIMessageStream` → `result.toUIMessageStream` (AST checker matches dotted property access calls correctly)
+- Created `scripts/validate-bleeding-edge-tasks.ts` comprehensive validation script
+- Verified: `bun test` (281 tests pass, 0 fail), `bun run typecheck` passes, `bun run lint` clean
+
+### Files Changed
+
+- `tasks/bleeding_edge/nextjs-16-enforced-async.json` — New task: Next.js 16 enforced async APIs
+- `tasks/bleeding_edge/nextjs-16-cache-components.json` — New task: Next.js 16 cache components
+- `tasks/bleeding_edge/react-19-form-actions.json` — New task: React 19 form actions
+- `tasks/bleeding_edge/react-19-ref-as-prop.json` — New task: React 19 ref as prop
+- `tasks/bleeding_edge/ai-sdk-5-ui-message-stream.json` — New task: AI SDK v5 UIMessageStream
+- `tasks/bleeding_edge/ai-sdk-5-data-parts.json` — New task: AI SDK v5 data parts
+- `tasks/bleeding_edge/ai-sdk-4-sync-stream-text.json` — New task: AI SDK v4 sync streamText
+- `tasks/bleeding_edge/trpc-11-transformer-link.json` — New task: tRPC v11 transformer in link
+- `tasks/bleeding_edge/trpc-11-sse-subscriptions.json` — New task: tRPC v11 SSE subscriptions
+- `tasks/bleeding_edge/trpc-11-shorthand-streaming.json` — New task: tRPC v11 shorthand streaming
+- `tasks/bleeding_edge/zod-4-top-level-validators.json` — New task: Zod v4 top-level validators
+- `tasks/bleeding_edge/zod-4-error-api.json` — New task: Zod v4 error API
+- `src/tests/ast-checker.ts` — Fixed async_generator check to handle FunctionExpression nodes
+- `scripts/validate-bleeding-edge-tasks.ts` — New validation script for all bleeding-edge tasks
+
+### Decisions
+
+- For `call_exists` checks on method calls like `result.toDataStreamResponse()`, the AST check pattern must use the full dotted path `result.toDataStreamResponse` — the checker matches property access calls with the object.method pattern
+- Multi-file tasks (nextjs-16-enforced-async, nextjs-16-cache-components) use the `file` field on AST checks to specify which file each check applies to (e.g., `"file": "page.tsx"` or `"file": "default.tsx"`)
+- Fixed the AST checker's `async_generator` check to also scan `FunctionExpression` nodes — this was needed because `async function*()` used as a callback argument (e.g., inside `.query()` or `.subscription()`) creates a FunctionExpression, not a FunctionDeclaration or MethodDeclaration
+- Task content (prompts, reference solutions, test specs, rubrics, common hallucinations) was copied verbatim from BENCHMARK.md Section 4.1 to ensure consistency
+- All tasks use `"type_check": false` as the type checking is validated separately in the typecheck-envs
+
+### Notes for Future Agent
+
+- All 14 bleeding-edge tasks are complete. The next tasks to create are version-locked-write (task 13, 12 remaining) and version-locked-audit (task 14, 8 remaining)
+- The `call_exists` check for method calls requires the dotted pattern: use `result.toDataStreamResponse` not just `toDataStreamResponse`. The same applies to `writer.merge`, `writer.write`, etc.
+- Multi-file reference solutions use `// filename` comment markers to separate files. The evaluator's multi-file handling (from task 10) will route AST checks to the correct file using the `file` field
+- The `async_generator` check now handles 3 node types: FunctionDeclaration, MethodDeclaration, and FunctionExpression — this covers all patterns used across the 40 benchmark tasks
+- The validation script `scripts/validate-bleeding-edge-tasks.ts` can be used as a template for validating version-locked tasks in tasks 13 and 14
+- When creating version-locked tasks, remember to include the `context` field with `package_json` showing the pinned library version

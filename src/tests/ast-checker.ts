@@ -638,6 +638,20 @@ function checkAsyncGenerator(
     }
   }
 
+  // Check function expressions (e.g., async function*() used as callback argument)
+  const functionExprs = sourceFile.getDescendantsOfKind(SyntaxKind.FunctionExpression);
+  for (const fn of functionExprs) {
+    if (check.name && fn.getName() !== check.name) continue;
+    if (fn.isAsync() && fn.isGenerator()) {
+      const name = fn.getName() || 'anonymous';
+      return {
+        check,
+        passed: true,
+        message: `Found async generator function expression '${name}'`,
+      };
+    }
+  }
+
   return {
     check,
     passed: false,
