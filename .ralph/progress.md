@@ -452,3 +452,62 @@
 - `callJudge` creates a new OpenAI client for each call — this is intentional for statelessness. For high-parallelism scenarios, consider creating the client once and passing it in.
 - The hallucination classifier (task 9) will need the `JudgeResult` from this module — specifically the per-criterion verdicts for the `no_hallucination` criterion
 - When building the evaluator, concatenate all extracted files with filename headers for the `generatedCode` parameter passed to `buildJudgePrompt`
+
+---
+
+## Task: Build the hallucination classifier module
+
+### Completed
+
+- Created `src/judge/hallucination-classifier.ts` with the full hallucination classification system as defined in BENCHMARK.md Section 5.4
+- Defined `HallucinationType` as a union type covering all 6 categories: `invented_method`, `wrong_parameter`, `outdated_api`, `future_api`, `wrong_import_path`, `version_mismatch`
+- Defined `HallucinationDetail` type: `{type: HallucinationType, evidence: string, description: string}`
+- Defined `HallucinationResult` type: `{types: HallucinationType[], details: HallucinationDetail[]}`
+- Implemented `classifyHallucinations(task, generatedCode, astResults, judgeResult)` as the main entry point that combines three signal sources:
+  1. **AST check failures**: Maps each of the 16 AST check types to appropriate hallucination types when they fail (e.g., `await_absent` failure → `future_api`, `import_absent` failure → `outdated_api` or `future_api` based on task category)
+  2. **Judge results**: Extracts hallucination signals from FAIL verdicts on `no_hallucination` and similar criteria, with NLP-based type inference from evidence/reasoning text
+  3. **Common hallucinations cross-reference**: Enhances descriptions by matching detected hallucinations against the task's known `common_hallucinations` patterns
+- Implemented intelligent version direction inference (`inferVersionDirection`) that determines whether a wrong API is from a newer version (`future_api`) or older version (`outdated_api`) based on: task category (`bleeding_edge` → outdated, `version_locked_write` → future, `version_locked_audit` → mismatch), common_hallucinations hints, and API name matching
+- Implemented judge evidence text classification (`inferTypeFromJudgeEvidence`) that maps keywords in judge evidence/reasoning to hallucination types (e.g., "import"+"wrong" → `wrong_import_path`, "deprecated"/"outdated" → `outdated_api`, etc.)
+- Type deduplication: `types` array contains unique hallucination types, while `details` preserves all individual entries
+- Exported the classifier and types from `src/judge/index.ts`
+- Wrote comprehensive test file `src/judge/__tests__/hallucination-classifier.test.ts` with 23 tests across 8 describe blocks:
+  - **Test case 1 (future_api)**: Next.js 13 task where `await_absent` for `cookies()` failed — correctly classifies as `future_api`
+  - **Test case 2 (outdated_api)**: React 19 task where `import_absent` for `forwardRef` failed — correctly classifies as `outdated_api`
+  - **Test case 3 (wrong_import_path)**: React 19 task where `useActionState` imported from `react-dom` instead of `react` — correctly classifies as `wrong_import_path`
+  - **Test case 4 (multiple hallucinations)**: Next.js 16 task with multiple AST failures + judge FAIL — correctly returns multiple distinct types with all details
+  - **Test case 5 (no hallucinations)**: All AST checks pass + judge all PASS — correctly returns empty types and details
+  - **AST check type classification mapping**: 6 tests covering `call_absent`, `property_location`, `type_annotation`, `await_present`, `directive_present`, `async_function` check types
+  - **Judge evidence classification**: 5 tests covering different keyword patterns in judge evidence (wrong_import_path, wrong_parameter, future_api, version_mismatch, invented_method default)
+  - **Deduplication + version direction**: 4 tests for type deduplication and category-based direction inference
+- Verified: `bun test` (228 tests pass across 8 files, 0 fail), `bun run typecheck` passes, `bun run lint` clean
+
+### Files Changed
+
+- `src/judge/hallucination-classifier.ts` — Hallucination classifier module with 6-type taxonomy
+- `src/judge/index.ts` — Updated barrel exports to include hallucination classifier types and function
+- `src/judge/__tests__/hallucination-classifier.test.ts` — Comprehensive test suite (23 tests)
+
+### Decisions
+
+- Used a union type (`HallucinationType`) instead of an enum for better TypeScript ergonomics and tree-shaking — the values are string literals matching BENCHMARK.md Section 5.4 exactly
+- Kept the classifier stateless: it receives all inputs (task, code, AST results, judge results) and returns a pure result — no side effects, no external API calls, making it fully testable
+- AST check type → hallucination type mapping is deterministic based on the check type and task category:
+  - `await_absent` failure → `future_api` (async pattern from newer version)
+  - `await_present` failure → `outdated_api` (sync pattern from older version)
+  - `import_absent` / `function_absent` / `call_absent` / `property_absent` → direction inferred from task category
+  - `import_exists` / `module_import_absent` → `wrong_import_path`
+  - `property_location` / `type_annotation` → `wrong_parameter`
+  - `function_exported` / `call_exists` / `directive_present` / `async_function` / `async_generator` / `yield_present` → `version_mismatch`
+- Version direction inference prioritizes: (1) common_hallucinations keyword matching, (2) task category-based defaults. This handles the majority of cases correctly without needing to hardcode specific API knowledge.
+- Judge evidence classification uses keyword matching (not LLM) to stay fast and deterministic — the inference is approximate but sufficient since the primary classification comes from AST checks
+- The `generatedCode` parameter is accepted but not directly analyzed (prefixed with `_`) — it's available for potential future text-based analysis but currently all classification comes from structured AST results and judge verdicts
+
+### Notes for Future Agent
+
+- The classifier is designed to be called from the evaluator (task 10): `classifyHallucinations(task, generatedCode, astResults, judgeResult)` returns `HallucinationResult`
+- `HallucinationResult.types` is a deduplicated array of unique hallucination types; `HallucinationResult.details` contains all individual hallucination entries with evidence
+- A single code sample can have multiple hallucination types simultaneously — the evaluator should store the full `HallucinationResult` in the `EvaluationResult`
+- When building the reporter (task 15), use `HallucinationResult.types` for the hallucination rate metric (% of tasks with >= 1 type) and `HallucinationResult.details` for per-type distribution
+- The classifier combines signals from both AST checks (structural correctness) and judge verdicts (semantic correctness) — this two-layer approach catches both programmatically detectable issues (wrong imports, wrong await patterns) and semantically detectable issues (correct structure but wrong intent)
+- When no specific type can be determined from judge evidence, it defaults to `invented_method` — this is the safest fallback as it indicates the judge detected something wrong but the specific category is unclear

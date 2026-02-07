@@ -212,7 +212,7 @@
         "Run `bun run lint` to ensure code quality"
       ],
       "notes": "The hallucination taxonomy is defined in BENCHMARK.md Section 5.4. The classifier combines signals from both automated tests (AST failures indicating wrong APIs) and judge verdicts (semantic evaluation of correctness). Each task's `common_hallucinations` field lists expected failure modes — use these to provide specific labels. A single code sample can have multiple hallucination types simultaneously. TESTING IS CRITICAL: this module has no external dependencies (no API calls) so there's no excuse not to have comprehensive unit tests. The mock data for tests should use realistic AST check results and judge results that mirror actual failure patterns described in BENCHMARK.md.",
-      "passed": false
+      "passed": true
     },
     {
       "description": "Build the combined evaluator that orchestrates AST checks, type checking, and LLM judge scoring",

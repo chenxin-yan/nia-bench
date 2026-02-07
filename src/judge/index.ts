@@ -1,4 +1,10 @@
 export type {
+  HallucinationDetail,
+  HallucinationResult,
+  HallucinationType,
+} from './hallucination-classifier';
+export { classifyHallucinations } from './hallucination-classifier';
+export type {
   JudgeCallResult,
   JudgeClientConfig,
   JudgeCriterionResponse,
