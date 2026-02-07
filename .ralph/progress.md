@@ -268,3 +268,63 @@
 - Some peer dependency warnings during install (e.g., AI SDK v3 with zod, AI SDK v5 with @ai-sdk/openai) are benign — the packages still function correctly
 - The `trpc-10` environment includes `@tanstack/react-query@4.36.1` as a dependency of `@trpc/react-query` — needed for type resolution
 - All 14 environments have `bun.lock` files generated (excluded from git via `.gitignore`)
+
+---
+
+## Task: Create Version API Surface reference JSON files for all library versions
+
+### Completed
+
+- Created `src/types/reference.ts` with a `VersionApiSurfaceSchema` Zod schema defining the structure for reference JSON files. Includes fields for: library, version, sync_apis, async_apis, params_type, proxy_file/proxy_function, available_imports, unavailable_apis, removed_from_previous, available_hooks, unavailable_hooks, available_types, unavailable_types, rendering, caching_defaults, required_files, key_features, breaking_changes, and notes.
+- Created all 14 reference JSON files organized by library:
+  - **Next.js (4 files):** `reference/next/v13.json`, `v14.json`, `v15.json`, `v16.json` — covering the evolution from sync to async request APIs, middleware.ts to proxy.ts rename, and cacheTag/cacheLife/updateTag stabilization
+  - **React (3 files):** `reference/react/v17.json`, `v18.json`, `v19.json` — covering hooks progression, ReactDOM.render to createRoot, forwardRef deprecation, and new use()/useActionState/useFormStatus hooks
+  - **AI SDK (3 files):** `reference/ai-sdk/v3.json`, `v4.json`, `v5.json` — covering experimental_ prefix removal, sync streamText, toDataStreamResponse, and createUIMessageStream/writer.merge patterns
+  - **tRPC (2 files):** `reference/trpc/v10.json`, `v11.json` — covering createTRPCProxyClient to createTRPCClient rename, transformer location change, rawInput to getRawInput(), and httpSubscriptionLink
+  - **Zod (2 files):** `reference/zod/v3.json`, `v4.json` — covering chained to top-level validators, required_error/invalid_type_error removal, message to error parameter change, and deepPartial removal
+- Wrote comprehensive validation test `src/types/__tests__/reference.test.ts` with 32 tests across 4 describe blocks:
+  - **Schema Validation (5 tests):** all 14 files parse, correct library coverage, correct version counts, unique versions per library
+  - **Cross-Version Consistency (13 tests):** sync/async API consistency, params type evolution, middleware/proxy naming, cacheTag availability, React hooks progression (use, useActionState, useId), rendering entry points, AI SDK experimental_ prefix, streamText sync/async, createUIMessageStream availability, tRPC client renames, Zod validator pattern changes, error API changes
+  - **No Contradictions (2 tests):** no API both available and unavailable, no sync/async overlap
+  - **Spot-Check Accuracy (12 tests):** verified against Nia-sourced official docs for Next.js (after() availability), React (forwardRef changes), Zod (.ip() and deepPartial), tRPC (httpSubscriptionLink)
+- Used Nia research agents to verify key API details against official documentation for Next.js, React, AI SDK, tRPC, and Zod before creating reference files
+- Verified: `bun test` (126 tests pass across 4 files, 0 fail), `bun run typecheck` passes, `bun run lint` clean
+
+### Files Changed
+
+- `src/types/reference.ts` — Zod schema and TypeScript types for reference JSON format
+- `src/types/__tests__/reference.test.ts` — Comprehensive validation test suite (32 tests)
+- `reference/next/v13.json` — Next.js 13 API surface
+- `reference/next/v14.json` — Next.js 14 API surface
+- `reference/next/v15.json` — Next.js 15 API surface
+- `reference/next/v16.json` — Next.js 16 API surface
+- `reference/react/v17.json` — React 17 API surface
+- `reference/react/v18.json` — React 18 API surface
+- `reference/react/v19.json` — React 19 API surface
+- `reference/ai-sdk/v3.json` — AI SDK v3 API surface
+- `reference/ai-sdk/v4.json` — AI SDK v4 API surface
+- `reference/ai-sdk/v5.json` — AI SDK v5 API surface
+- `reference/trpc/v10.json` — tRPC v10 API surface
+- `reference/trpc/v11.json` — tRPC v11 API surface
+- `reference/zod/v3.json` — Zod v3 API surface
+- `reference/zod/v4.json` — Zod v4 API surface
+- `reference/.gitkeep` — Removed (no longer needed)
+
+### Decisions
+
+- Used a flexible Zod schema with many optional fields to accommodate different library types (e.g., rendering is React-specific, proxy_file is Next.js-specific, available_hooks is React-specific)
+- Used `.default([])` on array fields in the schema so consumers don't need to check for undefined on every array access
+- Structured unavailable_apis entries with parenthetical notes (e.g., `"createTRPCProxyClient (renamed to createTRPCClient)"`) to provide context about why an API is unavailable — the test suite handles these descriptions when checking for contradictions
+- Named reference files as `v{major}.json` (e.g., `v13.json`, `v4.json`) matching the version string in the JSON data for consistency
+- Organized reference files in subdirectories by library name matching the `library` enum values (next, react, ai-sdk, trpc, zod) — note ai-sdk uses hyphen in directory name for readability
+- Cross-version consistency tests check logical constraints (e.g., if use() is available in v19, it must be unavailable in v17/v18) to catch data entry errors
+- Spot-check tests include comments documenting what was verified against official docs via Nia
+
+### Notes for Future Agent
+
+- The reference files are loaded by path `reference/{library-dir}/v{version}.json` — when building the evaluator (task 9) or judge (task 8), use the library name from the task to find the corresponding reference file
+- The `ai-sdk` directory name differs from the library enum value `ai` — you'll need a mapping: `ai` -> `ai-sdk` (similar to how typecheck-envs maps `ai` -> `ai-sdk-N`)
+- The `VersionApiSurfaceSchema` in `src/types/reference.ts` should be imported and used when loading reference files for the LLM judge prompt
+- Reference files contain `notes` arrays that are particularly useful as LLM judge context — they describe version-specific gotchas
+- The `unavailable_apis` entries use descriptive strings with parenthetical alternatives — when using these programmatically, split on the first space or parenthesis to extract the bare API name
+- Library directory names: `next`, `react`, `ai-sdk`, `trpc`, `zod`

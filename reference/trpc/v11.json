@@ -1,0 +1,49 @@
+{
+  "library": "trpc",
+  "version": "11",
+  "available_imports": {
+    "@trpc/client": ["createTRPCClient", "httpBatchLink", "httpLink", "httpSubscriptionLink", "splitLink", "loggerLink", "wsLink"],
+    "@trpc/server": ["initTRPC", "TRPCError"]
+  },
+  "unavailable_apis": [
+    "createTRPCProxyClient (renamed to createTRPCClient)",
+    "createProxySSGHelpers (renamed to createSSGHelpers)",
+    "rawInput as direct property (use getRawInput() async function)",
+    "@trpc/react-query (restructured)"
+  ],
+  "removed_from_previous": [
+    "createTRPCProxyClient (renamed to createTRPCClient)",
+    "createProxySSGHelpers (renamed to createSSGHelpers)",
+    "rawInput as direct property in middleware (use getRawInput())",
+    "Client-level transformer (moved to link level)"
+  ],
+  "key_features": [
+    "createTRPCClient replaces createTRPCProxyClient",
+    "Transformer (superjson) at link config level, NOT at client level",
+    "getRawInput() async function in middleware (replaces direct rawInput)",
+    "createSSGHelpers replaces createProxySSGHelpers",
+    "httpSubscriptionLink for SSE-based subscriptions",
+    "Async generator subscriptions (async function* with yield)",
+    "Shorthand routers (plain objects as sub-routers, no t.router() needed)",
+    "Streaming queries via async generators in .query()",
+    "splitLink for routing subscription traffic"
+  ],
+  "breaking_changes": [
+    "createTRPCProxyClient renamed to createTRPCClient",
+    "createProxySSGHelpers renamed to createSSGHelpers",
+    "Transformer moved from client level to link level",
+    "rawInput in middleware replaced by getRawInput() async function",
+    "React Query integration restructured"
+  ],
+  "notes": [
+    "Client function is createTRPCClient, NOT createTRPCProxyClient",
+    "transformer: superjson goes INSIDE httpBatchLink({}), NOT at createTRPCClient({}) level",
+    "Middleware uses getRawInput() as async function: const input = await getRawInput()",
+    "SSG helper is createSSGHelpers, NOT createProxySSGHelpers",
+    "httpSubscriptionLink enables SSE-based subscriptions (alternative to wsLink)",
+    "Server subscriptions use async function* with yield pattern",
+    "Shorthand routers: nested routes can be plain objects without t.router()",
+    "Streaming queries: .query(async function* () { yield ... }) for iterable results",
+    "Use splitLink to route subscription operations to httpSubscriptionLink"
+  ]
+}

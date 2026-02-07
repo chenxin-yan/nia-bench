@@ -1,0 +1,59 @@
+{
+  "library": "ai",
+  "version": "5",
+  "available_imports": {
+    "ai": ["streamText", "generateText", "createUIMessageStream", "createUIMessageStreamResponse", "generateId", "CoreMessage", "LanguageModelUsage"],
+    "@ai-sdk/openai": ["openai", "createOpenAI"]
+  },
+  "unavailable_apis": [
+    "experimental_streamText (removed in v4)",
+    "experimental_generateText (removed in v4)",
+    "toAIStreamResponse (removed in v4)",
+    "StreamingTextResponse (removed in v4)",
+    "toDataStreamResponse (replaced by createUIMessageStreamResponse)",
+    "createDataStreamResponse (replaced by createUIMessageStreamResponse)",
+    "ExperimentalMessage (removed in v4, use CoreMessage)",
+    "TokenUsage (removed in v4, use LanguageModelUsage)",
+    "dataStream.writeData (v4 pattern, use writer.write)",
+    "StreamData class (v3/v4 pattern)"
+  ],
+  "available_types": [
+    "CoreMessage",
+    "LanguageModelUsage"
+  ],
+  "unavailable_types": [
+    "ExperimentalMessage (v3 only)",
+    "TokenUsage (v3 only)"
+  ],
+  "sync_apis": ["streamText"],
+  "async_apis": ["generateText"],
+  "key_features": [
+    "createUIMessageStream for SSE-based streaming",
+    "createUIMessageStreamResponse for wrapping stream as Response",
+    "writer.merge() pattern for composing streams",
+    "writer.write() for sending data parts",
+    "Data parts with transient flag for temporary UI state",
+    "Data part reconciliation via consistent IDs",
+    "generateId helper function",
+    "originalMessages parameter in createUIMessageStream",
+    "streamText is still synchronous (no await)",
+    "Standard SSE protocol replaces proprietary DataStream"
+  ],
+  "breaking_changes": [
+    "createUIMessageStream/createUIMessageStreamResponse replace DataStream APIs",
+    "writer.merge() replaces direct stream piping",
+    "writer.write() replaces dataStream.writeData()",
+    "Data parts now have type, id, data, and transient fields",
+    "toUIMessageStream() replaces toDataStream()"
+  ],
+  "notes": [
+    "createUIMessageStream({ originalMessages, generateId, execute: ({ writer }) => { ... } })",
+    "Use writer.merge(result.toUIMessageStream()) to pipe stream results",
+    "Use writer.write({ type: 'data', id, data, transient: true }) for transient data parts",
+    "Same data part ID across writes enables reconciliation (UI updates)",
+    "transient: true marks data parts as temporary (removed after stream ends)",
+    "Return createUIMessageStreamResponse(stream) from route handlers",
+    "Do NOT use toDataStreamResponse or toAIStreamResponse",
+    "streamText is still synchronous (no await needed)"
+  ]
+}

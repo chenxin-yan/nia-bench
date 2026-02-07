@@ -1,0 +1,76 @@
+{
+  "library": "react",
+  "version": "18",
+  "available_hooks": [
+    "useState",
+    "useEffect",
+    "useContext",
+    "useReducer",
+    "useCallback",
+    "useMemo",
+    "useRef",
+    "useImperativeHandle",
+    "useLayoutEffect",
+    "useDebugValue",
+    "useId",
+    "useTransition",
+    "useDeferredValue",
+    "useSyncExternalStore",
+    "useInsertionEffect"
+  ],
+  "unavailable_hooks": [
+    "use",
+    "useActionState",
+    "useFormStatus",
+    "useOptimistic",
+    "useFormState"
+  ],
+  "rendering": {
+    "entry_api": "createRoot",
+    "import_path": "react-dom/client",
+    "deprecated": ["ReactDOM.render (still works in legacy mode)"]
+  },
+  "available_imports": {
+    "react": ["useState", "useEffect", "useContext", "useReducer", "useCallback", "useMemo", "useRef", "useImperativeHandle", "useLayoutEffect", "useDebugValue", "useId", "useTransition", "useDeferredValue", "useSyncExternalStore", "useInsertionEffect", "forwardRef", "createContext", "createElement", "Fragment", "Component", "PureComponent", "memo", "lazy", "Suspense", "StrictMode", "createRef", "startTransition"],
+    "react-dom": ["createPortal", "flushSync", "render", "hydrate", "unmountComponentAtNode"],
+    "react-dom/client": ["createRoot", "hydrateRoot"]
+  },
+  "unavailable_apis": [
+    "use",
+    "useActionState",
+    "useFormStatus",
+    "useOptimistic"
+  ],
+  "available_types": [
+    "React.FC",
+    "React.Component",
+    "React.RefObject",
+    "React.Ref",
+    "React.ForwardRefRenderFunction"
+  ],
+  "unavailable_types": [],
+  "key_features": [
+    "createRoot replaces ReactDOM.render (ReactDOM.render still works in legacy mode)",
+    "Concurrent rendering support",
+    "Automatic batching for all state updates",
+    "useId for generating unique IDs",
+    "useTransition for non-urgent updates",
+    "useDeferredValue for deferred rendering",
+    "useSyncExternalStore for external store integration",
+    "forwardRef still required for ref passing",
+    "PropTypes still supported",
+    "defaultProps still supported on function components"
+  ],
+  "breaking_changes": [
+    "createRoot is the preferred entry point (ReactDOM.render deprecated)",
+    "Strict Mode now double-invokes effects in development"
+  ],
+  "notes": [
+    "createRoot from 'react-dom/client' is preferred over ReactDOM.render",
+    "forwardRef is still REQUIRED to pass refs to function components",
+    "New hooks: useId, useTransition, useDeferredValue, useSyncExternalStore, useInsertionEffect",
+    "No use() hook — this is React 19 only",
+    "No useActionState or useFormStatus — these are React 19 only",
+    "ReactDOM.render still works but is deprecated (legacy mode)"
+  ]
+}

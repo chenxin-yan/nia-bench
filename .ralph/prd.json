@@ -139,7 +139,7 @@
         "Run `bun run lint` to ensure code quality"
       ],
       "notes": "These reference files serve as ground truth for both automated AST checks and as context provided to the LLM judge. They list valid APIs, unavailable APIs, and version-specific behaviors. Research each library's actual changelog/migration guide to ensure accuracy. The format should follow BENCHMARK.md Appendix A structure. These files are critical for correctness — errors here propagate to all evaluations. The cross-version consistency check is important: if an API is 'available' in v19 but 'unavailable' in v17, that's correct; if it's 'available' in both v17 AND v19 but the test_spec says it should be absent in v17, there's a conflict.",
-      "passed": false
+      "passed": true
     },
     {
       "description": "Build the opencode agent runner with per-condition MCP configs and temp directory sandboxing",

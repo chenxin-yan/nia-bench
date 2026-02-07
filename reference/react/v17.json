@@ -1,0 +1,77 @@
+{
+  "library": "react",
+  "version": "17",
+  "available_hooks": [
+    "useState",
+    "useEffect",
+    "useContext",
+    "useReducer",
+    "useCallback",
+    "useMemo",
+    "useRef",
+    "useImperativeHandle",
+    "useLayoutEffect",
+    "useDebugValue"
+  ],
+  "unavailable_hooks": [
+    "useId",
+    "useTransition",
+    "useDeferredValue",
+    "useSyncExternalStore",
+    "useInsertionEffect",
+    "use",
+    "useActionState",
+    "useFormStatus",
+    "useOptimistic",
+    "useFormState"
+  ],
+  "rendering": {
+    "entry_api": "ReactDOM.render",
+    "import_path": "react-dom",
+    "deprecated": []
+  },
+  "available_imports": {
+    "react": ["useState", "useEffect", "useContext", "useReducer", "useCallback", "useMemo", "useRef", "useImperativeHandle", "useLayoutEffect", "useDebugValue", "forwardRef", "createContext", "createElement", "Fragment", "Component", "PureComponent", "memo", "lazy", "Suspense", "StrictMode", "createRef"],
+    "react-dom": ["render", "hydrate", "unmountComponentAtNode", "findDOMNode", "createPortal", "flushSync"]
+  },
+  "unavailable_apis": [
+    "createRoot",
+    "hydrateRoot",
+    "use",
+    "useId",
+    "useTransition",
+    "useDeferredValue",
+    "useSyncExternalStore",
+    "useInsertionEffect",
+    "useActionState",
+    "useFormStatus",
+    "useOptimistic",
+    "startTransition"
+  ],
+  "available_types": [
+    "React.FC",
+    "React.Component",
+    "React.RefObject",
+    "React.Ref",
+    "React.ForwardRefRenderFunction"
+  ],
+  "unavailable_types": [],
+  "key_features": [
+    "ReactDOM.render() is the entry point",
+    "forwardRef required for ref passing to function components",
+    "No concurrent rendering",
+    "useEffect + useState for data fetching",
+    "PropTypes supported",
+    "defaultProps supported on function components",
+    "String refs still work (deprecated)"
+  ],
+  "breaking_changes": [],
+  "notes": [
+    "ReactDOM.render() from 'react-dom' — NOT createRoot from 'react-dom/client'",
+    "forwardRef is REQUIRED to pass refs to function components",
+    "No useId, useTransition, useDeferredValue — these are React 18+",
+    "No use() hook — this is React 19 only",
+    "Data fetching uses useEffect + useState pattern",
+    "No Suspense for data fetching (only for lazy loading)"
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "library": "next",
+  "version": "15",
+  "sync_apis": [],
+  "async_apis": ["cookies", "headers", "draftMode"],
+  "params_type": "promise",
+  "proxy_file": "middleware.ts",
+  "proxy_function": "middleware",
+  "available_imports": {
+    "next/headers": ["cookies", "headers", "draftMode"],
+    "next/navigation": ["redirect", "useRouter", "useSearchParams", "usePathname", "useParams", "notFound", "forbidden", "unauthorized"],
+    "next/cache": ["revalidatePath", "revalidateTag", "unstable_cache", "unstable_cacheTag", "unstable_cacheLife"],
+    "next/server": ["NextResponse", "NextRequest", "after"],
+    "next/image": ["default"],
+    "next/link": ["default"],
+    "next/font/google": ["*"]
+  },
+  "unavailable_apis": [
+    "cacheTag (stable, v16 only)",
+    "cacheLife (stable, v16 only)",
+    "updateTag",
+    "proxy (function)",
+    "proxy.ts (file)"
+  ],
+  "removed_from_previous": [],
+  "caching_defaults": {
+    "fetch": "no-store",
+    "route_handlers": "not-cached"
+  },
+  "key_features": [
+    "Async cookies(), headers(), draftMode() — breaking change from v14",
+    "Params and searchParams are now Promises",
+    "Temporary synchronous fallback available (deprecated, removed in v16)",
+    "after() API for post-response work",
+    "forbidden() and unauthorized() for auth errors",
+    "unstable_cacheTag and unstable_cacheLife experimental APIs",
+    "Partial Prerendering (experimental)",
+    "Turbopack stable for dev"
+  ],
+  "breaking_changes": [
+    "cookies(), headers(), draftMode() are now async — must use await",
+    "params and searchParams are now Promises — must use await",
+    "Default caching changed from force-cache to no-store for fetch",
+    "Route handlers are no longer cached by default"
+  ],
+  "notes": [
+    "cookies() and headers() now require await — sync fallback exists but is deprecated",
+    "params type is Promise<{ slug: string }>, NOT { slug: string }",
+    "middleware.ts is still the correct file name (not proxy.ts)",
+    "after() is available from next/server for post-response work",
+    "cacheTag and cacheLife use unstable_ prefix in v15"
+  ]
+}

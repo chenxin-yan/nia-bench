@@ -1,0 +1,44 @@
+{
+  "library": "zod",
+  "version": "3",
+  "available_imports": {
+    "zod": ["z", "ZodError", "ZodSchema", "ZodType"]
+  },
+  "unavailable_apis": [
+    "z.email() (v4 top-level, use z.string().email())",
+    "z.url() (v4 top-level, use z.string().url())",
+    "z.uuid() (v4 top-level, use z.string().uuid())",
+    "z.ipv4() (v4 top-level, use z.string().ip())",
+    "z.ipv6() (v4 top-level, use z.string().ip())",
+    "z.cidrv4() (v4 only)",
+    "z.cidrv6() (v4 only)",
+    "z.iso.date() (v4 only)",
+    "z.iso.datetime() (v4 only)",
+    "z.treeifyError() (v4 only)",
+    "error parameter (v4 only, use message)"
+  ],
+  "key_features": [
+    "Chained string validators: z.string().email(), z.string().url(), z.string().uuid()",
+    "z.string().ip() for IP validation (both v4 and v6)",
+    "z.string().ip({ version: 'v4' }) for specific IP version",
+    "required_error and invalid_type_error in schema options",
+    "message parameter in refinement/check options (e.g., .min(3, { message: '...' }))",
+    "z.record(valueSchema) with single argument (keys default to string)",
+    "z.record(keySchema, valueSchema) with two arguments",
+    ".deepPartial() for deeply nested optional fields",
+    ".format() for error formatting",
+    ".flatten() for flat error structure",
+    "errorMap callback for custom error maps"
+  ],
+  "breaking_changes": [],
+  "notes": [
+    "String validators are CHAINED: z.string().email(), NOT z.email()",
+    "z.string().ip() exists — do NOT use z.ipv4() or z.ipv6() (those are v4)",
+    "Error customization uses required_error and invalid_type_error in schema config",
+    "Refinement error uses { message: '...' }, NOT { error: '...' }",
+    "z.record(z.string()) with single arg is valid — keys default to string",
+    ".deepPartial() is available for making nested objects deeply optional",
+    "Error formatting uses .format() and .flatten() methods",
+    "errorMap is available for custom error mapping"
+  ]
+}

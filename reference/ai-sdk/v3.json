@@ -1,0 +1,48 @@
+{
+  "library": "ai",
+  "version": "3",
+  "available_imports": {
+    "ai": ["experimental_streamText", "experimental_generateText", "StreamingTextResponse"],
+    "@ai-sdk/openai": ["openai"]
+  },
+  "unavailable_apis": [
+    "streamText (use experimental_streamText)",
+    "generateText (use experimental_generateText)",
+    "toDataStreamResponse (use toAIStreamResponse)",
+    "createUIMessageStream",
+    "createUIMessageStreamResponse",
+    "createDataStreamResponse",
+    "maxSteps (use maxToolRoundtrips)",
+    "CoreMessage (use ExperimentalMessage)",
+    "LanguageModelUsage (use TokenUsage)"
+  ],
+  "available_types": [
+    "ExperimentalMessage",
+    "TokenUsage"
+  ],
+  "unavailable_types": [
+    "CoreMessage (v4+, use ExperimentalMessage)",
+    "LanguageModelUsage (v4+, use TokenUsage)"
+  ],
+  "sync_apis": [],
+  "async_apis": ["experimental_streamText", "experimental_generateText"],
+  "key_features": [
+    "experimental_ prefix on all streaming/generation functions",
+    "experimental_streamText requires await (async)",
+    "experimental_generateText requires await (async)",
+    "toAIStreamResponse() for streaming responses",
+    "StreamingTextResponse wrapper available",
+    "ExperimentalMessage type for message objects",
+    "TokenUsage type for usage tracking",
+    "maxToolRoundtrips for tool calling iterations"
+  ],
+  "breaking_changes": [],
+  "notes": [
+    "All core functions use experimental_ prefix — do NOT use streamText or generateText",
+    "experimental_streamText MUST be awaited — it is async",
+    "Response method is toAIStreamResponse(), NOT toDataStreamResponse()",
+    "Type names use 'Experimental' prefix: ExperimentalMessage, not CoreMessage",
+    "Token usage type is TokenUsage, not LanguageModelUsage",
+    "maxToolRoundtrips is the parameter name, not maxSteps"
+  ]
+}
