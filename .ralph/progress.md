@@ -328,3 +328,72 @@
 - Reference files contain `notes` arrays that are particularly useful as LLM judge context — they describe version-specific gotchas
 - The `unavailable_apis` entries use descriptive strings with parenthetical alternatives — when using these programmatically, split on the first space or parenthesis to extract the bare API name
 - Library directory names: `next`, `react`, `ai-sdk`, `trpc`, `zod`
+
+---
+
+## Task: Build the opencode agent runner with per-condition MCP configs and temp directory sandboxing
+
+### Completed
+
+- Created `src/runner/mcp_configs/baseline.opencode.json` — opencode config with Claude 4 Sonnet as model, NO MCP servers configured. Uses `agents.coder`, `agents.task`, `agents.title`, `agents.summarizer` structure matching opencode's config format.
+- Created `src/runner/mcp_configs/context7.opencode.json` — opencode config with Claude 4 Sonnet as model, Context7 MCP server configured with stdio transport (`npx -y @context7/mcp`), providing `resolve-library-id` and `query-docs` tools.
+- Created `src/runner/mcp_configs/nia.opencode.json` — opencode config with Claude 4 Sonnet as model, Nia MCP server configured with stdio transport (`npx -y @nicepkg/nia-mcp`), providing full toolset (search, nia_read, nia_grep, nia_explore, etc.).
+- Created `src/runner/agent.ts` with the `runAgent(task, condition, runIndex, config)` function implementing the full agent execution pipeline:
+  - **Temp directory sandboxing**: Creates unique dirs at `/tmp/nia-bench/{timestamp}-{taskId}-{condition}-{rep}/`
+  - **Config injection**: Copies condition-specific `.opencode.json` into the temp dir (opencode loads config from CWD)
+  - **Context injection**: Writes task context files (package.json, code files) into the temp dir to simulate a real project workspace
+  - **opencode invocation**: Spawns `opencode -c <workdir> -p "<prompt>" -f json -q` using `Bun.spawn()`, captures stdout as JSON
+  - **Dual code extraction**: (1) parses agent's JSON stdout for markdown code blocks via regex, (2) scans temp dir for `.ts/.tsx/.js/.jsx` files written by the agent. Disk files are preferred when available.
+  - **Multi-file support**: `extractedFiles` is `Record<string, string>` (filename -> code), supporting tasks that require multiple files
+  - **Timeout handling**: Configurable timeout (default 5 min), kills the process on timeout
+  - **Temp dir cleanup**: Removes temp dir after code extraction unless `keepWorkdirs: true`
+- Defined `AgentResult` type: `{taskId, condition, runIndex, rawOutput, extractedFiles, exitCode, durationMs, workDir}`
+- Defined `AgentRunnerConfig` type with options: `keepWorkdirs`, `timeout`, `tempBaseDir`, `mcpConfigDir`, `projectRoot`
+- Exported utility functions for individual testing: `createWorkDir`, `injectConfig`, `injectContext`, `extractCodeFromResponse`, `extractCodeFromDisk`, `checkOpencodeBinary`
+- Created `src/runner/index.ts` re-exporting all types and functions
+- Wrote comprehensive test file `src/runner/__tests__/agent.test.ts` with 40 tests across 6 describe blocks:
+  - **createWorkDir (4 tests)**: unique naming, different conditions, different run indices, nested directory creation
+  - **injectConfig (4 tests)**: baseline config (no MCP), context7 config (Context7 MCP), nia config (Nia MCP), all conditions use same model
+  - **injectContext (5 tests)**: no context, package.json only, code files only, nested directory creation, both package.json and code
+  - **extractCodeFromResponse (8 tests)**: JSON response, multiple code blocks, raw text fallback, no code blocks, empty input, tsx/jsx blocks, filename hints
+  - **extractCodeFromDisk (8 tests)**: finds TS files, nested directories, ignores non-code, ignores .opencode.json/node_modules/package.json, finds JS/JSX, empty directory, multiple nested files
+  - **integration dry run (6 tests)**: full workflow (create/inject/extract/cleanup), context7 MCP config, nia MCP config, disk preferred over response, fallback to response, multi-file extraction
+  - **edge cases (5 tests)**: malformed JSON, empty code blocks, non-existent directory, empty context, non-existent config dir
+- Verified: `bun run typecheck` passes, `bun run lint` clean, all 166 tests pass across 5 files (40 new agent tests + 126 existing)
+
+### Files Changed
+
+- `src/runner/mcp_configs/baseline.opencode.json` — Baseline opencode config (no MCP)
+- `src/runner/mcp_configs/context7.opencode.json` — Context7 opencode config (Context7 MCP server)
+- `src/runner/mcp_configs/nia.opencode.json` — Nia opencode config (Nia MCP server)
+- `src/runner/agent.ts` — Agent runner module with temp dir sandboxing and code extraction
+- `src/runner/index.ts` — Barrel exports for runner module
+- `src/runner/__tests__/agent.test.ts` — Comprehensive test suite (40 tests)
+- `src/runner/mcp_configs/.gitkeep` — Removed (no longer needed, configs exist)
+
+### Decisions
+
+- Used opencode's `-c` flag (short for `--cwd`) to set the working directory, not `cd` — this is the proper way to sandbox the agent per opencode docs
+- Used `-q` (quiet) flag to suppress spinner animation in non-interactive mode, cleaner stdout capture
+- MCP server configs use `claude-4-sonnet` as the model for all agents — consistent across all three conditions to ensure fair comparison
+- Nia MCP server uses `npx -y @nicepkg/nia-mcp` for stdio transport — this is the standard Nia MCP package
+- Context7 MCP server uses `npx -y @context7/mcp` for stdio transport
+- `extractCodeFromDisk` uses `node:fs/promises` `stat()` for proper file/directory detection instead of `Bun.file().exists()` which doesn't distinguish files from directories
+- Disk-written files are preferred over response-extracted code blocks because agents may truncate code in text output but write complete files to disk
+- The `extractCodeFromResponse` function handles both JSON (`{response: "..."}`) and raw text formats gracefully
+- Code block extraction supports multiple language hints: typescript, tsx, ts, jsx, js, javascript
+- Filename detection from response text uses a regex looking for patterns like `file: proxy.ts` or `filename: page.tsx` before code blocks
+- Tests use a custom `pathExists()` helper instead of `node:fs/promises` `access()` because Bun's access() resolves to `null` rather than `undefined` on success, breaking standard assertions
+
+### Notes for Future Agent
+
+- The agent runner is designed to be called from the CLI orchestrator (task 11): `runAgent(task, 'baseline', 0, config)` for each work item in the queue
+- The `runAgent` function is fully self-contained — it handles its own temp dir lifecycle, so multiple parallel workers can call it without conflicts
+- `AgentResult.workDir` contains the temp dir path — this is useful when `keepWorkdirs: true` for debugging, otherwise the dir is deleted
+- `AgentResult.extractedFiles` is the primary output for the evaluator (task 9) — pass it to `evaluateCode(task, result.extractedFiles)`
+- When building the evaluator, note that `extractedFiles` keys are relative paths (e.g., `app/page.tsx`, `proxy.ts`) not absolute
+- The `checkOpencodeBinary()` function should be called at CLI startup (task 11) to fail fast if opencode isn't installed
+- opencode's JSON output format is `{response: "..."}` with escaped newlines/quotes — `extractCodeFromResponse` handles the parsing
+- The MCP config files are copied (not symlinked) into each temp dir, so they're self-contained
+- For the pilot run (task 12), use `--keep-workdirs` to inspect what the agent actually produced
+- The regex for code block extraction handles the common patterns but may miss edge cases (e.g., nested code blocks, code blocks with metadata lines) — this can be refined during the pilot run

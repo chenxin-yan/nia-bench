@@ -1,0 +1,27 @@
+{
+  "agents": {
+    "coder": {
+      "model": "claude-4-sonnet",
+      "maxTokens": 16000
+    },
+    "task": {
+      "model": "claude-4-sonnet",
+      "maxTokens": 16000
+    },
+    "title": {
+      "model": "claude-4-sonnet",
+      "maxTokens": 80
+    },
+    "summarizer": {
+      "model": "claude-4-sonnet",
+      "maxTokens": 5000
+    }
+  },
+  "mcpServers": {
+    "context7": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@context7/mcp"]
+    }
+  }
+}
