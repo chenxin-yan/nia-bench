@@ -81,7 +81,7 @@
         "Run `bun run lint` to ensure code quality"
       ],
       "notes": "Use ts-morph's Project and SourceFile APIs. Create an in-memory project (no need to write files to disk) — use `project.createSourceFile('temp.ts', code)`. Each check type maps to a specific AST traversal pattern. The discriminated union in the task schema (from task 2) defines what params each check type accepts. Keep the checker stateless — it receives code string + checks array and returns results. IMPORTANT: Testing only positive cases is insufficient — you MUST verify the checker correctly rejects bad code. For example, test that `import_absent('useFormState')` fails when code contains `import { useFormState } from 'react-dom'`. See BENCHMARK.md Section 5.1 for the full list of test types. NOTE from pilot tasks: (1) `call_exists` with `config.matcher` checks for property access in an exported object — needs to handle object property detection, (2) `call_exists` with `Suspense` needs to detect JSX element usage like `<Suspense>`, (3) `call_exists` with `ReactDOM.render` needs to handle method calls on objects (property access calls), (4) `call_exists` with `use` needs to detect plain function calls. The 5 pilot tasks use these check types: function_exported, function_absent, call_exists, property_absent, import_exists, import_absent, await_absent, module_import_absent. Test against all 5 pilot task reference solutions.",
-      "passed": false
+      "passed": true
     },
     {
       "description": "Create version-grouped type-check environments with pinned library versions",

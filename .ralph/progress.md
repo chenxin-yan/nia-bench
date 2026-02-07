@@ -126,3 +126,62 @@
 - The `call_exists` check with `ReactDOM.render` needs to handle property access calls (method calls on objects)
 - Version-locked write tasks have `context.package_json` — the runner will write this to the temp dir before agent execution
 - The `scripts/validate-pilot-tasks.ts` script can be reused/extended when authoring remaining tasks (tasks 12-14)
+
+---
+
+## Task: Build the AST checker engine using ts-morph for automated test assertions
+
+### Completed
+
+- Created `src/tests/ast-checker.ts` with `runAstChecks(code: string, checks: AstCheck[]): AstCheckResult[]` function that parses code with ts-morph's in-memory file system and runs each check
+- Implemented all 16 AST check types as defined in the discriminated union from `src/types/task.ts`:
+  - `import_exists`: checks named, default, and namespace imports from a specific module
+  - `import_absent`: checks that a named/default import does NOT exist (optionally scoped to a specific module)
+  - `module_import_absent`: checks that NO imports exist from a specific module
+  - `function_exported`: checks a named function/variable is exported (includes `export default`)
+  - `function_absent`: checks a named function is NOT exported
+  - `await_present`: checks a specific call IS awaited
+  - `await_absent`: checks a specific call is NOT awaited
+  - `call_exists`: checks for function calls, property access calls (e.g., `ReactDOM.render`), JSX elements (e.g., `<Suspense>`), and property access in exported objects (e.g., `config.matcher`)
+  - `call_absent`: checks a call/JSX element does NOT exist
+  - `directive_present`: checks for string directives like `'use cache'` or `'use server'`
+  - `property_location`: checks a property exists inside a specific call expression's object argument
+  - `async_function`: checks a function is async (supports named functions, arrow functions, and default exports)
+  - `async_generator`: checks a function is both async and a generator (`async function*`)
+  - `yield_present`: checks for `yield` keyword usage, optionally inside a specific function
+  - `type_annotation`: checks a parameter has a specific type annotation
+  - `property_absent`: checks a property does NOT exist in an object literal (optionally scoped to a specific exported object)
+- Defined `AstCheckResult` type: `{check: AstCheck, passed: boolean, message: string}`
+- Created `src/tests/index.ts` re-exporting the checker
+- Wrote comprehensive test file `src/tests/__tests__/ast-checker.test.ts` with 76 tests covering:
+  - **Positive tests**: All 5 pilot task reference solutions pass all their AST checks (4 tasks with checks + 1 audit task with empty checks)
+  - **Negative tests**: 5 known-BAD code variants (middleware.ts instead of proxy.ts, proxy.ts with runtime:edge, useEffect+useState fallback instead of use(), await cookies/headers instead of sync, createRoot instead of ReactDOM.render) — all correctly detected as failures
+  - **Edge cases**: Empty code string (all checks fail), empty checks array (returns empty), malformed/incomplete code (still parses), code with syntax errors (still processes checks)
+  - **Individual check type tests**: 45+ individual tests for each of the 16 check types covering both pass and fail scenarios
+- Verified: `bun run typecheck` passes, `bun test` (76 tests pass across 2 files, 0 fail), `bun run lint` clean
+
+### Files Changed
+
+- `src/tests/ast-checker.ts` — AST checker engine with all 16 check type implementations
+- `src/tests/index.ts` — Re-exports for the tests module
+- `src/tests/__tests__/ast-checker.test.ts` — Comprehensive test suite (76 tests)
+
+### Decisions
+
+- Used ts-morph's `Project` with `useInMemoryFileSystem: true` to avoid any disk I/O — all parsing happens in memory
+- Created source files as `.tsx` extension to support JSX parsing for checks like `call_exists` with JSX elements (e.g., `<Suspense>`)
+- `call_exists` handles 4 distinct patterns: (1) simple function calls (`use()`), (2) property access calls (`ReactDOM.render()`), (3) JSX elements (`<Suspense>`), and (4) properties in exported objects (`config.matcher`)
+- `import_absent` without a `from` field checks ALL imports; with `from` it only checks the specified module — this matches how the pilot tasks use the check (some specify `from`, some don't)
+- `property_absent` with `inObject` only checks the specified exported object; without it, checks ALL object literals in the file
+- For `type_annotation`, whitespace is normalized for comparison to handle formatting differences
+- The exhaustive switch ensures all 16 check types are handled — adding a new type to the discriminated union will cause a TypeScript compile error if not handled
+- Used `Extract<AstCheck, { type: '...' }>` for type-safe parameter access in each check function
+
+### Notes for Future Agent
+
+- The AST checker is stateless — it receives `code: string` and `checks: AstCheck[]` and returns results. No side effects, no disk I/O.
+- When building the evaluator (task 9), call `runAstChecks(code, task.test_spec.ast_checks)` for each task
+- For multi-file tasks, the `file` field on each AST check indicates which file to check — the evaluator will need to handle this by parsing the appropriate file. Currently `runAstChecks` takes a single code string; the evaluator may need to call it multiple times with different files.
+- JSX element detection (for `call_exists` with `Suspense`, etc.) works via `JsxOpeningElement` and `JsxSelfClosingElement` syntax kinds
+- The checker correctly handles dotted call patterns like `ReactDOM.render` via `PropertyAccessExpression` traversal
+- All 5 pilot task reference solutions are verified to pass all their AST checks in the test suite — this ensures the checks are correctly defined in the task JSON files
