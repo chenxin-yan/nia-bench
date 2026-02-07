@@ -189,7 +189,7 @@
         "Run `bun run lint` to ensure code quality"
       ],
       "notes": "OpenRouter uses the OpenAI-compatible API. Set base URL to `https://openrouter.ai/api/v1` and use `OPENROUTER_API_KEY`. The model ID on OpenRouter is `openai/gpt-5-mini`. Temperature must be 0.0 for reproducibility. The prompt template is in BENCHMARK.md Section 5.2 — follow it exactly. The judge must be instructed to ONLY use the reference documentation provided, not its own knowledge. Majority vote across 3 runs reduces scoring variance. See SPEC.md constraints.",
-      "passed": false
+      "passed": true
     },
     {
       "description": "Build the hallucination classifier module",

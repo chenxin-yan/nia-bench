@@ -397,3 +397,58 @@
 - The MCP config files are copied (not symlinked) into each temp dir, so they're self-contained
 - For the pilot run (task 12), use `--keep-workdirs` to inspect what the agent actually produced
 - The regex for code block extraction handles the common patterns but may miss edge cases (e.g., nested code blocks, code blocks with metadata lines) — this can be refined during the pilot run
+
+---
+
+## Task: Build the LLM judge module with structured rubric evaluation via OpenRouter
+
+### Completed
+
+- Created `src/judge/prompt-template.ts` with `buildJudgePrompt(task, generatedCode, referenceDoc)` function that constructs the judge prompt following the BENCHMARK.md Section 5.2 template exactly. Includes all required sections: task prompt, target version, reference documentation (formatted from VersionApiSurface), reference solution, generated code, rubric criteria with weights, known hallucination patterns, and the "ONLY use reference documentation" instruction.
+- Created `src/judge/openrouter-client.ts` with `callJudge(prompt, config)` function that calls OpenRouter API using the OpenAI-compatible SDK. Defaults to `openai/gpt-5-mini` model, temperature 0.0. Also includes `parseJudgeResponse(rawResponse)` for parsing and normalizing the JSON response from the LLM judge — handles JSON arrays, single objects, embedded JSON in surrounding text, missing fields, and invalid verdicts.
+- Created `src/judge/rubric-scorer.ts` with:
+  - `scoreWithRubric(task, generatedCode, config)` — main entry point: calls the LLM judge 3x (configurable), collects per-criterion verdicts, applies majority vote, and computes weighted judge score
+  - `applyMajorityVote(task, rawResponses)` — applies majority voting: for each criterion, PASS if >= ceil(runs/2) say PASS, evidence/reasoning from the majority side
+  - `calculateJudgeScore(criteria)` — computes `sum(passed_criterion.weight) / sum(all_criterion.weight)`
+  - `loadReferenceDoc(task, referenceDir)` — loads the version API surface reference JSON file for the task's library+version, with proper library directory mapping (`ai` -> `ai-sdk`)
+- Created `src/judge/index.ts` re-exporting all types and functions from the module
+- Defined types: `CriterionResult` (name, verdict, weight, evidence, reasoning), `JudgeResult` (criteria, judgeScore, rawResponses), `ScorerConfig` (runs, clientConfig, referenceDir), `JudgeClientConfig` (apiKey, model, temperature, maxTokens), `JudgeCriterionResponse`, `JudgeCallResult`
+- Wrote `src/judge/__tests__/prompt-template.test.ts` with 16 tests verifying: task prompt inclusion, target version, reference documentation (multiple sections), reference solution, generated code, all rubric criteria with names/weights/descriptions, known hallucinations, the "ONLY use reference documentation" instruction, React-specific rendering info, params_type n/a handling, JSON response format request, section ordering
+- Wrote `src/judge/__tests__/rubric-scorer.test.ts` with 23 tests across 4 describe blocks:
+  - **applyMajorityVote (7 tests)**: unanimous PASS (3/3), majority PASS (2/3), majority FAIL (1/3), weight preservation, failed runs count as FAIL, missing criterion handling, all 3 runs failed
+  - **calculateJudgeScore (5 tests)**: weighted score with 2 pass + 1 fail (=0.6), all pass (=1.0), all fail (=0.0), empty criteria (=0), uneven weights
+  - **parseJudgeResponse (7 tests)**: valid JSON array, JSON in surrounding text, invalid JSON error handling, single object, invalid verdict normalization to FAIL, empty array, missing fields with defaults
+  - **Integration (3 tests)**: full workflow with mixed verdicts producing correct score (0.7), all runs fail (=0.0), single run (no voting)
+- Verified: `bun run typecheck` passes, `bun test` (205 tests across 7 files, 0 fail), `bun run lint` clean
+
+### Files Changed
+
+- `src/judge/prompt-template.ts` — Judge prompt builder following BENCHMARK.md Section 5.2 template
+- `src/judge/openrouter-client.ts` — OpenRouter API client with JSON response parsing
+- `src/judge/rubric-scorer.ts` — Rubric scorer with majority voting and reference doc loading
+- `src/judge/index.ts` — Re-exports for the judge module
+- `src/judge/__tests__/prompt-template.test.ts` — Prompt template test suite (16 tests)
+- `src/judge/__tests__/rubric-scorer.test.ts` — Rubric scorer and majority voting test suite (23 tests)
+- `src/judge/.gitkeep` — Removed (no longer needed, actual files exist)
+
+### Decisions
+
+- Used `openai/gpt-5-mini` as the default judge model on OpenRouter (per SPEC.md and prd.json task notes), while making it configurable via `JudgeClientConfig.model` for flexibility (BENCHMARK.md mentions Claude Opus as an alternative)
+- Temperature is 0.0 for reproducibility as specified in both SPEC.md and BENCHMARK.md
+- The judge prompt requests a JSON array response format for easier parsing — each criterion is a separate object with `criterion`, `verdict`, `evidence`, and `reasoning` fields
+- `parseJudgeResponse` is tolerant: it handles JSON arrays embedded in surrounding text (common with LLMs), single objects wrapped into arrays, missing fields defaulting to FAIL/empty, and invalid verdicts normalized to FAIL
+- If a judge run returns unparseable JSON, the scorer retries once before counting it as a failed run. Failed runs count as FAIL for all criteria during majority voting.
+- Library-to-directory mapping (`ai` -> `ai-sdk`) is centralized in `LIBRARY_DIR_MAP` constant, matching the pattern from the reference files and typecheck-envs
+- The `formatReferenceDoc` function includes all relevant sections conditionally — empty arrays and n/a values are omitted for cleaner prompts
+- Tests use no API calls — all judge-related tests mock the data layer (raw responses, criterion results) to test the voting logic, score calculation, and response parsing in isolation
+
+### Notes for Future Agent
+
+- The judge module is designed to be called from the evaluator (task 10): `scoreWithRubric(task, generatedCode, config)` returns `JudgeResult` with `criteria`, `judgeScore`, and `rawResponses`
+- `loadReferenceDoc(task)` loads from `reference/{libDir}/v{majorVersion}.json` — uses `LIBRARY_DIR_MAP` for library name mapping
+- The `referenceDir` config option allows overriding the reference directory path (useful for testing)
+- The `runs` config option defaults to 3 (for 3x majority vote) but can be changed for faster development iterations
+- The `skipJudge` flag in the evaluator (task 10) should bypass `scoreWithRubric` entirely and set `judgeScore = 0`
+- `callJudge` creates a new OpenAI client for each call — this is intentional for statelessness. For high-parallelism scenarios, consider creating the client once and passing it in.
+- The hallucination classifier (task 9) will need the `JudgeResult` from this module — specifically the per-criterion verdicts for the `no_hallucination` criterion
+- When building the evaluator, concatenate all extracted files with filename headers for the `generatedCode` parameter passed to `buildJudgePrompt`
