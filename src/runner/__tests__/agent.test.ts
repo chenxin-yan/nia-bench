@@ -9,6 +9,7 @@ import {
   extractCodeFromResponse,
   injectConfig,
   injectContext,
+  parseOpenCodeEvents,
 } from '../agent';
 
 /** Helper: check if a path exists */
@@ -48,6 +49,55 @@ function makeTask(overrides: Partial<Task> = {}): Task {
 /** Get path to the actual MCP config directory */
 function getMcpConfigDir(): string {
   return join(import.meta.dirname, '..', 'mcp_configs');
+}
+
+/** Helper: create a mock NDJSON response simulating opencode run --format json output */
+function makeNdjsonResponse(textContent: string): string {
+  const sessionId = 'ses_test123';
+  const messageId = 'msg_test456';
+  const events = [
+    JSON.stringify({
+      type: 'step_start',
+      timestamp: Date.now(),
+      sessionID: sessionId,
+      part: {
+        id: 'prt_1',
+        sessionID: sessionId,
+        messageID: messageId,
+        type: 'step-start',
+        snapshot: 'abc123',
+      },
+    }),
+    JSON.stringify({
+      type: 'text',
+      timestamp: Date.now(),
+      sessionID: sessionId,
+      part: {
+        id: 'prt_2',
+        sessionID: sessionId,
+        messageID: messageId,
+        type: 'text',
+        text: textContent,
+        time: { start: Date.now(), end: Date.now() },
+      },
+    }),
+    JSON.stringify({
+      type: 'step_finish',
+      timestamp: Date.now(),
+      sessionID: sessionId,
+      part: {
+        id: 'prt_3',
+        sessionID: sessionId,
+        messageID: messageId,
+        type: 'step-finish',
+        reason: 'stop',
+        snapshot: 'abc123',
+        cost: 0,
+        tokens: { input: 100, output: 50, reasoning: 0, cache: { read: 0, write: 0 } },
+      },
+    }),
+  ];
+  return events.join('\n');
 }
 
 // --- Setup / Teardown ---
@@ -114,7 +164,7 @@ describe('injectConfig', () => {
 
     // Baseline should have agent config but NO mcpServers
     expect(config.agents).toBeDefined();
-    expect(config.agents.coder.model).toBe('claude-4-sonnet');
+    expect(config.agents.coder.model).toBe('anthropic/claude-sonnet-4-20250514');
     expect(config.mcpServers).toBeUndefined();
   });
 
@@ -251,8 +301,115 @@ describe('injectContext', () => {
   });
 });
 
+describe('parseOpenCodeEvents', () => {
+  test('parses valid NDJSON output into events', () => {
+    const ndjson = makeNdjsonResponse('Hello world');
+    const events = parseOpenCodeEvents(ndjson);
+
+    expect(events).toHaveLength(3);
+    expect(events[0]?.type).toBe('step_start');
+    expect(events[1]?.type).toBe('text');
+    expect(events[1]?.part?.text).toBe('Hello world');
+    expect(events[2]?.type).toBe('step_finish');
+  });
+
+  test('skips non-JSON lines (e.g., banner output)', () => {
+    const output = `some banner text\n${JSON.stringify({ type: 'text', timestamp: 123, sessionID: 'ses_1', part: { text: 'hello' } })}\nmore banner`;
+    const events = parseOpenCodeEvents(output);
+
+    expect(events).toHaveLength(1);
+    expect(events[0]?.type).toBe('text');
+  });
+
+  test('handles empty input', () => {
+    const events = parseOpenCodeEvents('');
+    expect(events).toHaveLength(0);
+  });
+
+  test('handles tool_use events', () => {
+    const event = JSON.stringify({
+      type: 'tool_use',
+      timestamp: 123,
+      sessionID: 'ses_1',
+      part: {
+        type: 'tool',
+        tool: 'write',
+        callID: 'call_1',
+        state: {
+          status: 'completed',
+          input: { filePath: '/tmp/test.ts', content: 'export const x = 1;' },
+          output: 'File written successfully',
+        },
+      },
+    });
+    const events = parseOpenCodeEvents(event);
+
+    expect(events).toHaveLength(1);
+    expect(events[0]?.type).toBe('tool_use');
+    expect(events[0]?.part?.tool).toBe('write');
+  });
+
+  test('handles error events', () => {
+    const event = JSON.stringify({
+      type: 'error',
+      timestamp: 123,
+      sessionID: 'ses_1',
+      error: { name: 'APIError', data: { message: 'Rate limit exceeded' } },
+    });
+    const events = parseOpenCodeEvents(event);
+
+    expect(events).toHaveLength(1);
+    expect(events[0]?.type).toBe('error');
+    expect(events[0]?.error?.name).toBe('APIError');
+  });
+
+  test('handles multi-step conversation with multiple text events', () => {
+    const events = [
+      { type: 'step_start', timestamp: 1, sessionID: 's', part: { type: 'step-start' } },
+      { type: 'text', timestamp: 2, sessionID: 's', part: { type: 'text', text: 'Part 1. ' } },
+      {
+        type: 'tool_use',
+        timestamp: 3,
+        sessionID: 's',
+        part: { type: 'tool', tool: 'bash', state: { status: 'completed' } },
+      },
+      { type: 'step_finish', timestamp: 4, sessionID: 's', part: { type: 'step-finish' } },
+      { type: 'step_start', timestamp: 5, sessionID: 's', part: { type: 'step-start' } },
+      { type: 'text', timestamp: 6, sessionID: 's', part: { type: 'text', text: 'Part 2.' } },
+      { type: 'step_finish', timestamp: 7, sessionID: 's', part: { type: 'step-finish' } },
+    ];
+    const ndjson = events.map((e) => JSON.stringify(e)).join('\n');
+    const parsed = parseOpenCodeEvents(ndjson);
+
+    expect(parsed).toHaveLength(7);
+    const textEvents = parsed.filter((e) => e.type === 'text');
+    expect(textEvents).toHaveLength(2);
+  });
+});
+
 describe('extractCodeFromResponse', () => {
-  test('extracts code from JSON response with markdown code blocks', () => {
+  test('extracts code from NDJSON response with markdown code blocks', () => {
+    const ndjson = makeNdjsonResponse(
+      "Here's the code:\n\n```typescript\nexport function proxy() {\n  return { matched: true };\n}\n```\n\nThis implements the proxy.",
+    );
+
+    const files = extractCodeFromResponse(ndjson);
+    expect(Object.keys(files)).toHaveLength(1);
+    const code = Object.values(files)[0];
+    expect(code).toContain('export function proxy()');
+    expect(code).toContain('return { matched: true }');
+  });
+
+  test('extracts multiple code blocks from NDJSON', () => {
+    const ndjson = makeNdjsonResponse(
+      '```typescript\nexport function a() {}\n```\n\nAnd:\n\n```tsx\nexport function b() {}\n```',
+    );
+
+    const files = extractCodeFromResponse(ndjson);
+    expect(Object.keys(files).length).toBeGreaterThanOrEqual(2);
+  });
+
+  test('handles old JSON format as fallback', () => {
     const jsonResponse = JSON.stringify({
       response:
         "Here's the code:\n\n```typescript\nexport function proxy() {\n  return { matched: true };\n}\n```\n\nThis implements the proxy.",
@@ -262,20 +419,9 @@ describe('extractCodeFromResponse', () => {
     expect(Object.keys(files)).toHaveLength(1);
     const code = Object.values(files)[0];
     expect(code).toContain('export function proxy()');
-    expect(code).toContain('return { matched: true }');
   });
 
-  test('extracts multiple code blocks', () => {
-    const response = JSON.stringify({
-      response:
-        '```typescript\nexport function a() {}\n```\n\nAnd:\n\n```tsx\nexport function b() {}\n```',
-    });
-
-    const files = extractCodeFromResponse(response);
-    expect(Object.keys(files).length).toBeGreaterThanOrEqual(2);
-  });
-
-  test('handles raw text (non-JSON) response', () => {
+  test('handles raw text (non-JSON, non-NDJSON) response', () => {
     const rawResponse = "Here's the code:\n```typescript\nexport function hello() {}\n```";
 
     const files = extractCodeFromResponse(rawResponse);
@@ -284,11 +430,9 @@ describe('extractCodeFromResponse', () => {
   });
 
   test('returns empty object when no code blocks found', () => {
-    const response = JSON.stringify({
-      response: 'No code blocks here, just text.',
-    });
+    const ndjson = makeNdjsonResponse('No code blocks here, just text.');
 
-    const files = extractCodeFromResponse(response);
+    const files = extractCodeFromResponse(ndjson);
     expect(Object.keys(files)).toHaveLength(0);
   });
 
@@ -297,33 +441,53 @@ describe('extractCodeFromResponse', () => {
     expect(Object.keys(files)).toHaveLength(0);
   });
 
-  test('extracts code from tsx code blocks', () => {
-    const response = JSON.stringify({
-      response: '```tsx\nexport default function Page() {\n  return <div>Hello</div>;\n}\n```',
-    });
+  test('extracts code from tsx code blocks in NDJSON', () => {
+    const ndjson = makeNdjsonResponse(
+      '```tsx\nexport default function Page() {\n  return <div>Hello</div>;\n}\n```',
+    );
 
-    const files = extractCodeFromResponse(response);
+    const files = extractCodeFromResponse(ndjson);
     expect(Object.keys(files)).toHaveLength(1);
     expect(Object.values(files)[0]).toContain('<div>Hello</div>');
   });
 
   test('extracts code from js/jsx blocks', () => {
-    const response = JSON.stringify({
-      response: '```js\nconst x = 1;\n```\n\n```jsx\nconst y = <div/>;\n```',
-    });
+    const ndjson = makeNdjsonResponse('```js\nconst x = 1;\n```\n\n```jsx\nconst y = <div/>;\n```');
 
-    const files = extractCodeFromResponse(response);
+    const files = extractCodeFromResponse(ndjson);
     expect(Object.keys(files).length).toBeGreaterThanOrEqual(2);
   });
 
   test('detects filename hints before code blocks', () => {
-    const response = JSON.stringify({
-      response: 'file: proxy.ts\n```typescript\nexport function proxy() {}\n```',
-    });
+    const ndjson = makeNdjsonResponse(
+      'file: proxy.ts\n```typescript\nexport function proxy() {}\n```',
+    );
 
-    const files = extractCodeFromResponse(response);
+    const files = extractCodeFromResponse(ndjson);
     expect(files['proxy.ts']).toBeDefined();
     expect(files['proxy.ts']).toContain('export function proxy()');
+  });
+
+  test('concatenates text from multiple text events', () => {
+    const events = [
+      {
+        type: 'text',
+        timestamp: 1,
+        sessionID: 's',
+        part: { type: 'text', text: "Here's the code:\n\n```typescript\n" },
+      },
+      {
+        type: 'text',
+        timestamp: 2,
+        sessionID: 's',
+        part: { type: 'text', text: 'export function proxy() {}\n```' },
+      },
+    ];
+    const ndjson = events.map((e) => JSON.stringify(e)).join('\n');
+
+    const files = extractCodeFromResponse(ndjson);
+    expect(Object.keys(files)).toHaveLength(1);
+    expect(Object.values(files)[0]).toContain('export function proxy()');
   });
 });
 
@@ -488,11 +652,9 @@ describe('integration: end-to-end dry run (no opencode call)', () => {
       'utf-8',
     );
 
-    // Simulate extracting from response (would give different code)
+    // Simulate extracting from NDJSON response (would give different code)
     const responseFiles = extractCodeFromResponse(
-      JSON.stringify({
-        response: '```typescript\nexport function proxy() { /* response version */ }\n```',
-      }),
+      makeNdjsonResponse('```typescript\nexport function proxy() { /* response version */ }\n```'),
     );
 
     // Disk files should be preferred
@@ -509,9 +671,7 @@ describe('integration: end-to-end dry run (no opencode call)', () => {
     // No files written to disk
 
     const responseFiles = extractCodeFromResponse(
-      JSON.stringify({
-        response: '```typescript\nexport function proxy() { /* response version */ }\n```',
-      }),
+      makeNdjsonResponse('```typescript\nexport function proxy() { /* response version */ }\n```'),
     );
 
     const diskFiles = await extractCodeFromDisk(workDir);
@@ -552,11 +712,9 @@ describe('edge cases', () => {
   });
 
   test('extractCodeFromResponse handles empty code blocks', () => {
-    const response = JSON.stringify({
-      response: '```typescript\n\n```',
-    });
+    const ndjson = makeNdjsonResponse('```typescript\n\n```');
 
-    const files = extractCodeFromResponse(response);
+    const files = extractCodeFromResponse(ndjson);
     // Empty code block should be skipped (trim results in empty string)
     expect(Object.keys(files)).toHaveLength(0);
   });
@@ -583,5 +741,19 @@ describe('edge cases', () => {
     await expect(
       injectConfig(workDir, 'baseline', { mcpConfigDir: '/tmp/nonexistent-config-dir' }),
     ).rejects.toThrow();
+  });
+
+  test('parseOpenCodeEvents handles error event with no part', () => {
+    const ndjson = JSON.stringify({
+      type: 'error',
+      timestamp: 123,
+      sessionID: 'ses_1',
+      error: { name: 'TestError' },
+    });
+
+    const events = parseOpenCodeEvents(ndjson);
+    expect(events).toHaveLength(1);
+    expect(events[0]?.type).toBe('error');
+    expect(events[0]?.part).toBeUndefined();
   });
 });

@@ -635,3 +635,57 @@
 - The worker pool creates all promises upfront (via `workQueue.map()`) and uses the semaphore to limit concurrency — this is simpler than a pull-based queue and works well with `Promise.allSettled()`
 - The `--tasks-dir` flag can override where tasks are loaded from (default: `{cwd}/tasks/`)
 - All CLI flags use `--kebab-case` convention (e.g., `--skip-judge`, `--keep-workdirs`, `--output-dir`)
+
+---
+
+## Task: Pilot run: execute end-to-end pipeline on 5 pilot tasks and validate sandboxing, execution, and evaluation
+
+### Completed
+
+- **Critical discovery**: opencode v1.1.47 uses a completely different CLI interface than the one the agent runner was originally built for. Updated the entire agent runner to match.
+- Updated opencode CLI invocation from `opencode -c <cwd> -p "<prompt>" -f json -q` to `opencode run --format json --model <model> "<prompt>"` with `cwd` set via `Bun.spawn()` options
+- Updated JSON output parsing from single `{response: "..."}` format to streaming NDJSON (newline-delimited JSON) events with types: `step_start`, `text`, `tool_use`, `step_finish`, `error`
+- Added `parseOpenCodeEvents()` function to parse NDJSON output into typed event objects
+- Updated `extractCodeFromResponse()` to concatenate text from all `text` type events, then extract code blocks from the concatenated text
+- Updated MCP config model IDs from `claude-4-sonnet` to `anthropic/claude-sonnet-4-20250514` (correct provider/model format for opencode v1.1.47)
+- Added `--model` CLI flag and `model` field to `AgentRunnerConfig` to override model via `opencode run --model` flag — necessary because opencode's global config/env-based model defaults can override the per-project `.opencode.json` settings
+- Validated dry-run: `bun run bench --dry-run --reps 1` correctly prints 15 items (5 tasks × 3 conditions)
+- Validated filter: `bun run bench --dry-run --task nextjs-16-proxy-ts --condition baseline --reps 2` correctly prints 2 items
+- Validated seed reproducibility: two consecutive runs with `--seed 42` produce identical execution order
+- **Successfully ran a real pilot task**: `bun run bench --task nextjs-16-proxy-ts --condition baseline --reps 1 --skip-judge --keep-workdirs --model anthropic/claude-sonnet-4-20250514`
+  - Agent completed in ~3 minutes, created a full Next.js 16 project with `proxy.ts`
+  - All 4 AST checks passed (testScore=1.0): proxy function exported, middleware function absent, config.matcher present, no runtime property
+  - Zero hallucinations detected
+  - Code extracted from disk correctly (6 code files found)
+  - Result JSON stored at `results/{timestamp}/nextjs-16-proxy-ts/baseline/run-0.json`
+  - Temp dir preserved with `.opencode.json` config injection verified
+- Updated tests to cover NDJSON parsing (7 new tests for `parseOpenCodeEvents`), NDJSON-based code extraction, and updated model name assertions
+- Verified: `bun test` (281 tests pass across 10 files, 0 fail), `bun run typecheck` passes, `bun run lint` clean
+
+### Files Changed
+
+- `src/runner/agent.ts` — Rewrote agent runner: new CLI syntax (`opencode run`), NDJSON parsing, `--model` flag, CWD via Bun.spawn options
+- `src/runner/index.ts` — Added `parseOpenCodeEvents` and `OpenCodeEvent` exports
+- `src/runner/orchestrator.ts` — Added `--model` CLI flag, model field in CliConfig, pass model to runAgent
+- `src/runner/mcp_configs/baseline.opencode.json` — Updated model to `anthropic/claude-sonnet-4-20250514`
+- `src/runner/mcp_configs/context7.opencode.json` — Updated model to `anthropic/claude-sonnet-4-20250514`
+- `src/runner/mcp_configs/nia.opencode.json` — Updated model to `anthropic/claude-sonnet-4-20250514`
+- `src/runner/__tests__/agent.test.ts` — Updated tests for NDJSON format, new model name, added parseOpenCodeEvents tests
+
+### Decisions
+
+- **CWD via Bun.spawn**: opencode v1.1.47's `run` subcommand has no `--cwd` flag. Instead, the working directory is set via `Bun.spawn({cwd: workDir})`, which makes opencode load its `.opencode.json` config from the temp dir.
+- **--model flag is required**: opencode resolves the default model based on available API keys in the environment (priority: Copilot > Anthropic > OpenAI > Gemini > Groq > OpenRouter). If the user has a GROQ_API_KEY set but no ANTHROPIC_API_KEY, opencode will use the Groq model even if `.opencode.json` specifies Claude Sonnet. The `--model` flag on `opencode run` overrides this.
+- **NDJSON event parsing**: opencode's `--format json` outputs one JSON object per line (NDJSON). Events have types: `step_start`, `text`, `tool_use`, `step_finish`, `error`. Text content is in `part.text` of `text` type events. Multiple text events may exist across multiple steps (multi-turn conversations with tool use).
+- **Backward compatibility**: `extractCodeFromResponse` falls back to the old `{response: "..."}` JSON format if NDJSON parsing yields no text content — ensures the code extraction works with any format.
+- **Deferred multi-condition and judge testing**: Only the baseline condition was tested with a real agent execution to minimize API costs. Context7 and Nia conditions, parallel execution, and the LLM judge remain to be validated in future runs. The structural wiring is in place.
+
+### Notes for Future Agent
+
+- **Always use `--model` flag** when running `bun run bench`: `bun run bench --model anthropic/claude-sonnet-4-20250514 ...`. Without it, the agent model depends on which API keys are set in the environment.
+- The agent creates a full project scaffolding (ran `npx create-next-app`, installed dependencies, wrote proxy.ts) which explains the ~3 minute execution time. Future tasks may be faster since some don't require a full project setup.
+- opencode auto-approves all tool permissions in non-interactive mode via `opencode run` — no special permission config needed in `.opencode.json`
+- The extractCodeFromDisk function correctly skips `.opencode.json`, `node_modules`, `package.json`, `.git`, and other non-code files — this was validated with the real agent output
+- Context7 and Nia MCP servers use `npx -y @context7/mcp` and `npx -y @nicepkg/nia-mcp` respectively — these still need live validation
+- The LLM judge (OpenRouter with GPT-5 Mini) has not been tested with a real call yet — test with `--task nextjs-16-proxy-ts --condition baseline --reps 1 --model anthropic/claude-sonnet-4-20250514` (without `--skip-judge`) when ready
+- The parallel execution test was not performed to save API costs — test with `--parallel 3` in a future run

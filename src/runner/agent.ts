@@ -36,6 +36,44 @@ export interface AgentRunnerConfig {
   mcpConfigDir?: string;
   /** Project root directory (for resolving default paths) */
   projectRoot?: string;
+  /**
+   * Model ID to use for the agent in provider/model format.
+   * Passed as `--model` flag to opencode to override any config/env defaults.
+   * Example: "anthropic/claude-sonnet-4-20250514"
+   */
+  model?: string;
+}
+
+/**
+ * Represents a single JSON event from opencode's streaming output.
+ * Format: newline-delimited JSON (NDJSON) with a `type` field.
+ */
+export interface OpenCodeEvent {
+  type: string;
+  timestamp: number;
+  sessionID: string;
+  part?: {
+    id?: string;
+    sessionID?: string;
+    messageID?: string;
+    type?: string;
+    text?: string;
+    tool?: string;
+    callID?: string;
+    state?: {
+      status?: string;
+      input?: Record<string, unknown>;
+      output?: string;
+      metadata?: Record<string, unknown>;
+    };
+    reason?: string;
+    cost?: number;
+    tokens?: Record<string, unknown>;
+  };
+  error?: {
+    name?: string;
+    data?: Record<string, unknown>;
+  };
 }
 
 // --- Constants ---
@@ -120,21 +158,71 @@ export async function injectContext(workDir: string, task: Task): Promise<void> 
 }
 
 /**
- * Extracts code from the agent's JSON stdout response.
- * Looks for markdown code blocks (```typescript...```, ```tsx...```, etc.)
+ * Parses opencode's streaming NDJSON output into an array of events.
+ * Each line is a separate JSON event with a `type` field.
+ *
+ * Event types:
+ * - `step_start`: Start of a processing step
+ * - `text`: Text response content (part.text)
+ * - `tool_use`: Tool call with input/output (part.tool, part.state)
+ * - `step_finish`: End of a processing step
+ * - `error`: Error event
+ */
+export function parseOpenCodeEvents(rawOutput: string): OpenCodeEvent[] {
+  const events: OpenCodeEvent[] = [];
+  const lines = rawOutput.split('\n');
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    try {
+      const event = JSON.parse(trimmed) as OpenCodeEvent;
+      if (event.type) {
+        events.push(event);
+      }
+    } catch {
+      // Skip non-JSON lines (e.g., banner output)
+    }
+  }
+
+  return events;
+}
+
+/**
+ * Extracts code from the agent's streaming NDJSON response.
+ *
+ * Strategy:
+ * 1. Collect all `text` type events and concatenate their text content
+ * 2. Look for markdown code blocks in the concatenated text
+ * 3. Try to detect filenames from context before code blocks
  */
 export function extractCodeFromResponse(rawOutput: string): Record<string, string> {
   const files: Record<string, string> = {};
 
-  // Try to parse as JSON first (opencode -f json returns {response: "..."})
-  let responseText = rawOutput;
-  try {
-    const parsed = JSON.parse(rawOutput) as { response?: string };
-    if (parsed.response) {
-      responseText = parsed.response;
+  // Parse NDJSON events
+  const events = parseOpenCodeEvents(rawOutput);
+
+  // Collect all text content from text events
+  let fullText = '';
+  for (const event of events) {
+    if (event.type === 'text' && event.part?.text) {
+      fullText += event.part.text;
     }
-  } catch {
-    // Not JSON, use raw text
+  }
+
+  // If no events were parsed (fallback for non-NDJSON output), try old format
+  if (!fullText) {
+    // Try to parse as old JSON format {response: "..."}
+    try {
+      const parsed = JSON.parse(rawOutput) as { response?: string };
+      if (parsed.response) {
+        fullText = parsed.response;
+      }
+    } catch {
+      // Use raw text
+      fullText = rawOutput;
+    }
   }
 
   // Match code blocks with optional language and filename hints
@@ -145,11 +233,11 @@ export function extractCodeFromResponse(rawOutput: string): Record<string, strin
   let blockIndex = 0;
 
   // biome-ignore lint/suspicious/noAssignInExpressions: regex exec loop pattern
-  while ((match = codeBlockRegex.exec(responseText)) !== null) {
+  while ((match = codeBlockRegex.exec(fullText)) !== null) {
     const code = match[1]?.trim();
     if (code) {
       // Try to detect filename from context before the code block
-      const beforeBlock = responseText.substring(0, match.index);
+      const beforeBlock = fullText.substring(0, match.index);
       const filenameMatch = beforeBlock.match(
         /(?:file[:\s]+|filename[:\s]+|in\s+)`?([^\s`]+\.(?:tsx?|jsx?))`?\s*$/i,
       );
@@ -239,9 +327,14 @@ export async function checkOpencodeBinary(): Promise<boolean> {
  * 1. Create unique temp directory
  * 2. Copy condition-specific .opencode.json config
  * 3. Inject task context files (package.json, code files)
- * 4. Invoke opencode CLI with --cwd, -p (prompt), -f json, -q (quiet)
+ * 4. Invoke opencode CLI: `opencode run --format json "prompt"` with cwd set to the workdir
  * 5. Extract code from both stdout response and disk files
  * 6. Clean up temp directory (unless keepWorkdirs is true)
+ *
+ * opencode v1.1.47 uses:
+ * - `opencode run --format json "message"` for non-interactive execution
+ * - CWD determines project context and config file loading (.opencode.json)
+ * - JSON output is streaming NDJSON with event types: step_start, text, tool_use, step_finish
  */
 export async function runAgent(
   task: Task,
@@ -263,14 +356,24 @@ export async function runAgent(
     await injectContext(workDir, task);
 
     // Step 4: Invoke opencode CLI
+    // opencode v1.1.47 uses: `opencode run --format json "message"`
+    // CWD is set via Bun.spawn's cwd option (opencode loads .opencode.json from CWD)
     const startTime = Date.now();
     let rawOutput = '';
     let exitCode = 1;
 
     try {
-      const proc = Bun.spawn(['opencode', '-c', workDir, '-p', task.prompt, '-f', 'json', '-q'], {
+      // Build command args
+      const args = ['opencode', 'run', '--format', 'json'];
+      if (config?.model) {
+        args.push('--model', config.model);
+      }
+      args.push(task.prompt);
+
+      const proc = Bun.spawn(args, {
         stdout: 'pipe',
         stderr: 'pipe',
+        cwd: workDir,
         env: {
           ...process.env,
           // Ensure HOME is set so opencode can find its global config

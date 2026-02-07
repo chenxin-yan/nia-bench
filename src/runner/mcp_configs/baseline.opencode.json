@@ -1,19 +1,19 @@
 {
   "agents": {
     "coder": {
-      "model": "claude-4-sonnet",
+      "model": "anthropic/claude-sonnet-4-20250514",
       "maxTokens": 16000
     },
     "task": {
-      "model": "claude-4-sonnet",
+      "model": "anthropic/claude-sonnet-4-20250514",
       "maxTokens": 16000
     },
     "title": {
-      "model": "claude-4-sonnet",
+      "model": "anthropic/claude-sonnet-4-20250514",
       "maxTokens": 80
     },
     "summarizer": {
-      "model": "claude-4-sonnet",
+      "model": "anthropic/claude-sonnet-4-20250514",
       "maxTokens": 5000
     }
   }

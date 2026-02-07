@@ -57,6 +57,12 @@ export interface CliConfig {
   tasksDir: string;
   /** Project root directory */
   projectRoot: string;
+  /**
+   * Model ID to use for the agent in provider/model format.
+   * Overrides the model in .opencode.json configs via --model flag.
+   * Example: "anthropic/claude-sonnet-4-20250514"
+   */
+  model?: string;
 }
 
 // --- Seeded Random ---
@@ -295,6 +301,9 @@ export function parseCliArgs(argv: string[]): CliConfig {
       case '--tasks-dir':
         config.tasksDir = resolve(args[++i] ?? 'tasks');
         break;
+      case '--model':
+        config.model = args[++i];
+        break;
     }
   }
 
@@ -358,7 +367,9 @@ export async function runBenchmark(config: CliConfig): Promise<void> {
   console.log(
     `Work queue: ${workQueue.length} items (${tasks.length} tasks x ${conditions.length} conditions x ${config.reps} reps)`,
   );
-  console.log(`Seed: ${config.seed} | Parallel: ${config.parallel}`);
+  console.log(
+    `Seed: ${config.seed} | Parallel: ${config.parallel}${config.model ? ` | Model: ${config.model}` : ''}`,
+  );
 
   // Dry run: print execution plan and exit
   if (config.dryRun) {
@@ -461,6 +472,7 @@ export async function runBenchmark(config: CliConfig): Promise<void> {
         keepWorkdirs: config.keepWorkdirs,
         timeout: config.timeout,
         projectRoot: config.projectRoot,
+        model: config.model,
       });
 
       // Evaluate result

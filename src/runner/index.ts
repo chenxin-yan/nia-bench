@@ -1,4 +1,4 @@
-export type { AgentResult, AgentRunnerConfig, Condition } from './agent';
+export type { AgentResult, AgentRunnerConfig, Condition, OpenCodeEvent } from './agent';
 export {
   checkOpencodeBinary,
   createWorkDir,
@@ -6,6 +6,7 @@ export {
   extractCodeFromResponse,
   injectConfig,
   injectContext,
+  parseOpenCodeEvents,
   runAgent,
 } from './agent';
 
