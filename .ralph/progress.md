@@ -866,3 +866,61 @@
 - For the reporter, audit tasks have `finalScore = judgeScore` (100% judge weight, since no AST checks). The evaluator already handles this special case.
 - The validation script `scripts/validate-version-locked-audit-tasks.ts` can serve as a reference for verifying audit task structure
 - All validation scripts are in the `scripts/` directory: `validate-pilot-tasks.ts`, `validate-bleeding-edge-tasks.ts`, `validate-version-locked-write-tasks.ts`, `validate-version-locked-audit-tasks.ts`
+
+---
+
+## Task: Build the results reporter generating comparison tables and per-task breakdowns
+
+### Completed
+
+- Created `src/runner/reporter.ts` with the full results reporting pipeline:
+  - `loadResults(runDir)`: Reads all EvaluationResult JSON files from the nested `{runDir}/{taskId}/{condition}/run-{index}.json` structure. Handles missing directories, malformed JSON, and metadata files gracefully.
+  - `computeMetrics(results)`: Aggregates task-level metrics by first grouping results by taskId and averaging across reps. Computes Task Pass Rate (avg finalScore >= 0.8), Hallucination Rate (any rep has >= 1 hallucination), Version Compliance Rate (all reps have all AST checks passing), and Mean Combined Score (average of per-task average finalScores).
+  - `computeHallucinationDistribution(results)`: Counts occurrences of each of the 6 hallucination types and computes percentages.
+  - `inferTaskMetadata(taskId)`: Infers category (bleeding_edge, version_locked_write, version_locked_audit), library, and target version from the task ID pattern. Handles all 37 existing tasks correctly.
+  - `buildTaskDetails(results)`: Creates per-task detail view showing all conditions side-by-side with averaged scores, hallucination types, and rep counts.
+  - `generateReport(runDir)`: Full report generation pipeline — loads results, computes all metrics across all dimensions (overall, per-category, per-library, hallucination distribution, per-task details).
+  - `formatReportText(report)`: Generates the formatted ASCII table output matching BENCHMARK.md Section 7.3 format exactly. Includes overall metrics, per-category breakdowns, per-library breakdown, hallucination type distribution, and per-task breakdown sections.
+  - `writeReport(runDir, report)`: Writes both `report.json` (structured) and `report.txt` (formatted table) to the run directory.
+  - `generateAndWriteReport(runDir)`: Full pipeline that loads, generates, writes, and prints the report to console.
+- Wired the `--report-only` flag in the orchestrator to call `generateAndWriteReport(config.outputDir)` instead of the previous placeholder
+- Added automatic report generation at the end of normal benchmark runs (after all workers complete)
+- Updated barrel exports in `src/runner/index.ts` to export all reporter types and functions
+- Wrote comprehensive test file `src/runner/__tests__/reporter.test.ts` with 37 tests across 7 describe blocks:
+  - **loadResults (5 tests)**: loads from expected structure, empty directory, skips metadata/non-JSON, skips malformed JSON, multiple reps
+  - **computeMetrics (7 tests)**: simple case (2 tasks), empty results, averaging across reps, hallucination detection from any rep, version compliance requires all checks passing in all reps, all tasks passing, score formula 2 pass + 1 fail
+  - **computeHallucinationDistribution (3 tests)**: counts types correctly, returns all 6 types even when empty, percentages sum to 1.0
+  - **inferTaskMetadata (7 tests)**: Next.js bleeding-edge, React version-locked-write, audit tasks, AI SDK, tRPC, Zod, unknown task IDs
+  - **buildTaskDetails (4 tests)**: multiple conditions, averaging across reps, deduplicating hallucination types across reps, sorting by taskId
+  - **generateReport integration (5 tests)**: basic report with 2 tasks × 3 conditions, per-category separation, partial results with 1 condition, empty directory, per-library grouping
+  - **writeReport + formatReportText (6 tests)**: writes both JSON and text files, JSON is valid/parseable with correct structure, text matches ASCII table format, single condition, N/A for missing data, empty report
+- Verified: `bun test` (318 tests pass across 11 files, 0 fail), `bun run typecheck` passes, `bun run lint` clean
+
+### Files Changed
+
+- `src/runner/reporter.ts` — Full results reporter module with metrics computation, formatting, and file output
+- `src/runner/index.ts` — Updated barrel exports to include all reporter types and functions
+- `src/runner/orchestrator.ts` — Wired --report-only flag to generateAndWriteReport(), added auto-report after benchmark completion
+- `src/runner/__tests__/reporter.test.ts` — Comprehensive test suite (37 tests)
+
+### Decisions
+
+- **Task metadata inference from taskId**: Since `EvaluationResult` doesn't store the task's `category` or `library` directly (they come from the task JSON file), the reporter infers them from the taskId pattern. This avoids needing to re-load task JSON files from disk. The inference covers all 37 existing task IDs correctly and falls back to 'unknown' for unrecognized patterns.
+- **Task-level metrics with rep averaging**: Per the task description, metrics are computed at the task level by first averaging finalScores across reps. This means a task "passes" if its average finalScore across all reps is >= 0.8, not if any single rep passes. This is more statistically robust.
+- **Hallucination detection uses "any rep" criterion**: A task is counted as having hallucinations if ANY rep has >= 1 hallucination type. This is conservative — even intermittent hallucinations count.
+- **Version compliance uses "all reps, all checks" criterion**: A task is version-compliant only if ALL reps have ALL AST checks passing. This is the strictest criterion since we want to measure consistent correctness.
+- **ASCII table format follows BENCHMARK.md Section 7.3**: The output includes overall metrics, per-category breakdowns (with category-specific secondary metrics), and per-library mean scores. Extended with hallucination distribution and per-task breakdown sections for additional insight.
+- **N/A for missing conditions**: When a condition has no results for a particular dimension, "N/A" is displayed instead of 0 — this distinguishes "no data" from "score is 0".
+- **Report auto-generated after benchmark runs**: After the orchestrator completes all work items, it automatically generates and prints the report. This provides immediate feedback without needing a separate `--report-only` invocation.
+- **Used `readdir` + `readFile` pattern**: The reporter reads the filesystem directly (no Bun-specific APIs) for maximum portability. Each result file is parsed independently — malformed files are skipped without crashing.
+
+### Notes for Future Agent
+
+- All tasks in prd.json are now complete (passed: true). The full benchmark pipeline is ready for use.
+- To generate a report from existing results: `bun run bench --report-only --output-dir results/{timestamp}`
+- The report is automatically generated at the end of normal benchmark runs — no need for a separate invocation
+- The reporter infers task metadata from taskId patterns. If new tasks are added with different naming conventions, update `inferTaskMetadata()` and `inferCategoryFromTaskId()` in reporter.ts
+- The `Report` type is exported from `src/runner/index.ts` for programmatic access
+- `report.json` contains the full structured report; `report.txt` contains the formatted ASCII table
+- The hallucination distribution section is a bonus beyond BENCHMARK.md Section 7.3 — it shows per-type counts per condition for deeper analysis
+- The per-task breakdown shows individual task scores across all conditions for identifying specific strengths/weaknesses

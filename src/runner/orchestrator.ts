@@ -4,6 +4,7 @@ import type { Condition } from './agent';
 import { checkOpencodeBinary, runAgent } from './agent';
 import type { EvaluatorConfig } from './evaluator';
 import { evaluateCode } from './evaluator';
+import { generateAndWriteReport } from './reporter';
 import type { RunMetadata } from './result-store';
 import { createRunDir, storeResult, writeRunMetadata } from './result-store';
 
@@ -319,7 +320,7 @@ export async function runBenchmark(config: CliConfig): Promise<void> {
   // Report-only mode: generate report from existing results
   if (config.reportOnly) {
     console.log(`Report-only mode: generating report from ${config.outputDir}`);
-    console.log('Reporter not yet implemented (task 15). Exiting.');
+    await generateAndWriteReport(config.outputDir);
     return;
   }
 
@@ -511,4 +512,10 @@ export async function runBenchmark(config: CliConfig): Promise<void> {
 
   console.log(`\nBenchmark ${metadata.status}. Results: ${runDir}`);
   console.log(`Completed: ${progress.getCompleted()}/${workQueue.length} items`);
+
+  // Generate report from the completed run
+  if (progress.getCompleted() > 0) {
+    console.log('\nGenerating report...\n');
+    await generateAndWriteReport(runDir);
+  }
 }

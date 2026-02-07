@@ -379,8 +379,8 @@
         "Run `bun run typecheck` to ensure no type errors",
         "Run `bun run lint` to ensure code quality"
       ],
-      "notes": "The report format is defined in BENCHMARK.md Section 7.3 — follow it exactly for the console output. The JSON version should be a structured object enabling further analysis. When computing averages across reps (3 per task×condition), use the mean of final scores. The reporter must be callable standalone via `bun run bench --report-only --output-dir results/{timestamp}`. TESTING: The reporter is a pure data-transformation module (reads JSON files, computes metrics, writes output) with no external API calls — it should have thorough unit tests with mock data. See SPEC.md Architecture Phase 4.",
-      "passed": false
+      "notes": "COMPLETED: Reporter module fully implemented with all required functionality. Key features: (1) loadResults() reads all EvaluationResult JSON files from the nested directory structure, (2) computeMetrics() aggregates task-level metrics by averaging across reps before computing pass rates, (3) per-condition, per-category, per-library breakdowns with proper grouping, (4) hallucination type distribution per condition, (5) per-task detail view with all conditions side-by-side, (6) formatted ASCII table output matching BENCHMARK.md Section 7.3, (7) both report.json and report.txt written, (8) --report-only flag wired in orchestrator, (9) report auto-generated at end of benchmark runs. Task metadata (category, library, version) inferred from taskId patterns. 37 tests covering: loadResults (5), computeMetrics (7), computeHallucinationDistribution (3), inferTaskMetadata (7), buildTaskDetails (4), generateReport integration (5), writeReport (2), formatReportText (4).",
+      "passed": true
     }
   ]
 }

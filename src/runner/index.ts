@@ -23,5 +23,23 @@ export {
   runBenchmark,
   shuffleArray,
 } from './orchestrator';
+export type {
+  ConditionMetrics,
+  HallucinationDistribution,
+  MetricsGroup,
+  Report,
+  TaskDetail,
+} from './reporter';
+export {
+  buildTaskDetails,
+  computeHallucinationDistribution,
+  computeMetrics,
+  formatReportText,
+  generateAndWriteReport,
+  generateReport,
+  inferTaskMetadata,
+  loadResults,
+  writeReport,
+} from './reporter';
 export type { RunMetadata } from './result-store';
 export { createRunDir, storeResult, writeRunMetadata } from './result-store';
