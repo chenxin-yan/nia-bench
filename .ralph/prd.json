@@ -34,7 +34,7 @@
         "Run `bun run lint` to ensure code quality"
       ],
       "notes": "The task schema must match BENCHMARK.md Section 3.2. The `test_spec.ast_checks` array contains objects like `{type: 'import_exists' | 'import_absent' | 'function_exported' | 'function_absent' | 'await_present' | 'await_absent' | 'call_exists' | 'call_absent' | 'directive_present' | 'type_check', ...params}`. Each AST check type has different params — define a discriminated union. See BENCHMARK.md task examples for all check types needed.",
-      "passed": false
+      "passed": true
     },
     {
       "description": "Create 5 pilot task JSON files covering all three categories and multiple libraries",
@@ -48,7 +48,7 @@
         "Run `bun run typecheck` to ensure no type errors",
         "Run `bun run lint` to ensure code quality"
       ],
-      "notes": "These 5 pilot tasks are chosen to cover: 2 bleeding-edge (Next.js 16, React 19), 2 version-locked-write (Next.js 13, React 17), 1 version-locked-audit (React 17). They span 2 libraries (Next.js, React) and all 3 categories. Full task content is in BENCHMARK.md Section 4. Copy prompts, reference solutions, test specs, and rubrics verbatim from BENCHMARK.md.",
+      "notes": "These 5 pilot tasks are chosen to cover: 2 bleeding-edge (Next.js 16, React 19), 2 version-locked-write (Next.js 13, React 17), 1 version-locked-audit (React 17). They span 2 libraries (Next.js, React) and all 3 categories. Full task content is in BENCHMARK.md Section 4. Copy prompts, reference solutions, test specs, and rubrics verbatim from BENCHMARK.md. IMPORTANT: The task JSON must match the Zod schema in `src/types/task.ts`. Key points: (1) AST checks use a discriminated union on `type` field — see the 16 supported types in task.ts, (2) rubric criterion `weight` is a float 0-1 (e.g., 0.25 = 25%), (3) audit tasks should have `test_spec.ast_checks` as an empty array `[]`, (4) use `loadTasks()` from `src/loader` to validate all 5 files load correctly. You can write a quick validation script or test.",
       "passed": false
     },
     {
