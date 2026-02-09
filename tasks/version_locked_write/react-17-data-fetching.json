@@ -1,82 +1,82 @@
 {
-  "id": "react-17-data-fetching",
-  "category": "version_locked_write",
-  "library": "react",
-  "target_version": "17.0.2",
-  "prompt": "This project uses **React 17**. Create a `UserProfile` component that fetches user data from `/api/users/:id` on mount and displays the user's name and email. Handle loading and error states. Write code that only uses React 17 APIs.",
-  "context": {
-    "package_json": "{\n  \"dependencies\": {\n    \"react\": \"17.0.2\",\n    \"react-dom\": \"17.0.2\"\n  }\n}"
-  },
-  "reference_solution": "import React, { useState, useEffect } from 'react';\n\ntype User = { id: string; name: string; email: string };\n\nexport default function UserProfile({ userId }: { userId: string }) {\n  const [user, setUser] = useState<User | null>(null);\n  const [loading, setLoading] = useState(true);\n  const [error, setError] = useState<string | null>(null);\n\n  useEffect(() => {\n    let cancelled = false;\n    setLoading(true);\n\n    fetch(`/api/users/${userId}`)\n      .then((res) => res.json())\n      .then((data) => {\n        if (!cancelled) {\n          setUser(data);\n          setLoading(false);\n        }\n      })\n      .catch((err) => {\n        if (!cancelled) {\n          setError(err.message);\n          setLoading(false);\n        }\n      });\n\n    return () => { cancelled = true; };\n  }, [userId]);\n\n  if (loading) return <div>Loading...</div>;\n  if (error) return <div>Error: {error}</div>;\n  if (!user) return null;\n\n  return (\n    <div>\n      <h1>{user.name}</h1>\n      <p>{user.email}</p>\n    </div>\n  );\n}",
-  "test_spec": {
-    "ast_checks": [
-      {
-        "type": "call_exists",
-        "call": "useState"
-      },
-      {
-        "type": "call_exists",
-        "call": "useEffect"
-      },
-      {
-        "type": "import_absent",
-        "name": "use",
-        "from": "react"
-      },
-      {
-        "type": "import_absent",
-        "name": "useTransition",
-        "from": "react"
-      },
-      {
-        "type": "import_absent",
-        "name": "useDeferredValue",
-        "from": "react"
-      },
-      {
-        "type": "import_absent",
-        "name": "useId",
-        "from": "react"
-      },
-      {
-        "type": "call_absent",
-        "call": "Suspense"
-      }
-    ],
-    "type_check": false
-  },
-  "rubric": {
-    "criteria": [
-      {
-        "name": "useeffect_pattern",
-        "weight": 0.3,
-        "description": "Uses useEffect for data fetching"
-      },
-      {
-        "name": "usestate_for_state",
-        "weight": 0.2,
-        "description": "Uses useState for loading/error/data"
-      },
-      {
-        "name": "no_react18_hooks",
-        "weight": 0.25,
-        "description": "No useTransition, useId, useDeferredValue"
-      },
-      {
-        "name": "no_react19_hooks",
-        "weight": 0.15,
-        "description": "No use(), useActionState, useFormStatus"
-      },
-      {
-        "name": "no_hallucination",
-        "weight": 0.1,
-        "description": "No invented patterns"
-      }
-    ]
-  },
-  "common_hallucinations": [
-    "Using `use()` hook (React 19 only)",
-    "Using `useTransition` for loading state (React 18+)",
-    "Wrapping in `<Suspense>` for data fetching (React 19 pattern)"
-  ]
+	"id": "react-17-data-fetching",
+	"category": "version_locked_write",
+	"library": "react",
+	"target_version": "17.0.2",
+	"prompt": "This project uses **React 17**. Create a `UserProfile` component that fetches user data from `/api/users/:id` on mount and displays the user's name and email. Handle loading and error states. Write code that only uses React 17 APIs.",
+	"context": {
+		"package_json": "{\n  \"dependencies\": {\n    \"react\": \"17.0.2\",\n    \"react-dom\": \"17.0.2\"\n  }\n}"
+	},
+	"reference_solution": "import React, { useState, useEffect } from 'react';\n\ntype User = { id: string; name: string; email: string };\n\nexport default function UserProfile({ userId }: { userId: string }) {\n  const [user, setUser] = useState<User | null>(null);\n  const [loading, setLoading] = useState(true);\n  const [error, setError] = useState<string | null>(null);\n\n  useEffect(() => {\n    let cancelled = false;\n    setLoading(true);\n\n    fetch(`/api/users/${userId}`)\n      .then((res) => res.json())\n      .then((data) => {\n        if (!cancelled) {\n          setUser(data);\n          setLoading(false);\n        }\n      })\n      .catch((err) => {\n        if (!cancelled) {\n          setError(err.message);\n          setLoading(false);\n        }\n      });\n\n    return () => { cancelled = true; };\n  }, [userId]);\n\n  if (loading) return <div>Loading...</div>;\n  if (error) return <div>Error: {error}</div>;\n  if (!user) return null;\n\n  return (\n    <div>\n      <h1>{user.name}</h1>\n      <p>{user.email}</p>\n    </div>\n  );\n}",
+	"test_spec": {
+		"ast_checks": [
+			{
+				"type": "call_exists",
+				"call": "useState"
+			},
+			{
+				"type": "call_exists",
+				"call": "useEffect"
+			},
+			{
+				"type": "import_absent",
+				"name": "use",
+				"from": "react"
+			},
+			{
+				"type": "import_absent",
+				"name": "useTransition",
+				"from": "react"
+			},
+			{
+				"type": "import_absent",
+				"name": "useDeferredValue",
+				"from": "react"
+			},
+			{
+				"type": "import_absent",
+				"name": "useId",
+				"from": "react"
+			},
+			{
+				"type": "call_absent",
+				"call": "Suspense"
+			}
+		],
+		"type_check": false
+	},
+	"rubric": {
+		"criteria": [
+			{
+				"name": "useeffect_pattern",
+				"weight": 0.3,
+				"description": "Uses useEffect for data fetching"
+			},
+			{
+				"name": "usestate_for_state",
+				"weight": 0.2,
+				"description": "Uses useState for loading/error/data"
+			},
+			{
+				"name": "no_react18_hooks",
+				"weight": 0.25,
+				"description": "No useTransition, useId, useDeferredValue"
+			},
+			{
+				"name": "no_react19_hooks",
+				"weight": 0.15,
+				"description": "No use(), useActionState, useFormStatus"
+			},
+			{
+				"name": "no_hallucination",
+				"weight": 0.1,
+				"description": "No invented patterns"
+			}
+		]
+	},
+	"common_hallucinations": [
+		"Using `use()` hook (React 19 only)",
+		"Using `useTransition` for loading state (React 18+)",
+		"Wrapping in `<Suspense>` for data fetching (React 19 pattern)"
+	]
 }

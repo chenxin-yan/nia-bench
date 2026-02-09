@@ -1,60 +1,60 @@
 {
-  "id": "ai-sdk-3-type-names",
-  "category": "version_locked_write",
-  "library": "ai",
-  "target_version": "3.4.0",
-  "prompt": "This project uses **Vercel AI SDK v3**. Define TypeScript types for a chat message handler that processes messages and tracks token usage. Import the correct v3 type names for messages and token usage from the `ai` package.",
-  "context": {
-    "package_json": "{\n  \"dependencies\": {\n    \"ai\": \"3.4.33\",\n    \"@ai-sdk/openai\": \"0.0.72\"\n  }\n}"
-  },
-  "reference_solution": "import type { ExperimentalMessage, TokenUsage } from 'ai';\n\ninterface ChatResult {\n  messages: ExperimentalMessage[];\n  usage: TokenUsage;\n}\n\nexport function processChat(result: ChatResult) {\n  console.log(`Messages: ${result.messages.length}`);\n  console.log(`Tokens: ${result.usage.totalTokens}`);\n}",
-  "test_spec": {
-    "ast_checks": [
-      {
-        "type": "import_exists",
-        "name": "ExperimentalMessage",
-        "from": "ai"
-      },
-      {
-        "type": "import_exists",
-        "name": "TokenUsage",
-        "from": "ai"
-      },
-      {
-        "type": "import_absent",
-        "name": "CoreMessage",
-        "from": "ai"
-      },
-      {
-        "type": "import_absent",
-        "name": "LanguageModelUsage",
-        "from": "ai"
-      }
-    ],
-    "type_check": false
-  },
-  "rubric": {
-    "criteria": [
-      {
-        "name": "experimental_message_type",
-        "weight": 0.35,
-        "description": "Uses `ExperimentalMessage`, not `CoreMessage`"
-      },
-      {
-        "name": "token_usage_type",
-        "weight": 0.35,
-        "description": "Uses `TokenUsage`, not `LanguageModelUsage`"
-      },
-      {
-        "name": "no_hallucination",
-        "weight": 0.3,
-        "description": "No v4 type names"
-      }
-    ]
-  },
-  "common_hallucinations": [
-    "Using `CoreMessage` type (v4 name, renamed from ExperimentalMessage)",
-    "Using `LanguageModelUsage` type (v4 name, renamed from TokenUsage)",
-    "Using `Message` type (generic name, not the v3 specific type)"
-  ]
+	"id": "ai-sdk-3-type-names",
+	"category": "version_locked_write",
+	"library": "ai",
+	"target_version": "3.4.0",
+	"prompt": "This project uses **Vercel AI SDK v3**. Define TypeScript types for a chat message handler that processes messages and tracks token usage. Import the correct v3 type names for messages and token usage from the `ai` package.",
+	"context": {
+		"package_json": "{\n  \"dependencies\": {\n    \"ai\": \"3.4.33\",\n    \"@ai-sdk/openai\": \"0.0.72\"\n  }\n}"
+	},
+	"reference_solution": "import type { ExperimentalMessage, TokenUsage } from 'ai';\n\ninterface ChatResult {\n  messages: ExperimentalMessage[];\n  usage: TokenUsage;\n}\n\nexport function processChat(result: ChatResult) {\n  console.log(`Messages: ${result.messages.length}`);\n  console.log(`Tokens: ${result.usage.totalTokens}`);\n}",
+	"test_spec": {
+		"ast_checks": [
+			{
+				"type": "import_exists",
+				"name": "ExperimentalMessage",
+				"from": "ai"
+			},
+			{
+				"type": "import_exists",
+				"name": "TokenUsage",
+				"from": "ai"
+			},
+			{
+				"type": "import_absent",
+				"name": "CoreMessage",
+				"from": "ai"
+			},
+			{
+				"type": "import_absent",
+				"name": "LanguageModelUsage",
+				"from": "ai"
+			}
+		],
+		"type_check": false
+	},
+	"rubric": {
+		"criteria": [
+			{
+				"name": "experimental_message_type",
+				"weight": 0.35,
+				"description": "Uses `ExperimentalMessage`, not `CoreMessage`"
+			},
+			{
+				"name": "token_usage_type",
+				"weight": 0.35,
+				"description": "Uses `TokenUsage`, not `LanguageModelUsage`"
+			},
+			{
+				"name": "no_hallucination",
+				"weight": 0.3,
+				"description": "No v4 type names"
+			}
+		]
+	},
+	"common_hallucinations": [
+		"Using `CoreMessage` type (v4 name, renamed from ExperimentalMessage)",
+		"Using `LanguageModelUsage` type (v4 name, renamed from TokenUsage)",
+		"Using `Message` type (generic name, not the v3 specific type)"
+	]
 }

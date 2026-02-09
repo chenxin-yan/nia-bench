@@ -1,98 +1,127 @@
 {
-  "library": "react",
-  "version": "19",
-  "available_hooks": [
-    "useState",
-    "useEffect",
-    "useContext",
-    "useReducer",
-    "useCallback",
-    "useMemo",
-    "useRef",
-    "useImperativeHandle",
-    "useLayoutEffect",
-    "useDebugValue",
-    "useId",
-    "useTransition",
-    "useDeferredValue",
-    "useSyncExternalStore",
-    "useInsertionEffect",
-    "use",
-    "useActionState",
-    "useOptimistic"
-  ],
-  "unavailable_hooks": [
-    "useFormState (renamed to useActionState)"
-  ],
-  "rendering": {
-    "entry_api": "createRoot",
-    "import_path": "react-dom/client",
-    "deprecated": ["ReactDOM.render (removed)"]
-  },
-  "available_imports": {
-    "react": ["useState", "useEffect", "useContext", "useReducer", "useCallback", "useMemo", "useRef", "useImperativeHandle", "useLayoutEffect", "useDebugValue", "useId", "useTransition", "useDeferredValue", "useSyncExternalStore", "useInsertionEffect", "use", "useActionState", "useOptimistic", "createContext", "createElement", "Fragment", "Component", "PureComponent", "memo", "lazy", "Suspense", "StrictMode", "createRef", "startTransition", "cache"],
-    "react-dom": ["createPortal", "flushSync", "useFormStatus"],
-    "react-dom/client": ["createRoot", "hydrateRoot"]
-  },
-  "unavailable_apis": [
-    "ReactDOM.render (removed)",
-    "ReactDOM.hydrate (removed)",
-    "ReactDOM.unmountComponentAtNode (removed)",
-    "ReactDOM.findDOMNode (removed)",
-    "defaultProps on function components (removed)",
-    "PropTypes (removed from react core)",
-    "string refs (removed)",
-    "Legacy Context (contextTypes, getChildContext — removed)",
-    "useFormState (renamed to useActionState)"
-  ],
-  "removed_from_previous": [
-    "ReactDOM.render (use createRoot)",
-    "ReactDOM.hydrate (use hydrateRoot)",
-    "ReactDOM.unmountComponentAtNode (use root.unmount)",
-    "defaultProps on function components (use ES6 default parameters)",
-    "PropTypes (use TypeScript instead)",
-    "String refs (use callback refs or useRef)",
-    "Legacy context API (use createContext)",
-    "useFormState from react-dom (renamed to useActionState in react)"
-  ],
-  "available_types": [
-    "React.FC",
-    "React.Component",
-    "React.RefObject",
-    "React.Ref"
-  ],
-  "unavailable_types": [
-    "React.ForwardRefRenderFunction (deprecated with forwardRef)"
-  ],
-  "key_features": [
-    "use() hook for reading promises and context",
-    "useActionState for form action state management (renamed from useFormState)",
-    "useFormStatus from react-dom for form pending state",
-    "useOptimistic for optimistic UI updates",
-    "ref as a regular prop — forwardRef no longer needed",
-    "forwardRef is deprecated (still works but discouraged)",
-    "Server Actions with form action prop",
-    "ReactDOM.render completely removed — must use createRoot",
-    "defaultProps removed on function components",
-    "PropTypes removed from React core"
-  ],
-  "breaking_changes": [
-    "ReactDOM.render removed — must use createRoot from react-dom/client",
-    "forwardRef deprecated — use ref as regular prop",
-    "defaultProps removed on function components — use ES6 defaults",
-    "PropTypes removed from React core",
-    "String refs removed",
-    "useFormState renamed to useActionState (moved from react-dom to react)",
-    "Legacy context API removed"
-  ],
-  "notes": [
-    "useActionState is imported from 'react', NOT 'react-dom'",
-    "useFormStatus is imported from 'react-dom'",
-    "useActionState returns 3 values: [state, formAction, isPending]",
-    "ref can be passed as a regular prop — no forwardRef needed",
-    "forwardRef still works but is deprecated",
-    "use() can read both Promises and Context",
-    "createRoot from 'react-dom/client' is the ONLY entry point",
-    "form action prop enables Server Actions"
-  ]
+	"library": "react",
+	"version": "19",
+	"available_hooks": [
+		"useState",
+		"useEffect",
+		"useContext",
+		"useReducer",
+		"useCallback",
+		"useMemo",
+		"useRef",
+		"useImperativeHandle",
+		"useLayoutEffect",
+		"useDebugValue",
+		"useId",
+		"useTransition",
+		"useDeferredValue",
+		"useSyncExternalStore",
+		"useInsertionEffect",
+		"use",
+		"useActionState",
+		"useOptimistic"
+	],
+	"unavailable_hooks": ["useFormState (renamed to useActionState)"],
+	"rendering": {
+		"entry_api": "createRoot",
+		"import_path": "react-dom/client",
+		"deprecated": ["ReactDOM.render (removed)"]
+	},
+	"available_imports": {
+		"react": [
+			"useState",
+			"useEffect",
+			"useContext",
+			"useReducer",
+			"useCallback",
+			"useMemo",
+			"useRef",
+			"useImperativeHandle",
+			"useLayoutEffect",
+			"useDebugValue",
+			"useId",
+			"useTransition",
+			"useDeferredValue",
+			"useSyncExternalStore",
+			"useInsertionEffect",
+			"use",
+			"useActionState",
+			"useOptimistic",
+			"createContext",
+			"createElement",
+			"Fragment",
+			"Component",
+			"PureComponent",
+			"memo",
+			"lazy",
+			"Suspense",
+			"StrictMode",
+			"createRef",
+			"startTransition",
+			"cache"
+		],
+		"react-dom": ["createPortal", "flushSync", "useFormStatus"],
+		"react-dom/client": ["createRoot", "hydrateRoot"]
+	},
+	"unavailable_apis": [
+		"ReactDOM.render (removed)",
+		"ReactDOM.hydrate (removed)",
+		"ReactDOM.unmountComponentAtNode (removed)",
+		"ReactDOM.findDOMNode (removed)",
+		"defaultProps on function components (removed)",
+		"PropTypes (removed from react core)",
+		"string refs (removed)",
+		"Legacy Context (contextTypes, getChildContext — removed)",
+		"useFormState (renamed to useActionState)"
+	],
+	"removed_from_previous": [
+		"ReactDOM.render (use createRoot)",
+		"ReactDOM.hydrate (use hydrateRoot)",
+		"ReactDOM.unmountComponentAtNode (use root.unmount)",
+		"defaultProps on function components (use ES6 default parameters)",
+		"PropTypes (use TypeScript instead)",
+		"String refs (use callback refs or useRef)",
+		"Legacy context API (use createContext)",
+		"useFormState from react-dom (renamed to useActionState in react)"
+	],
+	"available_types": [
+		"React.FC",
+		"React.Component",
+		"React.RefObject",
+		"React.Ref"
+	],
+	"unavailable_types": [
+		"React.ForwardRefRenderFunction (deprecated with forwardRef)"
+	],
+	"key_features": [
+		"use() hook for reading promises and context",
+		"useActionState for form action state management (renamed from useFormState)",
+		"useFormStatus from react-dom for form pending state",
+		"useOptimistic for optimistic UI updates",
+		"ref as a regular prop — forwardRef no longer needed",
+		"forwardRef is deprecated (still works but discouraged)",
+		"Server Actions with form action prop",
+		"ReactDOM.render completely removed — must use createRoot",
+		"defaultProps removed on function components",
+		"PropTypes removed from React core"
+	],
+	"breaking_changes": [
+		"ReactDOM.render removed — must use createRoot from react-dom/client",
+		"forwardRef deprecated — use ref as regular prop",
+		"defaultProps removed on function components — use ES6 defaults",
+		"PropTypes removed from React core",
+		"String refs removed",
+		"useFormState renamed to useActionState (moved from react-dom to react)",
+		"Legacy context API removed"
+	],
+	"notes": [
+		"useActionState is imported from 'react', NOT 'react-dom'",
+		"useFormStatus is imported from 'react-dom'",
+		"useActionState returns 3 values: [state, formAction, isPending]",
+		"ref can be passed as a regular prop — no forwardRef needed",
+		"forwardRef still works but is deprecated",
+		"use() can read both Promises and Context",
+		"createRoot from 'react-dom/client' is the ONLY entry point",
+		"form action prop enables Server Actions"
+	]
 }

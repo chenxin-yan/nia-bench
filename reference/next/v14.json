@@ -1,53 +1,58 @@
 {
-  "library": "next",
-  "version": "14",
-  "sync_apis": ["cookies", "headers", "draftMode"],
-  "async_apis": [],
-  "params_type": "direct",
-  "proxy_file": "middleware.ts",
-  "proxy_function": "middleware",
-  "available_imports": {
-    "next/headers": ["cookies", "headers", "draftMode"],
-    "next/navigation": ["redirect", "useRouter", "useSearchParams", "usePathname", "useParams", "notFound"],
-    "next/cache": ["revalidatePath", "revalidateTag", "unstable_cache"],
-    "next/server": ["NextResponse", "NextRequest"],
-    "next/image": ["default"],
-    "next/link": ["default"],
-    "next/font/google": ["*"]
-  },
-  "unavailable_apis": [
-    "after",
-    "forbidden",
-    "unauthorized",
-    "Form",
-    "cacheTag",
-    "cacheLife",
-    "updateTag",
-    "unstable_cacheTag",
-    "unstable_cacheLife",
-    "proxy (function)",
-    "proxy.ts (file)"
-  ],
-  "removed_from_previous": [
-    "@next/font/google (use next/font/google instead)"
-  ],
-  "caching_defaults": {
-    "fetch": "force-cache",
-    "route_handlers": "cached"
-  },
-  "key_features": [
-    "Turbopack (dev) support improved",
-    "Server Actions stable",
-    "Synchronous cookies(), headers(), draftMode()",
-    "Direct params and searchParams access",
-    "middleware.ts for request interception",
-    "Partial Prerendering (experimental)"
-  ],
-  "breaking_changes": [],
-  "notes": [
-    "cookies(), headers(), draftMode() are still synchronous — do NOT await them",
-    "params and searchParams are direct objects, not Promises",
-    "params type is { slug: string }, NOT Promise<{ slug: string }>",
-    "middleware.ts with export function middleware() is correct"
-  ]
+	"library": "next",
+	"version": "14",
+	"sync_apis": ["cookies", "headers", "draftMode"],
+	"async_apis": [],
+	"params_type": "direct",
+	"proxy_file": "middleware.ts",
+	"proxy_function": "middleware",
+	"available_imports": {
+		"next/headers": ["cookies", "headers", "draftMode"],
+		"next/navigation": [
+			"redirect",
+			"useRouter",
+			"useSearchParams",
+			"usePathname",
+			"useParams",
+			"notFound"
+		],
+		"next/cache": ["revalidatePath", "revalidateTag", "unstable_cache"],
+		"next/server": ["NextResponse", "NextRequest"],
+		"next/image": ["default"],
+		"next/link": ["default"],
+		"next/font/google": ["*"]
+	},
+	"unavailable_apis": [
+		"after",
+		"forbidden",
+		"unauthorized",
+		"Form",
+		"cacheTag",
+		"cacheLife",
+		"updateTag",
+		"unstable_cacheTag",
+		"unstable_cacheLife",
+		"proxy (function)",
+		"proxy.ts (file)"
+	],
+	"removed_from_previous": ["@next/font/google (use next/font/google instead)"],
+	"caching_defaults": {
+		"fetch": "force-cache",
+		"route_handlers": "cached"
+	},
+	"key_features": [
+		"Turbopack (dev) support improved",
+		"Server Actions stable",
+		"Synchronous cookies(), headers(), draftMode()",
+		"Direct params and searchParams access",
+		"middleware.ts for request interception",
+		"Partial Prerendering (experimental)"
+	],
+	"breaking_changes": [],
+	"notes": [
+		"cookies(), headers(), draftMode() are still synchronous — do NOT await them",
+		"params and searchParams are direct objects, not Promises",
+		"params type is { slug: string }, NOT Promise<{ slug: string }>",
+		"middleware.ts with export function middleware() is correct"
+	]
 }

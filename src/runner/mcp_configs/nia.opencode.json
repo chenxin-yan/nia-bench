@@ -1,27 +1,27 @@
 {
-  "agents": {
-    "coder": {
-      "model": "anthropic/claude-sonnet-4-20250514",
-      "maxTokens": 16000
-    },
-    "task": {
-      "model": "anthropic/claude-sonnet-4-20250514",
-      "maxTokens": 16000
-    },
-    "title": {
-      "model": "anthropic/claude-sonnet-4-20250514",
-      "maxTokens": 80
-    },
-    "summarizer": {
-      "model": "anthropic/claude-sonnet-4-20250514",
-      "maxTokens": 5000
-    }
-  },
-  "mcpServers": {
-    "nia": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@nicepkg/nia-mcp"]
-    }
-  }
+	"agents": {
+		"coder": {
+			"model": "anthropic/claude-sonnet-4-20250514",
+			"maxTokens": 16000
+		},
+		"task": {
+			"model": "anthropic/claude-sonnet-4-20250514",
+			"maxTokens": 16000
+		},
+		"title": {
+			"model": "anthropic/claude-sonnet-4-20250514",
+			"maxTokens": 80
+		},
+		"summarizer": {
+			"model": "anthropic/claude-sonnet-4-20250514",
+			"maxTokens": 5000
+		}
+	},
+	"mcpServers": {
+		"nia": {
+			"type": "stdio",
+			"command": "npx",
+			"args": ["-y", "@nicepkg/nia-mcp"]
+		}
+	}
 }

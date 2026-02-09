@@ -1,63 +1,63 @@
 {
-  "id": "trpc-10-client-transformer",
-  "category": "version_locked_write",
-  "library": "trpc",
-  "target_version": "10.45.0",
-  "prompt": "This project uses **tRPC v10**. Set up the tRPC client with `superjson` transformer and `httpBatchLink`. The API is at `http://localhost:3000/api/trpc`. Write code correct for tRPC v10.",
-  "context": {
-    "package_json": "{\n  \"dependencies\": {\n    \"@trpc/client\": \"10.45.4\",\n    \"@trpc/server\": \"10.45.4\",\n    \"superjson\": \"2.2.2\"\n  }\n}"
-  },
-  "reference_solution": "import { createTRPCProxyClient, httpBatchLink } from '@trpc/client';\nimport superjson from 'superjson';\nimport type { AppRouter } from '../server/router';\n\nexport const trpc = createTRPCProxyClient<AppRouter>({\n  transformer: superjson,\n  links: [\n    httpBatchLink({\n      url: 'http://localhost:3000/api/trpc',\n    }),\n  ],\n});",
-  "test_spec": {
-    "ast_checks": [
-      {
-        "type": "call_exists",
-        "call": "createTRPCProxyClient"
-      },
-      {
-        "type": "call_absent",
-        "call": "createTRPCClient"
-      },
-      {
-        "type": "import_exists",
-        "name": "createTRPCProxyClient",
-        "from": "@trpc/client"
-      },
-      {
-        "type": "property_location",
-        "property": "transformer",
-        "insideCall": "createTRPCProxyClient"
-      }
-    ],
-    "type_check": false
-  },
-  "rubric": {
-    "criteria": [
-      {
-        "name": "transformer_at_client",
-        "weight": 0.35,
-        "description": "`transformer` at client config level"
-      },
-      {
-        "name": "correct_client_fn",
-        "weight": 0.3,
-        "description": "Uses `createTRPCProxyClient`"
-      },
-      {
-        "name": "correct_import",
-        "weight": 0.15,
-        "description": "Imports from `@trpc/client`"
-      },
-      {
-        "name": "no_hallucination",
-        "weight": 0.2,
-        "description": "No v11 patterns"
-      }
-    ]
-  },
-  "common_hallucinations": [
-    "Using `createTRPCClient` (v11 name, not available in v10)",
-    "Putting transformer inside `httpBatchLink()` (v11 pattern)",
-    "Using `createTRPCClient({ transformer: superjson, ... })` but with v11 name"
-  ]
+	"id": "trpc-10-client-transformer",
+	"category": "version_locked_write",
+	"library": "trpc",
+	"target_version": "10.45.0",
+	"prompt": "This project uses **tRPC v10**. Set up the tRPC client with `superjson` transformer and `httpBatchLink`. The API is at `http://localhost:3000/api/trpc`. Write code correct for tRPC v10.",
+	"context": {
+		"package_json": "{\n  \"dependencies\": {\n    \"@trpc/client\": \"10.45.4\",\n    \"@trpc/server\": \"10.45.4\",\n    \"superjson\": \"2.2.2\"\n  }\n}"
+	},
+	"reference_solution": "import { createTRPCProxyClient, httpBatchLink } from '@trpc/client';\nimport superjson from 'superjson';\nimport type { AppRouter } from '../server/router';\n\nexport const trpc = createTRPCProxyClient<AppRouter>({\n  transformer: superjson,\n  links: [\n    httpBatchLink({\n      url: 'http://localhost:3000/api/trpc',\n    }),\n  ],\n});",
+	"test_spec": {
+		"ast_checks": [
+			{
+				"type": "call_exists",
+				"call": "createTRPCProxyClient"
+			},
+			{
+				"type": "call_absent",
+				"call": "createTRPCClient"
+			},
+			{
+				"type": "import_exists",
+				"name": "createTRPCProxyClient",
+				"from": "@trpc/client"
+			},
+			{
+				"type": "property_location",
+				"property": "transformer",
+				"insideCall": "createTRPCProxyClient"
+			}
+		],
+		"type_check": false
+	},
+	"rubric": {
+		"criteria": [
+			{
+				"name": "transformer_at_client",
+				"weight": 0.35,
+				"description": "`transformer` at client config level"
+			},
+			{
+				"name": "correct_client_fn",
+				"weight": 0.3,
+				"description": "Uses `createTRPCProxyClient`"
+			},
+			{
+				"name": "correct_import",
+				"weight": 0.15,
+				"description": "Imports from `@trpc/client`"
+			},
+			{
+				"name": "no_hallucination",
+				"weight": 0.2,
+				"description": "No v11 patterns"
+			}
+		]
+	},
+	"common_hallucinations": [
+		"Using `createTRPCClient` (v11 name, not available in v10)",
+		"Putting transformer inside `httpBatchLink()` (v11 pattern)",
+		"Using `createTRPCClient({ transformer: superjson, ... })` but with v11 name"
+	]
 }

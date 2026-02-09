@@ -1,67 +1,67 @@
 {
-  "id": "trpc-11-sse-subscriptions",
-  "category": "bleeding_edge",
-  "library": "trpc",
-  "target_version": "11.0.0",
-  "prompt": "Using tRPC v11, create a subscription procedure that streams real-time stock price updates using Server-Sent Events (not WebSockets). Create both the server-side procedure using an async generator and the client-side `httpSubscriptionLink` setup.",
-  "reference_solution": "// server/routers/stocks.ts\nimport { initTRPC } from '@trpc/server';\nimport { z } from 'zod';\n\nconst t = initTRPC.create();\n\nexport const stockRouter = t.router({\n  onPriceUpdate: t.procedure\n    .input(z.object({ symbol: z.string() }))\n    .subscription(async function* ({ input }) {\n      while (true) {\n        const price = await getStockPrice(input.symbol);\n        yield { symbol: input.symbol, price, timestamp: Date.now() };\n        await new Promise((resolve) => setTimeout(resolve, 1000));\n      }\n    }),\n});\n\n// client setup\nimport { createTRPCClient, httpSubscriptionLink, httpBatchLink, splitLink } from '@trpc/client';\n\nconst client = createTRPCClient<AppRouter>({\n  links: [\n    splitLink({\n      condition: (op) => op.type === 'subscription',\n      true: httpSubscriptionLink({ url: '/api/trpc' }),\n      false: httpBatchLink({ url: '/api/trpc' }),\n    }),\n  ],\n});",
-  "test_spec": {
-    "ast_checks": [
-      {
-        "type": "async_generator"
-      },
-      {
-        "type": "import_exists",
-        "name": "httpSubscriptionLink",
-        "from": "@trpc/client"
-      },
-      {
-        "type": "call_exists",
-        "call": "splitLink"
-      },
-      {
-        "type": "import_absent",
-        "name": "wsLink",
-        "from": "@trpc/client"
-      },
-      {
-        "type": "yield_present"
-      }
-    ],
-    "type_check": false
-  },
-  "rubric": {
-    "criteria": [
-      {
-        "name": "async_generator",
-        "weight": 0.25,
-        "description": "Server uses `async function*` for subscription"
-      },
-      {
-        "name": "http_subscription_link",
-        "weight": 0.25,
-        "description": "Client uses `httpSubscriptionLink`"
-      },
-      {
-        "name": "split_link",
-        "weight": 0.2,
-        "description": "Uses `splitLink` to separate subscription traffic"
-      },
-      {
-        "name": "no_ws_link",
-        "weight": 0.15,
-        "description": "Does not use WebSocket link"
-      },
-      {
-        "name": "no_hallucination",
-        "weight": 0.15,
-        "description": "No invented APIs"
-      }
-    ]
-  },
-  "common_hallucinations": [
-    "Using `wsLink` for subscriptions (v10 pattern)",
-    "Using Observable-based subscriptions (v10 pattern)",
-    "Inventing a `sseLink` that doesn't exist"
-  ]
+	"id": "trpc-11-sse-subscriptions",
+	"category": "bleeding_edge",
+	"library": "trpc",
+	"target_version": "11.0.0",
+	"prompt": "Using tRPC v11, create a subscription procedure that streams real-time stock price updates using Server-Sent Events (not WebSockets). Create both the server-side procedure using an async generator and the client-side `httpSubscriptionLink` setup.",
+	"reference_solution": "// server/routers/stocks.ts\nimport { initTRPC } from '@trpc/server';\nimport { z } from 'zod';\n\nconst t = initTRPC.create();\n\nexport const stockRouter = t.router({\n  onPriceUpdate: t.procedure\n    .input(z.object({ symbol: z.string() }))\n    .subscription(async function* ({ input }) {\n      while (true) {\n        const price = await getStockPrice(input.symbol);\n        yield { symbol: input.symbol, price, timestamp: Date.now() };\n        await new Promise((resolve) => setTimeout(resolve, 1000));\n      }\n    }),\n});\n\n// client setup\nimport { createTRPCClient, httpSubscriptionLink, httpBatchLink, splitLink } from '@trpc/client';\n\nconst client = createTRPCClient<AppRouter>({\n  links: [\n    splitLink({\n      condition: (op) => op.type === 'subscription',\n      true: httpSubscriptionLink({ url: '/api/trpc' }),\n      false: httpBatchLink({ url: '/api/trpc' }),\n    }),\n  ],\n});",
+	"test_spec": {
+		"ast_checks": [
+			{
+				"type": "async_generator"
+			},
+			{
+				"type": "import_exists",
+				"name": "httpSubscriptionLink",
+				"from": "@trpc/client"
+			},
+			{
+				"type": "call_exists",
+				"call": "splitLink"
+			},
+			{
+				"type": "import_absent",
+				"name": "wsLink",
+				"from": "@trpc/client"
+			},
+			{
+				"type": "yield_present"
+			}
+		],
+		"type_check": false
+	},
+	"rubric": {
+		"criteria": [
+			{
+				"name": "async_generator",
+				"weight": 0.25,
+				"description": "Server uses `async function*` for subscription"
+			},
+			{
+				"name": "http_subscription_link",
+				"weight": 0.25,
+				"description": "Client uses `httpSubscriptionLink`"
+			},
+			{
+				"name": "split_link",
+				"weight": 0.2,
+				"description": "Uses `splitLink` to separate subscription traffic"
+			},
+			{
+				"name": "no_ws_link",
+				"weight": 0.15,
+				"description": "Does not use WebSocket link"
+			},
+			{
+				"name": "no_hallucination",
+				"weight": 0.15,
+				"description": "No invented APIs"
+			}
+		]
+	},
+	"common_hallucinations": [
+		"Using `wsLink` for subscriptions (v10 pattern)",
+		"Using Observable-based subscriptions (v10 pattern)",
+		"Inventing a `sseLink` that doesn't exist"
+	]
 }

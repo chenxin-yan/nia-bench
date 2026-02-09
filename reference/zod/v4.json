@@ -1,66 +1,66 @@
 {
-  "library": "zod",
-  "version": "4",
-  "available_imports": {
-    "zod": ["z", "ZodError", "ZodSchema", "ZodType"]
-  },
-  "unavailable_apis": [
-    "z.string().email() (deprecated, use z.email())",
-    "z.string().url() (deprecated, use z.url())",
-    "z.string().uuid() (deprecated, use z.uuid())",
-    "z.string().ip() (removed, use z.ipv4() or z.ipv6())",
-    "z.string().ip({ version: 'v4' }) (removed)",
-    "required_error (removed, use error function)",
-    "invalid_type_error (removed, use error function)",
-    "{ message: '...' } in refinements (deprecated, use { error: '...' })",
-    ".deepPartial() (removed)",
-    ".format() (deprecated, use z.treeifyError())",
-    ".flatten() (deprecated, use z.treeifyError())",
-    "errorMap (removed, use error function)",
-    "z.record(valueSchema) single-arg form (requires 2 args)"
-  ],
-  "removed_from_previous": [
-    "z.string().ip() (use z.ipv4() or z.ipv6())",
-    "required_error option (use error function parameter)",
-    "invalid_type_error option (use error function parameter)",
-    "message parameter in refinements (use error parameter)",
-    ".deepPartial() method (removed entirely)",
-    ".format() method (use z.treeifyError())",
-    ".flatten() method (use z.treeifyError())",
-    "errorMap callback (use error function)",
-    "z.record() single-argument form (now requires key and value schemas)"
-  ],
-  "key_features": [
-    "Top-level format validators: z.email(), z.url(), z.uuid()",
-    "Separate IP validators: z.ipv4(), z.ipv6()",
-    "New validators: z.cidrv4(), z.cidrv6()",
-    "ISO validators: z.iso.date(), z.iso.time(), z.iso.datetime(), z.iso.duration()",
-    "error parameter replaces message parameter",
-    "error function parameter for differentiated error messages",
-    "z.record(keySchema, valueSchema) always requires 2 arguments",
-    "z.treeifyError() replaces .format() and .flatten()",
-    "Improved tree-shaking with top-level validators"
-  ],
-  "breaking_changes": [
-    "String validators moved to top-level: z.email() instead of z.string().email()",
-    "z.string().ip() removed — use z.ipv4() or z.ipv6()",
-    "required_error and invalid_type_error removed from schema options",
-    "message parameter deprecated — use error parameter",
-    "Schema-level error can be a function for differentiated messages",
-    "z.record() now requires 2 arguments (key schema and value schema)",
-    ".deepPartial() removed entirely",
-    ".format() and .flatten() deprecated — use z.treeifyError()",
-    "errorMap removed — use error function"
-  ],
-  "notes": [
-    "Use z.email(), NOT z.string().email()",
-    "Use z.url(), NOT z.string().url()",
-    "Use z.uuid(), NOT z.string().uuid()",
-    "Use z.ipv4() or z.ipv6(), NOT z.string().ip()",
-    "Use { error: '...' } in .min()/.max(), NOT { message: '...' }",
-    "Schema-level error as function: z.string({ error: (issue) => { ... } })",
-    "z.record(z.string(), z.number()) — MUST have 2 args",
-    "No .deepPartial() — make fields optional manually",
-    "Use z.treeifyError(error) instead of error.format() or error.flatten()"
-  ]
+	"library": "zod",
+	"version": "4",
+	"available_imports": {
+		"zod": ["z", "ZodError", "ZodSchema", "ZodType"]
+	},
+	"unavailable_apis": [
+		"z.string().email() (deprecated, use z.email())",
+		"z.string().url() (deprecated, use z.url())",
+		"z.string().uuid() (deprecated, use z.uuid())",
+		"z.string().ip() (removed, use z.ipv4() or z.ipv6())",
+		"z.string().ip({ version: 'v4' }) (removed)",
+		"required_error (removed, use error function)",
+		"invalid_type_error (removed, use error function)",
+		"{ message: '...' } in refinements (deprecated, use { error: '...' })",
+		".deepPartial() (removed)",
+		".format() (deprecated, use z.treeifyError())",
+		".flatten() (deprecated, use z.treeifyError())",
+		"errorMap (removed, use error function)",
+		"z.record(valueSchema) single-arg form (requires 2 args)"
+	],
+	"removed_from_previous": [
+		"z.string().ip() (use z.ipv4() or z.ipv6())",
+		"required_error option (use error function parameter)",
+		"invalid_type_error option (use error function parameter)",
+		"message parameter in refinements (use error parameter)",
+		".deepPartial() method (removed entirely)",
+		".format() method (use z.treeifyError())",
+		".flatten() method (use z.treeifyError())",
+		"errorMap callback (use error function)",
+		"z.record() single-argument form (now requires key and value schemas)"
+	],
+	"key_features": [
+		"Top-level format validators: z.email(), z.url(), z.uuid()",
+		"Separate IP validators: z.ipv4(), z.ipv6()",
+		"New validators: z.cidrv4(), z.cidrv6()",
+		"ISO validators: z.iso.date(), z.iso.time(), z.iso.datetime(), z.iso.duration()",
+		"error parameter replaces message parameter",
+		"error function parameter for differentiated error messages",
+		"z.record(keySchema, valueSchema) always requires 2 arguments",
+		"z.treeifyError() replaces .format() and .flatten()",
+		"Improved tree-shaking with top-level validators"
+	],
+	"breaking_changes": [
+		"String validators moved to top-level: z.email() instead of z.string().email()",
+		"z.string().ip() removed — use z.ipv4() or z.ipv6()",
+		"required_error and invalid_type_error removed from schema options",
+		"message parameter deprecated — use error parameter",
+		"Schema-level error can be a function for differentiated messages",
+		"z.record() now requires 2 arguments (key schema and value schema)",
+		".deepPartial() removed entirely",
+		".format() and .flatten() deprecated — use z.treeifyError()",
+		"errorMap removed — use error function"
+	],
+	"notes": [
+		"Use z.email(), NOT z.string().email()",
+		"Use z.url(), NOT z.string().url()",
+		"Use z.uuid(), NOT z.string().uuid()",
+		"Use z.ipv4() or z.ipv6(), NOT z.string().ip()",
+		"Use { error: '...' } in .min()/.max(), NOT { message: '...' }",
+		"Schema-level error as function: z.string({ error: (issue) => { ... } })",
+		"z.record(z.string(), z.number()) — MUST have 2 args",
+		"No .deepPartial() — make fields optional manually",
+		"Use z.treeifyError(error) instead of error.format() or error.flatten()"
+	]
 }

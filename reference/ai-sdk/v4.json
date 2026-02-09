@@ -1,58 +1,55 @@
 {
-  "library": "ai",
-  "version": "4",
-  "available_imports": {
-    "ai": ["streamText", "generateText", "CoreMessage", "LanguageModelUsage"],
-    "@ai-sdk/openai": ["openai", "createOpenAI"]
-  },
-  "unavailable_apis": [
-    "experimental_streamText (use streamText)",
-    "experimental_generateText (use generateText)",
-    "toAIStreamResponse (use toDataStreamResponse)",
-    "StreamingTextResponse (removed)",
-    "createUIMessageStream (v5 only)",
-    "createUIMessageStreamResponse (v5 only)",
-    "maxToolRoundtrips (use maxSteps)",
-    "ExperimentalMessage (use CoreMessage)",
-    "TokenUsage (use LanguageModelUsage)"
-  ],
-  "available_types": [
-    "CoreMessage",
-    "LanguageModelUsage"
-  ],
-  "unavailable_types": [
-    "ExperimentalMessage (v3, use CoreMessage)",
-    "TokenUsage (v3, use LanguageModelUsage)"
-  ],
-  "sync_apis": ["streamText"],
-  "async_apis": ["generateText"],
-  "key_features": [
-    "No experimental_ prefix — streamText and generateText are stable",
-    "streamText is synchronous (NO await needed)",
-    "generateText still requires await",
-    "toDataStreamResponse() for streaming responses",
-    "CoreMessage type replaces ExperimentalMessage",
-    "LanguageModelUsage type replaces TokenUsage",
-    "maxSteps replaces maxToolRoundtrips (value = roundtrips + 1)",
-    "createOpenAI() factory or openai() from @ai-sdk/openai"
-  ],
-  "breaking_changes": [
-    "experimental_ prefix removed from all functions",
-    "streamText is now synchronous — do NOT use await",
-    "toAIStreamResponse renamed to toDataStreamResponse",
-    "StreamingTextResponse removed",
-    "ExperimentalMessage renamed to CoreMessage",
-    "TokenUsage renamed to LanguageModelUsage",
-    "maxToolRoundtrips renamed to maxSteps",
-    "Provider initialization changed to factory pattern"
-  ],
-  "notes": [
-    "streamText is called WITHOUT await — it returns synchronously",
-    "Response method is toDataStreamResponse(), NOT toAIStreamResponse()",
-    "Do NOT use experimental_ prefix — functions are stable",
-    "Use CoreMessage, not ExperimentalMessage",
-    "Use LanguageModelUsage, not TokenUsage",
-    "maxSteps replaces maxToolRoundtrips (maxSteps = maxToolRoundtrips + 1)",
-    "Use openai('gpt-4o') from @ai-sdk/openai, not new OpenAI()"
-  ]
+	"library": "ai",
+	"version": "4",
+	"available_imports": {
+		"ai": ["streamText", "generateText", "CoreMessage", "LanguageModelUsage"],
+		"@ai-sdk/openai": ["openai", "createOpenAI"]
+	},
+	"unavailable_apis": [
+		"experimental_streamText (use streamText)",
+		"experimental_generateText (use generateText)",
+		"toAIStreamResponse (use toDataStreamResponse)",
+		"StreamingTextResponse (removed)",
+		"createUIMessageStream (v5 only)",
+		"createUIMessageStreamResponse (v5 only)",
+		"maxToolRoundtrips (use maxSteps)",
+		"ExperimentalMessage (use CoreMessage)",
+		"TokenUsage (use LanguageModelUsage)"
+	],
+	"available_types": ["CoreMessage", "LanguageModelUsage"],
+	"unavailable_types": [
+		"ExperimentalMessage (v3, use CoreMessage)",
+		"TokenUsage (v3, use LanguageModelUsage)"
+	],
+	"sync_apis": ["streamText"],
+	"async_apis": ["generateText"],
+	"key_features": [
+		"No experimental_ prefix — streamText and generateText are stable",
+		"streamText is synchronous (NO await needed)",
+		"generateText still requires await",
+		"toDataStreamResponse() for streaming responses",
+		"CoreMessage type replaces ExperimentalMessage",
+		"LanguageModelUsage type replaces TokenUsage",
+		"maxSteps replaces maxToolRoundtrips (value = roundtrips + 1)",
+		"createOpenAI() factory or openai() from @ai-sdk/openai"
+	],
+	"breaking_changes": [
+		"experimental_ prefix removed from all functions",
+		"streamText is now synchronous — do NOT use await",
+		"toAIStreamResponse renamed to toDataStreamResponse",
+		"StreamingTextResponse removed",
+		"ExperimentalMessage renamed to CoreMessage",
+		"TokenUsage renamed to LanguageModelUsage",
+		"maxToolRoundtrips renamed to maxSteps",
+		"Provider initialization changed to factory pattern"
+	],
+	"notes": [
+		"streamText is called WITHOUT await — it returns synchronously",
+		"Response method is toDataStreamResponse(), NOT toAIStreamResponse()",
+		"Do NOT use experimental_ prefix — functions are stable",
+		"Use CoreMessage, not ExperimentalMessage",
+		"Use LanguageModelUsage, not TokenUsage",
+		"maxSteps replaces maxToolRoundtrips (maxSteps = maxToolRoundtrips + 1)",
+		"Use openai('gpt-4o') from @ai-sdk/openai, not new OpenAI()"
+	]
 }

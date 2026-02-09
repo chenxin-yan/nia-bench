@@ -1,52 +1,52 @@
 {
-  "id": "trpc-11-shorthand-streaming",
-  "category": "bleeding_edge",
-  "library": "trpc",
-  "target_version": "11.0.0",
-  "prompt": "Using tRPC v11, create a router that uses shorthand router definitions (plain objects instead of explicit `router()` calls) and includes a query that returns a streaming iterable using an async generator. Create a `posts` namespace with a `list` procedure that streams posts one by one.",
-  "reference_solution": "import { initTRPC } from '@trpc/server';\n\nconst t = initTRPC.create();\n\nexport const appRouter = t.router({\n  posts: {\n    list: t.procedure.query(async function* () {\n      const posts = await fetchAllPosts();\n      for (const post of posts) {\n        yield post;\n        await new Promise((resolve) => setTimeout(resolve, 100));\n      }\n    }),\n  },\n});",
-  "test_spec": {
-    "ast_checks": [
-      {
-        "type": "async_generator"
-      },
-      {
-        "type": "yield_present"
-      },
-      {
-        "type": "call_exists",
-        "call": "t.router"
-      }
-    ],
-    "type_check": false
-  },
-  "rubric": {
-    "criteria": [
-      {
-        "name": "shorthand_router",
-        "weight": 0.3,
-        "description": "Nested routes use plain object, not `t.router()`"
-      },
-      {
-        "name": "async_generator_query",
-        "weight": 0.3,
-        "description": "Query uses `async function*`"
-      },
-      {
-        "name": "yield_keyword",
-        "weight": 0.2,
-        "description": "Uses `yield` to stream results"
-      },
-      {
-        "name": "no_hallucination",
-        "weight": 0.2,
-        "description": "No invented patterns"
-      }
-    ]
-  },
-  "common_hallucinations": [
-    "Wrapping nested routes in `t.router()` (unnecessary in v11)",
-    "Returning an array instead of streaming",
-    "Using `Observable` from rxjs (v10 subscription pattern)"
-  ]
+	"id": "trpc-11-shorthand-streaming",
+	"category": "bleeding_edge",
+	"library": "trpc",
+	"target_version": "11.0.0",
+	"prompt": "Using tRPC v11, create a router that uses shorthand router definitions (plain objects instead of explicit `router()` calls) and includes a query that returns a streaming iterable using an async generator. Create a `posts` namespace with a `list` procedure that streams posts one by one.",
+	"reference_solution": "import { initTRPC } from '@trpc/server';\n\nconst t = initTRPC.create();\n\nexport const appRouter = t.router({\n  posts: {\n    list: t.procedure.query(async function* () {\n      const posts = await fetchAllPosts();\n      for (const post of posts) {\n        yield post;\n        await new Promise((resolve) => setTimeout(resolve, 100));\n      }\n    }),\n  },\n});",
+	"test_spec": {
+		"ast_checks": [
+			{
+				"type": "async_generator"
+			},
+			{
+				"type": "yield_present"
+			},
+			{
+				"type": "call_exists",
+				"call": "t.router"
+			}
+		],
+		"type_check": false
+	},
+	"rubric": {
+		"criteria": [
+			{
+				"name": "shorthand_router",
+				"weight": 0.3,
+				"description": "Nested routes use plain object, not `t.router()`"
+			},
+			{
+				"name": "async_generator_query",
+				"weight": 0.3,
+				"description": "Query uses `async function*`"
+			},
+			{
+				"name": "yield_keyword",
+				"weight": 0.2,
+				"description": "Uses `yield` to stream results"
+			},
+			{
+				"name": "no_hallucination",
+				"weight": 0.2,
+				"description": "No invented patterns"
+			}
+		]
+	},
+	"common_hallucinations": [
+		"Wrapping nested routes in `t.router()` (unnecessary in v11)",
+		"Returning an array instead of streaming",
+		"Using `Observable` from rxjs (v10 subscription pattern)"
+	]
 }

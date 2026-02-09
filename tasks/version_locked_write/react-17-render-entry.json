@@ -1,56 +1,56 @@
 {
-  "id": "react-17-render-entry",
-  "category": "version_locked_write",
-  "library": "react",
-  "target_version": "17.0.2",
-  "prompt": "This project uses **React 17**. Create the entry point file `src/index.tsx` that renders the `<App />` component into the DOM element with id `root`. Write code correct for React 17 — do NOT use `createRoot`.",
-  "context": {
-    "package_json": "{\n  \"dependencies\": {\n    \"react\": \"17.0.2\",\n    \"react-dom\": \"17.0.2\"\n  }\n}"
-  },
-  "reference_solution": "import React from 'react';\nimport ReactDOM from 'react-dom';\nimport App from './App';\n\nReactDOM.render(\n  <React.StrictMode>\n    <App />\n  </React.StrictMode>,\n  document.getElementById('root')\n);",
-  "test_spec": {
-    "ast_checks": [
-      {
-        "type": "call_exists",
-        "call": "ReactDOM.render"
-      },
-      {
-        "type": "module_import_absent",
-        "module": "react-dom/client"
-      },
-      {
-        "type": "import_absent",
-        "name": "createRoot"
-      }
-    ],
-    "type_check": false
-  },
-  "rubric": {
-    "criteria": [
-      {
-        "name": "reactdom_render",
-        "weight": 0.4,
-        "description": "Uses `ReactDOM.render()`"
-      },
-      {
-        "name": "correct_import",
-        "weight": 0.3,
-        "description": "Imports from `react-dom`, not `react-dom/client`"
-      },
-      {
-        "name": "no_create_root",
-        "weight": 0.2,
-        "description": "Does not use `createRoot`"
-      },
-      {
-        "name": "no_hallucination",
-        "weight": 0.1,
-        "description": "No invented patterns"
-      }
-    ]
-  },
-  "common_hallucinations": [
-    "import { createRoot } from 'react-dom/client' (v18+ pattern)",
-    "createRoot(document.getElementById('root')).render(...) (v18+)"
-  ]
+	"id": "react-17-render-entry",
+	"category": "version_locked_write",
+	"library": "react",
+	"target_version": "17.0.2",
+	"prompt": "This project uses **React 17**. Create the entry point file `src/index.tsx` that renders the `<App />` component into the DOM element with id `root`. Write code correct for React 17 — do NOT use `createRoot`.",
+	"context": {
+		"package_json": "{\n  \"dependencies\": {\n    \"react\": \"17.0.2\",\n    \"react-dom\": \"17.0.2\"\n  }\n}"
+	},
+	"reference_solution": "import React from 'react';\nimport ReactDOM from 'react-dom';\nimport App from './App';\n\nReactDOM.render(\n  <React.StrictMode>\n    <App />\n  </React.StrictMode>,\n  document.getElementById('root')\n);",
+	"test_spec": {
+		"ast_checks": [
+			{
+				"type": "call_exists",
+				"call": "ReactDOM.render"
+			},
+			{
+				"type": "module_import_absent",
+				"module": "react-dom/client"
+			},
+			{
+				"type": "import_absent",
+				"name": "createRoot"
+			}
+		],
+		"type_check": false
+	},
+	"rubric": {
+		"criteria": [
+			{
+				"name": "reactdom_render",
+				"weight": 0.4,
+				"description": "Uses `ReactDOM.render()`"
+			},
+			{
+				"name": "correct_import",
+				"weight": 0.3,
+				"description": "Imports from `react-dom`, not `react-dom/client`"
+			},
+			{
+				"name": "no_create_root",
+				"weight": 0.2,
+				"description": "Does not use `createRoot`"
+			},
+			{
+				"name": "no_hallucination",
+				"weight": 0.1,
+				"description": "No invented patterns"
+			}
+		]
+	},
+	"common_hallucinations": [
+		"import { createRoot } from 'react-dom/client' (v18+ pattern)",
+		"createRoot(document.getElementById('root')).render(...) (v18+)"
+	]
 }

@@ -1,52 +1,52 @@
 {
-  "id": "nextjs-14-direct-params",
-  "category": "version_locked_write",
-  "library": "next",
-  "target_version": "14.2.0",
-  "prompt": "This project uses **Next.js 14**. Create a dynamic page at `app/blog/[slug]/page.tsx` and a `generateMetadata` function for it. The page should display the blog post slug and the `page` search parameter. Write code that is correct for Next.js 14.",
-  "context": {
-    "package_json": "{\n  \"dependencies\": {\n    \"next\": \"14.2.35\",\n    \"react\": \"18.3.1\",\n    \"react-dom\": \"18.3.1\"\n  }\n}"
-  },
-  "reference_solution": "import { Metadata } from 'next';\n\ntype Props = {\n  params: { slug: string };\n  searchParams: { page?: string };\n};\n\nexport async function generateMetadata({ params }: Props): Promise<Metadata> {\n  return { title: `Blog: ${params.slug}` };\n}\n\nexport default async function BlogPage({ params, searchParams }: Props) {\n  return (\n    <article>\n      <h1>{params.slug}</h1>\n      <p>Page: {searchParams.page ?? '1'}</p>\n    </article>\n  );\n}",
-  "test_spec": {
-    "ast_checks": [
-      {
-        "type": "await_absent",
-        "call": "params"
-      },
-      {
-        "type": "await_absent",
-        "call": "searchParams"
-      }
-    ],
-    "type_check": false
-  },
-  "rubric": {
-    "criteria": [
-      {
-        "name": "direct_params",
-        "weight": 0.35,
-        "description": "`params` accessed directly, no `await`"
-      },
-      {
-        "name": "direct_search_params",
-        "weight": 0.3,
-        "description": "`searchParams` accessed directly, no `await`"
-      },
-      {
-        "name": "no_promise_type",
-        "weight": 0.2,
-        "description": "Types don't use `Promise<>` wrapper"
-      },
-      {
-        "name": "no_hallucination",
-        "weight": 0.15,
-        "description": "No v15 patterns"
-      }
-    ]
-  },
-  "common_hallucinations": [
-    "const { slug } = await params (v15 pattern)",
-    "Typing params as `Promise<{ slug: string }>` (v15 type)"
-  ]
+	"id": "nextjs-14-direct-params",
+	"category": "version_locked_write",
+	"library": "next",
+	"target_version": "14.2.0",
+	"prompt": "This project uses **Next.js 14**. Create a dynamic page at `app/blog/[slug]/page.tsx` and a `generateMetadata` function for it. The page should display the blog post slug and the `page` search parameter. Write code that is correct for Next.js 14.",
+	"context": {
+		"package_json": "{\n  \"dependencies\": {\n    \"next\": \"14.2.35\",\n    \"react\": \"18.3.1\",\n    \"react-dom\": \"18.3.1\"\n  }\n}"
+	},
+	"reference_solution": "import { Metadata } from 'next';\n\ntype Props = {\n  params: { slug: string };\n  searchParams: { page?: string };\n};\n\nexport async function generateMetadata({ params }: Props): Promise<Metadata> {\n  return { title: `Blog: ${params.slug}` };\n}\n\nexport default async function BlogPage({ params, searchParams }: Props) {\n  return (\n    <article>\n      <h1>{params.slug}</h1>\n      <p>Page: {searchParams.page ?? '1'}</p>\n    </article>\n  );\n}",
+	"test_spec": {
+		"ast_checks": [
+			{
+				"type": "await_absent",
+				"call": "params"
+			},
+			{
+				"type": "await_absent",
+				"call": "searchParams"
+			}
+		],
+		"type_check": false
+	},
+	"rubric": {
+		"criteria": [
+			{
+				"name": "direct_params",
+				"weight": 0.35,
+				"description": "`params` accessed directly, no `await`"
+			},
+			{
+				"name": "direct_search_params",
+				"weight": 0.3,
+				"description": "`searchParams` accessed directly, no `await`"
+			},
+			{
+				"name": "no_promise_type",
+				"weight": 0.2,
+				"description": "Types don't use `Promise<>` wrapper"
+			},
+			{
+				"name": "no_hallucination",
+				"weight": 0.15,
+				"description": "No v15 patterns"
+			}
+		]
+	},
+	"common_hallucinations": [
+		"const { slug } = await params (v15 pattern)",
+		"Typing params as `Promise<{ slug: string }>` (v15 type)"
+	]
 }

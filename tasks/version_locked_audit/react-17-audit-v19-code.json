@@ -1,50 +1,50 @@
 {
-  "id": "react-17-audit-v19-code",
-  "category": "version_locked_audit",
-  "library": "react",
-  "target_version": "17.0.2",
-  "prompt": "This project uses **React 17**. Audit the following code and identify all APIs that are NOT available in React 17. For each, explain the issue and provide the React 17 alternative.\n\n```tsx\nimport { use, useId, useActionState } from 'react';\nimport { useFormStatus } from 'react-dom';\nimport { createRoot } from 'react-dom/client';\n\nfunction Form({ dataPromise }) {\n  const data = use(dataPromise);\n  const formId = useId();\n  const [state, action] = useActionState(submitAction, null);\n  const { pending } = useFormStatus();\n\n  return (\n    <form id={formId} action={action}>\n      <MyInput ref={inputRef} />\n      <button disabled={pending}>Submit</button>\n    </form>\n  );\n}\n\ncreateRoot(document.getElementById('root')).render(<Form />);\n```",
-  "context": {
-    "package_json": "{\n  \"dependencies\": {\n    \"react\": \"17.0.2\",\n    \"react-dom\": \"17.0.2\"\n  }\n}"
-  },
-  "reference_solution": "Issues identified:\n\n1. `use` hook - React 19 only. In React 17, use `useEffect` + `useState` for data fetching.\n2. `useId` - React 18+ only. In React 17, generate IDs manually or use a library.\n3. `useActionState` - React 19 only. In React 17, use `useState` + event handlers for form state.\n4. `useFormStatus` - React 19 only. In React 17, manage form pending state manually with `useState`.\n5. `createRoot` from `react-dom/client` - React 18+ only. In React 17, use `ReactDOM.render()` from `react-dom`.\n6. `ref` as prop on `<MyInput>` - Passing ref as a regular prop only works in React 19. In React 17, use `React.forwardRef()` to pass refs.\n7. `action` prop on `<form>` - Form actions are a React 19 Server Actions feature. In React 17, use `onSubmit` event handler.",
-  "test_spec": {
-    "ast_checks": [],
-    "type_check": false
-  },
-  "rubric": {
-    "criteria": [
-      {
-        "name": "identify_all_invalid_hooks",
-        "weight": 0.3,
-        "description": "Identifies use, useId, useActionState, useFormStatus as not available in React 17"
-      },
-      {
-        "name": "identify_create_root",
-        "weight": 0.2,
-        "description": "Identifies createRoot as v18+ only, should use ReactDOM.render()"
-      },
-      {
-        "name": "identify_ref_as_prop",
-        "weight": 0.15,
-        "description": "Identifies ref as prop needs forwardRef in v17"
-      },
-      {
-        "name": "identify_form_action",
-        "weight": 0.15,
-        "description": "Identifies form action prop as React 19 Server Actions feature"
-      },
-      {
-        "name": "correct_alternatives",
-        "weight": 0.2,
-        "description": "Provides correct React 17 alternatives for each identified issue"
-      }
-    ]
-  },
-  "common_hallucinations": [
-    "Missing some invalid hooks (e.g., not identifying useId as v18+)",
-    "Not recognizing ref as prop as a React 19 feature",
-    "Suggesting React 18 APIs as alternatives instead of React 17 APIs",
-    "Not identifying form action prop as React 19 only"
-  ]
+	"id": "react-17-audit-v19-code",
+	"category": "version_locked_audit",
+	"library": "react",
+	"target_version": "17.0.2",
+	"prompt": "This project uses **React 17**. Audit the following code and identify all APIs that are NOT available in React 17. For each, explain the issue and provide the React 17 alternative.\n\n```tsx\nimport { use, useId, useActionState } from 'react';\nimport { useFormStatus } from 'react-dom';\nimport { createRoot } from 'react-dom/client';\n\nfunction Form({ dataPromise }) {\n  const data = use(dataPromise);\n  const formId = useId();\n  const [state, action] = useActionState(submitAction, null);\n  const { pending } = useFormStatus();\n\n  return (\n    <form id={formId} action={action}>\n      <MyInput ref={inputRef} />\n      <button disabled={pending}>Submit</button>\n    </form>\n  );\n}\n\ncreateRoot(document.getElementById('root')).render(<Form />);\n```",
+	"context": {
+		"package_json": "{\n  \"dependencies\": {\n    \"react\": \"17.0.2\",\n    \"react-dom\": \"17.0.2\"\n  }\n}"
+	},
+	"reference_solution": "Issues identified:\n\n1. `use` hook - React 19 only. In React 17, use `useEffect` + `useState` for data fetching.\n2. `useId` - React 18+ only. In React 17, generate IDs manually or use a library.\n3. `useActionState` - React 19 only. In React 17, use `useState` + event handlers for form state.\n4. `useFormStatus` - React 19 only. In React 17, manage form pending state manually with `useState`.\n5. `createRoot` from `react-dom/client` - React 18+ only. In React 17, use `ReactDOM.render()` from `react-dom`.\n6. `ref` as prop on `<MyInput>` - Passing ref as a regular prop only works in React 19. In React 17, use `React.forwardRef()` to pass refs.\n7. `action` prop on `<form>` - Form actions are a React 19 Server Actions feature. In React 17, use `onSubmit` event handler.",
+	"test_spec": {
+		"ast_checks": [],
+		"type_check": false
+	},
+	"rubric": {
+		"criteria": [
+			{
+				"name": "identify_all_invalid_hooks",
+				"weight": 0.3,
+				"description": "Identifies use, useId, useActionState, useFormStatus as not available in React 17"
+			},
+			{
+				"name": "identify_create_root",
+				"weight": 0.2,
+				"description": "Identifies createRoot as v18+ only, should use ReactDOM.render()"
+			},
+			{
+				"name": "identify_ref_as_prop",
+				"weight": 0.15,
+				"description": "Identifies ref as prop needs forwardRef in v17"
+			},
+			{
+				"name": "identify_form_action",
+				"weight": 0.15,
+				"description": "Identifies form action prop as React 19 Server Actions feature"
+			},
+			{
+				"name": "correct_alternatives",
+				"weight": 0.2,
+				"description": "Provides correct React 17 alternatives for each identified issue"
+			}
+		]
+	},
+	"common_hallucinations": [
+		"Missing some invalid hooks (e.g., not identifying useId as v18+)",
+		"Not recognizing ref as prop as a React 19 feature",
+		"Suggesting React 18 APIs as alternatives instead of React 17 APIs",
+		"Not identifying form action prop as React 19 only"
+	]
 }

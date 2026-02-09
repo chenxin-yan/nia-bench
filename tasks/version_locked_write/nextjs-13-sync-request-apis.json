@@ -1,62 +1,62 @@
 {
-  "id": "nextjs-13-sync-request-apis",
-  "category": "version_locked_write",
-  "library": "next",
-  "target_version": "13.5.6",
-  "prompt": "This project uses **Next.js 13** (App Router). Create a server component at `app/profile/page.tsx` that reads the `session` cookie and the `Accept-Language` header to display a personalized greeting. Write code that is correct for Next.js 13 — do NOT use Next.js 14 or 15 patterns.",
-  "context": {
-    "package_json": "{\n  \"dependencies\": {\n    \"next\": \"13.5.6\",\n    \"react\": \"18.2.0\",\n    \"react-dom\": \"18.2.0\"\n  }\n}"
-  },
-  "reference_solution": "import { cookies, headers } from 'next/headers';\n\nexport default async function ProfilePage() {\n  const cookieStore = cookies();\n  const headersList = headers();\n\n  const session = cookieStore.get('session');\n  const lang = headersList.get('accept-language') ?? 'en';\n\n  return (\n    <div>\n      <h1>Welcome{session ? `, ${session.value}` : ''}</h1>\n      <p>Language: {lang}</p>\n    </div>\n  );\n}",
-  "test_spec": {
-    "ast_checks": [
-      {
-        "type": "await_absent",
-        "call": "cookies"
-      },
-      {
-        "type": "await_absent",
-        "call": "headers"
-      },
-      {
-        "type": "import_exists",
-        "name": "cookies",
-        "from": "next/headers"
-      },
-      {
-        "type": "import_exists",
-        "name": "headers",
-        "from": "next/headers"
-      }
-    ],
-    "type_check": false
-  },
-  "rubric": {
-    "criteria": [
-      {
-        "name": "sync_cookies",
-        "weight": 0.3,
-        "description": "`cookies()` called without `await`"
-      },
-      {
-        "name": "sync_headers",
-        "weight": 0.3,
-        "description": "`headers()` called without `await`"
-      },
-      {
-        "name": "correct_import",
-        "weight": 0.2,
-        "description": "Imports from `next/headers`"
-      },
-      {
-        "name": "no_hallucination",
-        "weight": 0.2,
-        "description": "No v14/15 patterns"
-      }
-    ]
-  },
-  "common_hallucinations": [
-    "const cookieStore = await cookies() (v15 pattern applied to v13)",
-    "Using `NextRequest` parameter instead of the standalone functions"
-  ]
+	"id": "nextjs-13-sync-request-apis",
+	"category": "version_locked_write",
+	"library": "next",
+	"target_version": "13.5.6",
+	"prompt": "This project uses **Next.js 13** (App Router). Create a server component at `app/profile/page.tsx` that reads the `session` cookie and the `Accept-Language` header to display a personalized greeting. Write code that is correct for Next.js 13 — do NOT use Next.js 14 or 15 patterns.",
+	"context": {
+		"package_json": "{\n  \"dependencies\": {\n    \"next\": \"13.5.6\",\n    \"react\": \"18.2.0\",\n    \"react-dom\": \"18.2.0\"\n  }\n}"
+	},
+	"reference_solution": "import { cookies, headers } from 'next/headers';\n\nexport default async function ProfilePage() {\n  const cookieStore = cookies();\n  const headersList = headers();\n\n  const session = cookieStore.get('session');\n  const lang = headersList.get('accept-language') ?? 'en';\n\n  return (\n    <div>\n      <h1>Welcome{session ? `, ${session.value}` : ''}</h1>\n      <p>Language: {lang}</p>\n    </div>\n  );\n}",
+	"test_spec": {
+		"ast_checks": [
+			{
+				"type": "await_absent",
+				"call": "cookies"
+			},
+			{
+				"type": "await_absent",
+				"call": "headers"
+			},
+			{
+				"type": "import_exists",
+				"name": "cookies",
+				"from": "next/headers"
+			},
+			{
+				"type": "import_exists",
+				"name": "headers",
+				"from": "next/headers"
+			}
+		],
+		"type_check": false
+	},
+	"rubric": {
+		"criteria": [
+			{
+				"name": "sync_cookies",
+				"weight": 0.3,
+				"description": "`cookies()` called without `await`"
+			},
+			{
+				"name": "sync_headers",
+				"weight": 0.3,
+				"description": "`headers()` called without `await`"
+			},
+			{
+				"name": "correct_import",
+				"weight": 0.2,
+				"description": "Imports from `next/headers`"
+			},
+			{
+				"name": "no_hallucination",
+				"weight": 0.2,
+				"description": "No v14/15 patterns"
+			}
+		]
+	},
+	"common_hallucinations": [
+		"const cookieStore = await cookies() (v15 pattern applied to v13)",
+		"Using `NextRequest` parameter instead of the standalone functions"
+	]
 }

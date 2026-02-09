@@ -1,65 +1,65 @@
 {
-  "id": "nextjs-16-proxy-ts",
-  "category": "bleeding_edge",
-  "library": "next",
-  "target_version": "16.0.0",
-  "prompt": "Using Next.js 16, create a proxy file that handles authentication. It should check for an `auth-token` cookie on all routes under `/dashboard`. If the token is missing, redirect to `/login`. If the token exists, add a custom `x-user-verified` header to the request.",
-  "reference_solution": "// proxy.ts (at project root or src/)\nimport { NextResponse } from 'next/server';\nimport type { NextRequest } from 'next/server';\n\nexport function proxy(request: NextRequest) {\n  const token = request.cookies.get('auth-token');\n\n  if (!token) {\n    return NextResponse.redirect(new URL('/login', request.url));\n  }\n\n  const response = NextResponse.next();\n  response.headers.set('x-user-verified', 'true');\n  return response;\n}\n\nexport const config = {\n  matcher: '/dashboard/:path*',\n};",
-  "test_spec": {
-    "ast_checks": [
-      {
-        "type": "function_exported",
-        "name": "proxy"
-      },
-      {
-        "type": "function_absent",
-        "name": "middleware"
-      },
-      {
-        "type": "call_exists",
-        "call": "config.matcher"
-      },
-      {
-        "type": "property_absent",
-        "property": "runtime",
-        "inObject": "config"
-      }
-    ],
-    "type_check": false
-  },
-  "rubric": {
-    "criteria": [
-      {
-        "name": "proxy_filename",
-        "weight": 0.25,
-        "description": "File is `proxy.ts`, not `middleware.ts`"
-      },
-      {
-        "name": "proxy_function_name",
-        "weight": 0.25,
-        "description": "Exports `function proxy()`, not `function middleware()`"
-      },
-      {
-        "name": "no_edge_runtime",
-        "weight": 0.15,
-        "description": "Does not set `runtime: 'edge'` in config"
-      },
-      {
-        "name": "correct_api_usage",
-        "weight": 0.2,
-        "description": "Correctly uses `NextResponse`, `NextRequest`, cookies, redirects"
-      },
-      {
-        "name": "no_hallucination",
-        "weight": 0.15,
-        "description": "No v15 middleware patterns, no invented APIs"
-      }
-    ]
-  },
-  "common_hallucinations": [
-    "Creating `middleware.ts` instead of `proxy.ts` (v15 and earlier pattern)",
-    "export function middleware(request: NextRequest) (v15 function name)",
-    "Setting `runtime: 'edge'` in config (not supported in `proxy.ts`)",
-    "Using Express-style middleware patterns"
-  ]
+	"id": "nextjs-16-proxy-ts",
+	"category": "bleeding_edge",
+	"library": "next",
+	"target_version": "16.0.0",
+	"prompt": "Using Next.js 16, create a proxy file that handles authentication. It should check for an `auth-token` cookie on all routes under `/dashboard`. If the token is missing, redirect to `/login`. If the token exists, add a custom `x-user-verified` header to the request.",
+	"reference_solution": "// proxy.ts (at project root or src/)\nimport { NextResponse } from 'next/server';\nimport type { NextRequest } from 'next/server';\n\nexport function proxy(request: NextRequest) {\n  const token = request.cookies.get('auth-token');\n\n  if (!token) {\n    return NextResponse.redirect(new URL('/login', request.url));\n  }\n\n  const response = NextResponse.next();\n  response.headers.set('x-user-verified', 'true');\n  return response;\n}\n\nexport const config = {\n  matcher: '/dashboard/:path*',\n};",
+	"test_spec": {
+		"ast_checks": [
+			{
+				"type": "function_exported",
+				"name": "proxy"
+			},
+			{
+				"type": "function_absent",
+				"name": "middleware"
+			},
+			{
+				"type": "call_exists",
+				"call": "config.matcher"
+			},
+			{
+				"type": "property_absent",
+				"property": "runtime",
+				"inObject": "config"
+			}
+		],
+		"type_check": false
+	},
+	"rubric": {
+		"criteria": [
+			{
+				"name": "proxy_filename",
+				"weight": 0.25,
+				"description": "File is `proxy.ts`, not `middleware.ts`"
+			},
+			{
+				"name": "proxy_function_name",
+				"weight": 0.25,
+				"description": "Exports `function proxy()`, not `function middleware()`"
+			},
+			{
+				"name": "no_edge_runtime",
+				"weight": 0.15,
+				"description": "Does not set `runtime: 'edge'` in config"
+			},
+			{
+				"name": "correct_api_usage",
+				"weight": 0.2,
+				"description": "Correctly uses `NextResponse`, `NextRequest`, cookies, redirects"
+			},
+			{
+				"name": "no_hallucination",
+				"weight": 0.15,
+				"description": "No v15 middleware patterns, no invented APIs"
+			}
+		]
+	},
+	"common_hallucinations": [
+		"Creating `middleware.ts` instead of `proxy.ts` (v15 and earlier pattern)",
+		"export function middleware(request: NextRequest) (v15 function name)",
+		"Setting `runtime: 'edge'` in config (not supported in `proxy.ts`)",
+		"Using Express-style middleware patterns"
+	]
 }

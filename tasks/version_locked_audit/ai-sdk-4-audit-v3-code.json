@@ -1,57 +1,57 @@
 {
-  "id": "ai-sdk-4-audit-v3-code",
-  "category": "version_locked_audit",
-  "library": "ai",
-  "target_version": "4.3.19",
-  "prompt": "This project is upgrading from **Vercel AI SDK v3 to v4**. Audit the following code and identify every pattern that is broken in v4.\n\n```typescript\nimport { experimental_streamText, experimental_generateText } from 'ai';\nimport { OpenAI } from 'openai';\n\nexport async function POST(req: Request) {\n  const { messages } = await req.json();\n  const result = await experimental_streamText({\n    model: new OpenAI({ apiKey: process.env.OPENAI_API_KEY }),\n    messages,\n    maxToolRoundtrips: 2,\n  });\n  return result.toAIStreamResponse();\n}\n```",
-  "context": {
-    "package_json": "{\n  \"dependencies\": {\n    \"ai\": \"4.3.19\",\n    \"@ai-sdk/openai\": \"1.3.24\"\n  }\n}"
-  },
-  "reference_solution": "Issues identified:\n\n1. `experimental_streamText` — Renamed to `streamText` (no `experimental_` prefix) in AI SDK v4. Import as `import { streamText } from 'ai';`.\n2. `experimental_generateText` — Renamed to `generateText` (no prefix) in v4. Import as `import { generateText } from 'ai';`.\n3. `await experimental_streamText(...)` — `streamText()` is synchronous in v4, do NOT use `await`. Call as `const result = streamText({...});`.\n4. `new OpenAI({ apiKey: ... })` — Provider initialization changed in v4. Use `createOpenAI()` factory from `@ai-sdk/openai`: `import { createOpenAI } from '@ai-sdk/openai'; const openai = createOpenAI({ apiKey: ... }); model: openai('gpt-4o')`.\n5. `maxToolRoundtrips: 2` — Renamed to `maxSteps` in v4. Note: `maxSteps = maxToolRoundtrips + 1`, so use `maxSteps: 3`.\n6. `toAIStreamResponse()` — Renamed to `toDataStreamResponse()` in v4.",
-  "test_spec": {
-    "ast_checks": [],
-    "type_check": false
-  },
-  "rubric": {
-    "criteria": [
-      {
-        "name": "identify_experimental_prefix",
-        "weight": 0.15,
-        "description": "Identifies experimental_ prefix removed from streamText and generateText"
-      },
-      {
-        "name": "identify_async_change",
-        "weight": 0.2,
-        "description": "Identifies streamText is now synchronous (no await needed) in v4"
-      },
-      {
-        "name": "identify_provider_init",
-        "weight": 0.15,
-        "description": "Identifies provider initialization changed from new OpenAI() to createOpenAI() factory"
-      },
-      {
-        "name": "identify_roundtrips_rename",
-        "weight": 0.15,
-        "description": "Identifies maxToolRoundtrips renamed to maxSteps in v4"
-      },
-      {
-        "name": "identify_response_rename",
-        "weight": 0.15,
-        "description": "Identifies toAIStreamResponse() renamed to toDataStreamResponse() in v4"
-      },
-      {
-        "name": "correct_replacements",
-        "weight": 0.2,
-        "description": "Provides correct AI SDK v4 code replacements"
-      }
-    ]
-  },
-  "common_hallucinations": [
-    "Not recognizing the experimental_ prefix removal",
-    "Still using await with streamText in v4",
-    "Not identifying the provider initialization change",
-    "Missing maxToolRoundtrips -> maxSteps rename",
-    "Not recognizing toAIStreamResponse -> toDataStreamResponse rename",
-    "Not mentioning the maxSteps value adjustment (roundtrips + 1)"
-  ]
+	"id": "ai-sdk-4-audit-v3-code",
+	"category": "version_locked_audit",
+	"library": "ai",
+	"target_version": "4.3.19",
+	"prompt": "This project is upgrading from **Vercel AI SDK v3 to v4**. Audit the following code and identify every pattern that is broken in v4.\n\n```typescript\nimport { experimental_streamText, experimental_generateText } from 'ai';\nimport { OpenAI } from 'openai';\n\nexport async function POST(req: Request) {\n  const { messages } = await req.json();\n  const result = await experimental_streamText({\n    model: new OpenAI({ apiKey: process.env.OPENAI_API_KEY }),\n    messages,\n    maxToolRoundtrips: 2,\n  });\n  return result.toAIStreamResponse();\n}\n```",
+	"context": {
+		"package_json": "{\n  \"dependencies\": {\n    \"ai\": \"4.3.19\",\n    \"@ai-sdk/openai\": \"1.3.24\"\n  }\n}"
+	},
+	"reference_solution": "Issues identified:\n\n1. `experimental_streamText` — Renamed to `streamText` (no `experimental_` prefix) in AI SDK v4. Import as `import { streamText } from 'ai';`.\n2. `experimental_generateText` — Renamed to `generateText` (no prefix) in v4. Import as `import { generateText } from 'ai';`.\n3. `await experimental_streamText(...)` — `streamText()` is synchronous in v4, do NOT use `await`. Call as `const result = streamText({...});`.\n4. `new OpenAI({ apiKey: ... })` — Provider initialization changed in v4. Use `createOpenAI()` factory from `@ai-sdk/openai`: `import { createOpenAI } from '@ai-sdk/openai'; const openai = createOpenAI({ apiKey: ... }); model: openai('gpt-4o')`.\n5. `maxToolRoundtrips: 2` — Renamed to `maxSteps` in v4. Note: `maxSteps = maxToolRoundtrips + 1`, so use `maxSteps: 3`.\n6. `toAIStreamResponse()` — Renamed to `toDataStreamResponse()` in v4.",
+	"test_spec": {
+		"ast_checks": [],
+		"type_check": false
+	},
+	"rubric": {
+		"criteria": [
+			{
+				"name": "identify_experimental_prefix",
+				"weight": 0.15,
+				"description": "Identifies experimental_ prefix removed from streamText and generateText"
+			},
+			{
+				"name": "identify_async_change",
+				"weight": 0.2,
+				"description": "Identifies streamText is now synchronous (no await needed) in v4"
+			},
+			{
+				"name": "identify_provider_init",
+				"weight": 0.15,
+				"description": "Identifies provider initialization changed from new OpenAI() to createOpenAI() factory"
+			},
+			{
+				"name": "identify_roundtrips_rename",
+				"weight": 0.15,
+				"description": "Identifies maxToolRoundtrips renamed to maxSteps in v4"
+			},
+			{
+				"name": "identify_response_rename",
+				"weight": 0.15,
+				"description": "Identifies toAIStreamResponse() renamed to toDataStreamResponse() in v4"
+			},
+			{
+				"name": "correct_replacements",
+				"weight": 0.2,
+				"description": "Provides correct AI SDK v4 code replacements"
+			}
+		]
+	},
+	"common_hallucinations": [
+		"Not recognizing the experimental_ prefix removal",
+		"Still using await with streamText in v4",
+		"Not identifying the provider initialization change",
+		"Missing maxToolRoundtrips -> maxSteps rename",
+		"Not recognizing toAIStreamResponse -> toDataStreamResponse rename",
+		"Not mentioning the maxSteps value adjustment (roundtrips + 1)"
+	]
 }

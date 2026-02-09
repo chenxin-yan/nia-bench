@@ -1,45 +1,45 @@
 {
-  "id": "react-18-audit-missed-features",
-  "category": "version_locked_audit",
-  "library": "react",
-  "target_version": "18.3.1",
-  "prompt": "This project uses **React 18** but the code below only uses React 17 patterns. Identify where React 18 features should be used for better UX and suggest the correct React 18 APIs.\n\n```tsx\nimport React from 'react';\nimport ReactDOM from 'react-dom';\n\nfunction SearchResults({ query }) {\n  const [results, setResults] = React.useState([]);\n  const [isLoading, setIsLoading] = React.useState(false);\n\n  React.useEffect(() => {\n    setIsLoading(true);\n    fetch(`/api/search?q=${query}`)\n      .then(r => r.json())\n      .then(data => { setResults(data); setIsLoading(false); });\n  }, [query]);\n\n  return isLoading ? <p>Loading...</p> : <ul>{results.map(r => <li key={r.id}>{r.name}</li>)}</ul>;\n}\n\nReactDOM.render(<App />, document.getElementById('root'));\n```",
-  "context": {
-    "package_json": "{\n  \"dependencies\": {\n    \"react\": \"18.3.1\",\n    \"react-dom\": \"18.3.1\"\n  }\n}"
-  },
-  "reference_solution": "Issues identified:\n\n1. `ReactDOM.render` should be `createRoot` in React 18 — `ReactDOM.render` is the legacy API. Use `import { createRoot } from 'react-dom/client'; createRoot(document.getElementById('root')).render(<App />);` to enable concurrent rendering.\n2. Could use `useTransition` for non-urgent query updates — wrap the search state update in `startTransition` to keep the UI responsive during data fetching. `const [isPending, startTransition] = useTransition();`\n3. Could use `useDeferredValue` for the query — `const deferredQuery = useDeferredValue(query);` to defer re-rendering with the new query value while showing stale results.\n4. Missing concurrent rendering benefits — without `createRoot`, none of React 18's concurrent features (automatic batching, transitions, suspense improvements) are activated.",
-  "test_spec": {
-    "ast_checks": [],
-    "type_check": false
-  },
-  "rubric": {
-    "criteria": [
-      {
-        "name": "identify_render_upgrade",
-        "weight": 0.3,
-        "description": "Identifies ReactDOM.render should be replaced with createRoot for React 18"
-      },
-      {
-        "name": "suggest_concurrent",
-        "weight": 0.3,
-        "description": "Suggests useTransition or useDeferredValue for non-urgent updates"
-      },
-      {
-        "name": "correct_v18_apis",
-        "weight": 0.25,
-        "description": "Uses correct React 18 API names and import paths"
-      },
-      {
-        "name": "no_v19_suggestions",
-        "weight": 0.15,
-        "description": "Does not suggest React 19-only features (use(), useActionState, etc.)"
-      }
-    ]
-  },
-  "common_hallucinations": [
-    "Suggesting React 19 features like use() or useActionState",
-    "Not identifying ReactDOM.render as the primary issue",
-    "Wrong import path for createRoot",
-    "Suggesting Suspense for data fetching without mentioning it requires React 18 concurrent mode"
-  ]
+	"id": "react-18-audit-missed-features",
+	"category": "version_locked_audit",
+	"library": "react",
+	"target_version": "18.3.1",
+	"prompt": "This project uses **React 18** but the code below only uses React 17 patterns. Identify where React 18 features should be used for better UX and suggest the correct React 18 APIs.\n\n```tsx\nimport React from 'react';\nimport ReactDOM from 'react-dom';\n\nfunction SearchResults({ query }) {\n  const [results, setResults] = React.useState([]);\n  const [isLoading, setIsLoading] = React.useState(false);\n\n  React.useEffect(() => {\n    setIsLoading(true);\n    fetch(`/api/search?q=${query}`)\n      .then(r => r.json())\n      .then(data => { setResults(data); setIsLoading(false); });\n  }, [query]);\n\n  return isLoading ? <p>Loading...</p> : <ul>{results.map(r => <li key={r.id}>{r.name}</li>)}</ul>;\n}\n\nReactDOM.render(<App />, document.getElementById('root'));\n```",
+	"context": {
+		"package_json": "{\n  \"dependencies\": {\n    \"react\": \"18.3.1\",\n    \"react-dom\": \"18.3.1\"\n  }\n}"
+	},
+	"reference_solution": "Issues identified:\n\n1. `ReactDOM.render` should be `createRoot` in React 18 — `ReactDOM.render` is the legacy API. Use `import { createRoot } from 'react-dom/client'; createRoot(document.getElementById('root')).render(<App />);` to enable concurrent rendering.\n2. Could use `useTransition` for non-urgent query updates — wrap the search state update in `startTransition` to keep the UI responsive during data fetching. `const [isPending, startTransition] = useTransition();`\n3. Could use `useDeferredValue` for the query — `const deferredQuery = useDeferredValue(query);` to defer re-rendering with the new query value while showing stale results.\n4. Missing concurrent rendering benefits — without `createRoot`, none of React 18's concurrent features (automatic batching, transitions, suspense improvements) are activated.",
+	"test_spec": {
+		"ast_checks": [],
+		"type_check": false
+	},
+	"rubric": {
+		"criteria": [
+			{
+				"name": "identify_render_upgrade",
+				"weight": 0.3,
+				"description": "Identifies ReactDOM.render should be replaced with createRoot for React 18"
+			},
+			{
+				"name": "suggest_concurrent",
+				"weight": 0.3,
+				"description": "Suggests useTransition or useDeferredValue for non-urgent updates"
+			},
+			{
+				"name": "correct_v18_apis",
+				"weight": 0.25,
+				"description": "Uses correct React 18 API names and import paths"
+			},
+			{
+				"name": "no_v19_suggestions",
+				"weight": 0.15,
+				"description": "Does not suggest React 19-only features (use(), useActionState, etc.)"
+			}
+		]
+	},
+	"common_hallucinations": [
+		"Suggesting React 19 features like use() or useActionState",
+		"Not identifying ReactDOM.render as the primary issue",
+		"Wrong import path for createRoot",
+		"Suggesting Suspense for data fetching without mentioning it requires React 18 concurrent mode"
+	]
 }

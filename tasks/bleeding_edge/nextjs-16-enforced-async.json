@@ -1,83 +1,83 @@
 {
-  "id": "nextjs-16-enforced-async",
-  "category": "bleeding_edge",
-  "library": "next",
-  "target_version": "16.0.0",
-  "prompt": "Using Next.js 16, create an App Router page at `app/dashboard/[id]/page.tsx` that reads the `id` param, the `tab` search parameter, and the user's session from cookies. Also this app uses a parallel route `@modal` — create the required `app/@modal/default.tsx` file. Use the correct Next.js 16 async APIs.",
-  "reference_solution": "// app/dashboard/[id]/page.tsx\nimport { cookies } from 'next/headers';\n\nexport default async function DashboardPage({\n  params,\n  searchParams,\n}: {\n  params: Promise<{ id: string }>;\n  searchParams: Promise<{ tab?: string }>;\n}) {\n  const { id } = await params;\n  const { tab } = await searchParams;\n  const cookieStore = await cookies();\n  const session = cookieStore.get('session');\n\n  return (\n    <div>\n      <h1>Dashboard {id}</h1>\n      <p>Tab: {tab ?? 'overview'}</p>\n      <p>Session: {session?.value ?? 'none'}</p>\n    </div>\n  );\n}\n\n// app/@modal/default.tsx\nexport default function ModalDefault() {\n  return null;\n}",
-  "test_spec": {
-    "ast_checks": [
-      {
-        "type": "await_present",
-        "call": "params",
-        "file": "page.tsx"
-      },
-      {
-        "type": "await_present",
-        "call": "searchParams",
-        "file": "page.tsx"
-      },
-      {
-        "type": "await_present",
-        "call": "cookies",
-        "file": "page.tsx"
-      },
-      {
-        "type": "type_annotation",
-        "parameter": "params",
-        "annotation": "Promise<{ id: string }>",
-        "file": "page.tsx"
-      },
-      {
-        "type": "function_exported",
-        "name": "default",
-        "file": "default.tsx"
-      },
-      {
-        "type": "async_function",
-        "file": "page.tsx"
-      }
-    ],
-    "type_check": false
-  },
-  "rubric": {
-    "criteria": [
-      {
-        "name": "async_params",
-        "weight": 0.2,
-        "description": "`params` is awaited"
-      },
-      {
-        "name": "async_search_params",
-        "weight": 0.2,
-        "description": "`searchParams` is awaited"
-      },
-      {
-        "name": "async_cookies",
-        "weight": 0.15,
-        "description": "`cookies()` is awaited"
-      },
-      {
-        "name": "promise_types",
-        "weight": 0.15,
-        "description": "Types use `Promise<>` wrapper"
-      },
-      {
-        "name": "parallel_route_default",
-        "weight": 0.15,
-        "description": "`@modal/default.tsx` is created"
-      },
-      {
-        "name": "no_hallucination",
-        "weight": 0.15,
-        "description": "No sync access patterns from v13/14/15"
-      }
-    ]
-  },
-  "common_hallucinations": [
-    "`const { id } = params` (v13/14 sync destructuring)",
-    "`const cookieStore = cookies()` (v13/14 sync call)",
-    "Omitting the `app/@modal/default.tsx` file (required in v16)",
-    "Typing params as `{ id: string }` instead of `Promise<{ id: string }>`"
-  ]
+	"id": "nextjs-16-enforced-async",
+	"category": "bleeding_edge",
+	"library": "next",
+	"target_version": "16.0.0",
+	"prompt": "Using Next.js 16, create an App Router page at `app/dashboard/[id]/page.tsx` that reads the `id` param, the `tab` search parameter, and the user's session from cookies. Also this app uses a parallel route `@modal` — create the required `app/@modal/default.tsx` file. Use the correct Next.js 16 async APIs.",
+	"reference_solution": "// app/dashboard/[id]/page.tsx\nimport { cookies } from 'next/headers';\n\nexport default async function DashboardPage({\n  params,\n  searchParams,\n}: {\n  params: Promise<{ id: string }>;\n  searchParams: Promise<{ tab?: string }>;\n}) {\n  const { id } = await params;\n  const { tab } = await searchParams;\n  const cookieStore = await cookies();\n  const session = cookieStore.get('session');\n\n  return (\n    <div>\n      <h1>Dashboard {id}</h1>\n      <p>Tab: {tab ?? 'overview'}</p>\n      <p>Session: {session?.value ?? 'none'}</p>\n    </div>\n  );\n}\n\n// app/@modal/default.tsx\nexport default function ModalDefault() {\n  return null;\n}",
+	"test_spec": {
+		"ast_checks": [
+			{
+				"type": "await_present",
+				"call": "params",
+				"file": "page.tsx"
+			},
+			{
+				"type": "await_present",
+				"call": "searchParams",
+				"file": "page.tsx"
+			},
+			{
+				"type": "await_present",
+				"call": "cookies",
+				"file": "page.tsx"
+			},
+			{
+				"type": "type_annotation",
+				"parameter": "params",
+				"annotation": "Promise<{ id: string }>",
+				"file": "page.tsx"
+			},
+			{
+				"type": "function_exported",
+				"name": "default",
+				"file": "default.tsx"
+			},
+			{
+				"type": "async_function",
+				"file": "page.tsx"
+			}
+		],
+		"type_check": false
+	},
+	"rubric": {
+		"criteria": [
+			{
+				"name": "async_params",
+				"weight": 0.2,
+				"description": "`params` is awaited"
+			},
+			{
+				"name": "async_search_params",
+				"weight": 0.2,
+				"description": "`searchParams` is awaited"
+			},
+			{
+				"name": "async_cookies",
+				"weight": 0.15,
+				"description": "`cookies()` is awaited"
+			},
+			{
+				"name": "promise_types",
+				"weight": 0.15,
+				"description": "Types use `Promise<>` wrapper"
+			},
+			{
+				"name": "parallel_route_default",
+				"weight": 0.15,
+				"description": "`@modal/default.tsx` is created"
+			},
+			{
+				"name": "no_hallucination",
+				"weight": 0.15,
+				"description": "No sync access patterns from v13/14/15"
+			}
+		]
+	},
+	"common_hallucinations": [
+		"`const { id } = params` (v13/14 sync destructuring)",
+		"`const cookieStore = cookies()` (v13/14 sync call)",
+		"Omitting the `app/@modal/default.tsx` file (required in v16)",
+		"Typing params as `{ id: string }` instead of `Promise<{ id: string }>`"
+	]
 }

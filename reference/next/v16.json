@@ -1,80 +1,95 @@
 {
-  "library": "next",
-  "version": "16",
-  "sync_apis": [],
-  "async_apis": ["cookies", "headers", "draftMode"],
-  "params_type": "promise",
-  "proxy_file": "proxy.ts",
-  "proxy_function": "proxy",
-  "available_imports": {
-    "next/headers": ["cookies", "headers", "draftMode"],
-    "next/navigation": ["redirect", "useRouter", "useSearchParams", "usePathname", "useParams", "notFound", "forbidden", "unauthorized"],
-    "next/cache": ["revalidatePath", "revalidateTag", "cacheTag", "cacheLife", "updateTag"],
-    "next/server": ["NextResponse", "NextRequest", "after"],
-    "next/image": ["default"],
-    "next/link": ["default"],
-    "next/font/google": ["*"]
-  },
-  "unavailable_apis": [
-    "middleware.ts (renamed to proxy.ts)",
-    "middleware (function, renamed to proxy)",
-    "unstable_cacheTag (use cacheTag)",
-    "unstable_cacheLife (use cacheLife)",
-    "next lint (removed)",
-    "serverRuntimeConfig (removed)",
-    "publicRuntimeConfig (removed)",
-    "experimental.ppr (removed)",
-    "AMP support (removed)"
-  ],
-  "removed_from_previous": [
-    "middleware.ts (renamed to proxy.ts)",
-    "export function middleware() (renamed to export function proxy())",
-    "next lint command (removed, use eslint directly)",
-    "serverRuntimeConfig (removed, use env vars)",
-    "publicRuntimeConfig (removed, use env vars)",
-    "experimental.ppr (removed)",
-    "experimental.dynamicIO (renamed to cacheComponents)",
-    "Synchronous fallback for cookies/headers/params (removed)",
-    "AMP support (removed)",
-    "eslint config in next.config.js (removed)"
-  ],
-  "caching_defaults": {
-    "fetch": "no-store",
-    "route_handlers": "not-cached"
-  },
-  "required_files": {
-    "parallel_routes": "default.tsx required in all @slot/ directories"
-  },
-  "key_features": [
-    "proxy.ts replaces middleware.ts",
-    "export function proxy() replaces export function middleware()",
-    "Node.js runtime only for proxy (no Edge)",
-    "Enforced async cookies(), headers(), draftMode() — no sync fallback",
-    "Enforced Promise params and searchParams — no sync fallback",
-    "Stable cacheTag(), cacheLife() (no unstable_ prefix)",
-    "New updateTag() for read-your-writes cache invalidation",
-    "'use cache' directive is stable",
-    "Turbopack is the default bundler",
-    "Parallel route slots require explicit default.tsx files"
-  ],
-  "breaking_changes": [
-    "middleware.ts renamed to proxy.ts",
-    "export function middleware() renamed to export function proxy()",
-    "Proxy runs on Node.js runtime only (not Edge)",
-    "Sync access to cookies/headers/params completely removed",
-    "next lint command removed",
-    "serverRuntimeConfig and publicRuntimeConfig removed",
-    "experimental.ppr removed",
-    "AMP support removed",
-    "Parallel routes require default.tsx in all @slot/ directories"
-  ],
-  "notes": [
-    "proxy.ts is the ONLY correct file name — middleware.ts will not work",
-    "export function proxy() is the ONLY correct export — middleware() will not work",
-    "runtime: 'edge' is NOT supported in proxy.ts",
-    "All request APIs (cookies, headers, params, searchParams) MUST be awaited",
-    "cacheTag and cacheLife are stable — do NOT use unstable_ prefix",
-    "updateTag() is new — use for immediate cache invalidation in Server Actions",
-    "'use cache' directive enables component/function-level caching"
-  ]
+	"library": "next",
+	"version": "16",
+	"sync_apis": [],
+	"async_apis": ["cookies", "headers", "draftMode"],
+	"params_type": "promise",
+	"proxy_file": "proxy.ts",
+	"proxy_function": "proxy",
+	"available_imports": {
+		"next/headers": ["cookies", "headers", "draftMode"],
+		"next/navigation": [
+			"redirect",
+			"useRouter",
+			"useSearchParams",
+			"usePathname",
+			"useParams",
+			"notFound",
+			"forbidden",
+			"unauthorized"
+		],
+		"next/cache": [
+			"revalidatePath",
+			"revalidateTag",
+			"cacheTag",
+			"cacheLife",
+			"updateTag"
+		],
+		"next/server": ["NextResponse", "NextRequest", "after"],
+		"next/image": ["default"],
+		"next/link": ["default"],
+		"next/font/google": ["*"]
+	},
+	"unavailable_apis": [
+		"middleware.ts (renamed to proxy.ts)",
+		"middleware (function, renamed to proxy)",
+		"unstable_cacheTag (use cacheTag)",
+		"unstable_cacheLife (use cacheLife)",
+		"next lint (removed)",
+		"serverRuntimeConfig (removed)",
+		"publicRuntimeConfig (removed)",
+		"experimental.ppr (removed)",
+		"AMP support (removed)"
+	],
+	"removed_from_previous": [
+		"middleware.ts (renamed to proxy.ts)",
+		"export function middleware() (renamed to export function proxy())",
+		"next lint command (removed, use eslint directly)",
+		"serverRuntimeConfig (removed, use env vars)",
+		"publicRuntimeConfig (removed, use env vars)",
+		"experimental.ppr (removed)",
+		"experimental.dynamicIO (renamed to cacheComponents)",
+		"Synchronous fallback for cookies/headers/params (removed)",
+		"AMP support (removed)",
+		"eslint config in next.config.js (removed)"
+	],
+	"caching_defaults": {
+		"fetch": "no-store",
+		"route_handlers": "not-cached"
+	},
+	"required_files": {
+		"parallel_routes": "default.tsx required in all @slot/ directories"
+	},
+	"key_features": [
+		"proxy.ts replaces middleware.ts",
+		"export function proxy() replaces export function middleware()",
+		"Node.js runtime only for proxy (no Edge)",
+		"Enforced async cookies(), headers(), draftMode() — no sync fallback",
+		"Enforced Promise params and searchParams — no sync fallback",
+		"Stable cacheTag(), cacheLife() (no unstable_ prefix)",
+		"New updateTag() for read-your-writes cache invalidation",
+		"'use cache' directive is stable",
+		"Turbopack is the default bundler",
+		"Parallel route slots require explicit default.tsx files"
+	],
+	"breaking_changes": [
+		"middleware.ts renamed to proxy.ts",
+		"export function middleware() renamed to export function proxy()",
+		"Proxy runs on Node.js runtime only (not Edge)",
+		"Sync access to cookies/headers/params completely removed",
+		"next lint command removed",
+		"serverRuntimeConfig and publicRuntimeConfig removed",
+		"experimental.ppr removed",
+		"AMP support removed",
+		"Parallel routes require default.tsx in all @slot/ directories"
+	],
+	"notes": [
+		"proxy.ts is the ONLY correct file name — middleware.ts will not work",
+		"export function proxy() is the ONLY correct export — middleware() will not work",
+		"runtime: 'edge' is NOT supported in proxy.ts",
+		"All request APIs (cookies, headers, params, searchParams) MUST be awaited",
+		"cacheTag and cacheLife are stable — do NOT use unstable_ prefix",
+		"updateTag() is new — use for immediate cache invalidation in Server Actions",
+		"'use cache' directive enables component/function-level caching"
+	]
 }

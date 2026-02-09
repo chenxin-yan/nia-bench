@@ -1,37 +1,44 @@
 {
-  "library": "trpc",
-  "version": "10",
-  "available_imports": {
-    "@trpc/client": ["createTRPCProxyClient", "httpBatchLink", "httpLink", "wsLink", "splitLink", "loggerLink"],
-    "@trpc/server": ["initTRPC", "TRPCError"],
-    "@trpc/react-query": ["createTRPCReact"],
-    "@trpc/react-query/ssg": ["createProxySSGHelpers"]
-  },
-  "unavailable_apis": [
-    "createTRPCClient (v11 name, use createTRPCProxyClient)",
-    "createSSGHelpers (v11 name, use createProxySSGHelpers)",
-    "httpSubscriptionLink (v11 only)",
-    "getRawInput() as async function (v11, use rawInput directly)",
-    "Shorthand routers (v11 only)",
-    "Async generator subscriptions (v11 only)"
-  ],
-  "key_features": [
-    "createTRPCProxyClient for client creation",
-    "Transformer (superjson) at client config level, NOT in link",
-    "rawInput property directly accessible in middleware (not getRawInput())",
-    "createProxySSGHelpers from @trpc/react-query/ssg",
-    "wsLink for WebSocket-based subscriptions",
-    "Observable-based subscriptions",
-    "Explicit t.router() calls required for nested routers"
-  ],
-  "breaking_changes": [],
-  "notes": [
-    "Client function is createTRPCProxyClient, NOT createTRPCClient",
-    "transformer: superjson goes at the createTRPCProxyClient({}) level, NOT inside httpBatchLink({})",
-    "Middleware uses rawInput directly (property, not function): ({ rawInput, next }) => ...",
-    "SSG helper is createProxySSGHelpers, NOT createSSGHelpers",
-    "createProxySSGHelpers is imported from @trpc/react-query/ssg",
-    "Subscriptions use wsLink with Observable pattern",
-    "Nested routes must be wrapped in t.router() calls"
-  ]
+	"library": "trpc",
+	"version": "10",
+	"available_imports": {
+		"@trpc/client": [
+			"createTRPCProxyClient",
+			"httpBatchLink",
+			"httpLink",
+			"wsLink",
+			"splitLink",
+			"loggerLink"
+		],
+		"@trpc/server": ["initTRPC", "TRPCError"],
+		"@trpc/react-query": ["createTRPCReact"],
+		"@trpc/react-query/ssg": ["createProxySSGHelpers"]
+	},
+	"unavailable_apis": [
+		"createTRPCClient (v11 name, use createTRPCProxyClient)",
+		"createSSGHelpers (v11 name, use createProxySSGHelpers)",
+		"httpSubscriptionLink (v11 only)",
+		"getRawInput() as async function (v11, use rawInput directly)",
+		"Shorthand routers (v11 only)",
+		"Async generator subscriptions (v11 only)"
+	],
+	"key_features": [
+		"createTRPCProxyClient for client creation",
+		"Transformer (superjson) at client config level, NOT in link",
+		"rawInput property directly accessible in middleware (not getRawInput())",
+		"createProxySSGHelpers from @trpc/react-query/ssg",
+		"wsLink for WebSocket-based subscriptions",
+		"Observable-based subscriptions",
+		"Explicit t.router() calls required for nested routers"
+	],
+	"breaking_changes": [],
+	"notes": [
+		"Client function is createTRPCProxyClient, NOT createTRPCClient",
+		"transformer: superjson goes at the createTRPCProxyClient({}) level, NOT inside httpBatchLink({})",
+		"Middleware uses rawInput directly (property, not function): ({ rawInput, next }) => ...",
+		"SSG helper is createProxySSGHelpers, NOT createSSGHelpers",
+		"createProxySSGHelpers is imported from @trpc/react-query/ssg",
+		"Subscriptions use wsLink with Observable pattern",
+		"Nested routes must be wrapped in t.router() calls"
+	]
 }

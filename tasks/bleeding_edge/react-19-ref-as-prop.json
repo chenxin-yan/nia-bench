@@ -1,60 +1,60 @@
 {
-  "id": "react-19-ref-as-prop",
-  "category": "bleeding_edge",
-  "library": "react",
-  "target_version": "19.0.0",
-  "prompt": "Using React 19, create a reusable `TextInput` component that accepts a `ref` prop to expose the underlying `<input>` element. Do NOT use `forwardRef` — React 19 supports `ref` as a regular prop. Then create a parent component that focuses the input on a button click.",
-  "reference_solution": "import { useRef } from 'react';\n\nfunction TextInput({ placeholder, ref }: { placeholder?: string; ref?: React.Ref<HTMLInputElement> }) {\n  return <input ref={ref} placeholder={placeholder} />;\n}\n\nexport default function SearchBar() {\n  const inputRef = useRef<HTMLInputElement>(null);\n\n  return (\n    <div>\n      <TextInput ref={inputRef} placeholder=\"Search...\" />\n      <button onClick={() => inputRef.current?.focus()}>Focus Input</button>\n    </div>\n  );\n}",
-  "test_spec": {
-    "ast_checks": [
-      {
-        "type": "import_absent",
-        "name": "forwardRef",
-        "from": "react"
-      },
-      {
-        "type": "call_absent",
-        "call": "forwardRef"
-      },
-      {
-        "type": "import_exists",
-        "name": "useRef",
-        "from": "react"
-      },
-      {
-        "type": "call_exists",
-        "call": "useRef"
-      }
-    ],
-    "type_check": false
-  },
-  "rubric": {
-    "criteria": [
-      {
-        "name": "ref_as_prop",
-        "weight": 0.3,
-        "description": "`ref` is in the component's regular props"
-      },
-      {
-        "name": "no_forward_ref",
-        "weight": 0.3,
-        "description": "Does not use `forwardRef`"
-      },
-      {
-        "name": "correct_typing",
-        "weight": 0.2,
-        "description": "`ref` is typed as `React.Ref<HTMLInputElement>` or similar"
-      },
-      {
-        "name": "no_hallucination",
-        "weight": 0.2,
-        "description": "No invented patterns"
-      }
-    ]
-  },
-  "common_hallucinations": [
-    "Using `React.forwardRef()` wrapper (v17/18 pattern)",
-    "Using `forwardRef<HTMLInputElement, Props>` generic",
-    "Claiming `ref` can't be passed as a regular prop"
-  ]
+	"id": "react-19-ref-as-prop",
+	"category": "bleeding_edge",
+	"library": "react",
+	"target_version": "19.0.0",
+	"prompt": "Using React 19, create a reusable `TextInput` component that accepts a `ref` prop to expose the underlying `<input>` element. Do NOT use `forwardRef` — React 19 supports `ref` as a regular prop. Then create a parent component that focuses the input on a button click.",
+	"reference_solution": "import { useRef } from 'react';\n\nfunction TextInput({ placeholder, ref }: { placeholder?: string; ref?: React.Ref<HTMLInputElement> }) {\n  return <input ref={ref} placeholder={placeholder} />;\n}\n\nexport default function SearchBar() {\n  const inputRef = useRef<HTMLInputElement>(null);\n\n  return (\n    <div>\n      <TextInput ref={inputRef} placeholder=\"Search...\" />\n      <button onClick={() => inputRef.current?.focus()}>Focus Input</button>\n    </div>\n  );\n}",
+	"test_spec": {
+		"ast_checks": [
+			{
+				"type": "import_absent",
+				"name": "forwardRef",
+				"from": "react"
+			},
+			{
+				"type": "call_absent",
+				"call": "forwardRef"
+			},
+			{
+				"type": "import_exists",
+				"name": "useRef",
+				"from": "react"
+			},
+			{
+				"type": "call_exists",
+				"call": "useRef"
+			}
+		],
+		"type_check": false
+	},
+	"rubric": {
+		"criteria": [
+			{
+				"name": "ref_as_prop",
+				"weight": 0.3,
+				"description": "`ref` is in the component's regular props"
+			},
+			{
+				"name": "no_forward_ref",
+				"weight": 0.3,
+				"description": "Does not use `forwardRef`"
+			},
+			{
+				"name": "correct_typing",
+				"weight": 0.2,
+				"description": "`ref` is typed as `React.Ref<HTMLInputElement>` or similar"
+			},
+			{
+				"name": "no_hallucination",
+				"weight": 0.2,
+				"description": "No invented patterns"
+			}
+		]
+	},
+	"common_hallucinations": [
+		"Using `React.forwardRef()` wrapper (v17/18 pattern)",
+		"Using `forwardRef<HTMLInputElement, Props>` generic",
+		"Claiming `ref` can't be passed as a regular prop"
+	]
 }

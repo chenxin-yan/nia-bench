@@ -1,63 +1,63 @@
 {
-  "id": "zod-4-error-api",
-  "category": "bleeding_edge",
-  "library": "zod",
-  "target_version": "4.0.0",
-  "prompt": "Using Zod v4, create a string schema for a username field that: requires minimum 3 characters, maximum 20 characters, and provides custom error messages for different failure cases (field required vs invalid type vs too short/long). Use the new v4 error customization API.",
-  "reference_solution": "import { z } from 'zod';\n\nconst usernameSchema = z\n  .string({\n    error: (issue) => {\n      if (issue.input === undefined) return 'Username is required';\n      return 'Username must be a string';\n    },\n  })\n  .min(3, { error: 'Username must be at least 3 characters' })\n  .max(20, { error: 'Username must be at most 20 characters' });",
-  "test_spec": {
-    "ast_checks": [
-      {
-        "type": "call_exists",
-        "call": "z.string"
-      },
-      {
-        "type": "property_absent",
-        "property": "invalid_type_error"
-      },
-      {
-        "type": "property_absent",
-        "property": "required_error"
-      },
-      {
-        "type": "property_absent",
-        "property": "errorMap"
-      }
-    ],
-    "type_check": false
-  },
-  "rubric": {
-    "criteria": [
-      {
-        "name": "error_param",
-        "weight": 0.3,
-        "description": "Uses `error` parameter, not `message`"
-      },
-      {
-        "name": "no_required_error",
-        "weight": 0.2,
-        "description": "Does not use `required_error`"
-      },
-      {
-        "name": "no_invalid_type_error",
-        "weight": 0.2,
-        "description": "Does not use `invalid_type_error`"
-      },
-      {
-        "name": "function_error_handler",
-        "weight": 0.15,
-        "description": "Schema-level `error` is a function for differentiation"
-      },
-      {
-        "name": "no_hallucination",
-        "weight": 0.15,
-        "description": "No invented patterns"
-      }
-    ]
-  },
-  "common_hallucinations": [
-    "`z.string({ required_error: \"...\", invalid_type_error: \"...\" })` (v3 — removed in v4)",
-    "`z.string().min(3, { message: \"...\" })` (v3 `message` instead of v4 `error`)",
-    "Using `errorMap` callback (v3 — removed in v4)"
-  ]
+	"id": "zod-4-error-api",
+	"category": "bleeding_edge",
+	"library": "zod",
+	"target_version": "4.0.0",
+	"prompt": "Using Zod v4, create a string schema for a username field that: requires minimum 3 characters, maximum 20 characters, and provides custom error messages for different failure cases (field required vs invalid type vs too short/long). Use the new v4 error customization API.",
+	"reference_solution": "import { z } from 'zod';\n\nconst usernameSchema = z\n  .string({\n    error: (issue) => {\n      if (issue.input === undefined) return 'Username is required';\n      return 'Username must be a string';\n    },\n  })\n  .min(3, { error: 'Username must be at least 3 characters' })\n  .max(20, { error: 'Username must be at most 20 characters' });",
+	"test_spec": {
+		"ast_checks": [
+			{
+				"type": "call_exists",
+				"call": "z.string"
+			},
+			{
+				"type": "property_absent",
+				"property": "invalid_type_error"
+			},
+			{
+				"type": "property_absent",
+				"property": "required_error"
+			},
+			{
+				"type": "property_absent",
+				"property": "errorMap"
+			}
+		],
+		"type_check": false
+	},
+	"rubric": {
+		"criteria": [
+			{
+				"name": "error_param",
+				"weight": 0.3,
+				"description": "Uses `error` parameter, not `message`"
+			},
+			{
+				"name": "no_required_error",
+				"weight": 0.2,
+				"description": "Does not use `required_error`"
+			},
+			{
+				"name": "no_invalid_type_error",
+				"weight": 0.2,
+				"description": "Does not use `invalid_type_error`"
+			},
+			{
+				"name": "function_error_handler",
+				"weight": 0.15,
+				"description": "Schema-level `error` is a function for differentiation"
+			},
+			{
+				"name": "no_hallucination",
+				"weight": 0.15,
+				"description": "No invented patterns"
+			}
+		]
+	},
+	"common_hallucinations": [
+		"`z.string({ required_error: \"...\", invalid_type_error: \"...\" })` (v3 — removed in v4)",
+		"`z.string().min(3, { message: \"...\" })` (v3 `message` instead of v4 `error`)",
+		"Using `errorMap` callback (v3 — removed in v4)"
+	]
 }

@@ -1,56 +1,56 @@
 {
-  "id": "nextjs-15-middleware-ts",
-  "category": "version_locked_write",
-  "library": "next",
-  "target_version": "15.0.0",
-  "prompt": "This project uses **Next.js 15**. Create authentication middleware that checks for an `auth-token` cookie on all `/dashboard` routes. If missing, redirect to `/login`. If present, add an `x-user-id` header. Write code correct for Next.js 15 — do NOT use Next.js 16 patterns.",
-  "context": {
-    "package_json": "{\n  \"dependencies\": {\n    \"next\": \"15.5.12\",\n    \"react\": \"19.2.4\",\n    \"react-dom\": \"19.2.4\"\n  }\n}"
-  },
-  "reference_solution": "// middleware.ts\nimport { NextResponse } from 'next/server';\nimport type { NextRequest } from 'next/server';\n\nexport function middleware(request: NextRequest) {\n  const token = request.cookies.get('auth-token');\n\n  if (!token) {\n    return NextResponse.redirect(new URL('/login', request.url));\n  }\n\n  const response = NextResponse.next();\n  response.headers.set('x-user-id', token.value);\n  return response;\n}\n\nexport const config = {\n  matcher: '/dashboard/:path*',\n};",
-  "test_spec": {
-    "ast_checks": [
-      {
-        "type": "function_exported",
-        "name": "middleware"
-      },
-      {
-        "type": "function_absent",
-        "name": "proxy"
-      },
-      {
-        "type": "call_exists",
-        "call": "config.matcher"
-      }
-    ],
-    "type_check": false
-  },
-  "rubric": {
-    "criteria": [
-      {
-        "name": "middleware_filename",
-        "weight": 0.3,
-        "description": "File is `middleware.ts`, not `proxy.ts`"
-      },
-      {
-        "name": "middleware_function_name",
-        "weight": 0.3,
-        "description": "Exports `function middleware()`, not `function proxy()`"
-      },
-      {
-        "name": "correct_api_usage",
-        "weight": 0.25,
-        "description": "Correctly uses NextResponse, cookies, redirect, matcher"
-      },
-      {
-        "name": "no_hallucination",
-        "weight": 0.15,
-        "description": "No v16 proxy patterns"
-      }
-    ]
-  },
-  "common_hallucinations": [
-    "Creating `proxy.ts` instead of `middleware.ts` (v16 pattern)",
-    "`export function proxy(request: NextRequest)` (v16 function name)"
-  ]
+	"id": "nextjs-15-middleware-ts",
+	"category": "version_locked_write",
+	"library": "next",
+	"target_version": "15.0.0",
+	"prompt": "This project uses **Next.js 15**. Create authentication middleware that checks for an `auth-token` cookie on all `/dashboard` routes. If missing, redirect to `/login`. If present, add an `x-user-id` header. Write code correct for Next.js 15 — do NOT use Next.js 16 patterns.",
+	"context": {
+		"package_json": "{\n  \"dependencies\": {\n    \"next\": \"15.5.12\",\n    \"react\": \"19.2.4\",\n    \"react-dom\": \"19.2.4\"\n  }\n}"
+	},
+	"reference_solution": "// middleware.ts\nimport { NextResponse } from 'next/server';\nimport type { NextRequest } from 'next/server';\n\nexport function middleware(request: NextRequest) {\n  const token = request.cookies.get('auth-token');\n\n  if (!token) {\n    return NextResponse.redirect(new URL('/login', request.url));\n  }\n\n  const response = NextResponse.next();\n  response.headers.set('x-user-id', token.value);\n  return response;\n}\n\nexport const config = {\n  matcher: '/dashboard/:path*',\n};",
+	"test_spec": {
+		"ast_checks": [
+			{
+				"type": "function_exported",
+				"name": "middleware"
+			},
+			{
+				"type": "function_absent",
+				"name": "proxy"
+			},
+			{
+				"type": "call_exists",
+				"call": "config.matcher"
+			}
+		],
+		"type_check": false
+	},
+	"rubric": {
+		"criteria": [
+			{
+				"name": "middleware_filename",
+				"weight": 0.3,
+				"description": "File is `middleware.ts`, not `proxy.ts`"
+			},
+			{
+				"name": "middleware_function_name",
+				"weight": 0.3,
+				"description": "Exports `function middleware()`, not `function proxy()`"
+			},
+			{
+				"name": "correct_api_usage",
+				"weight": 0.25,
+				"description": "Correctly uses NextResponse, cookies, redirect, matcher"
+			},
+			{
+				"name": "no_hallucination",
+				"weight": 0.15,
+				"description": "No v16 proxy patterns"
+			}
+		]
+	},
+	"common_hallucinations": [
+		"Creating `proxy.ts` instead of `middleware.ts` (v16 pattern)",
+		"`export function proxy(request: NextRequest)` (v16 function name)"
+	]
 }

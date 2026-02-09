@@ -1,53 +1,53 @@
 {
-  "id": "zod-3-error-message",
-  "category": "version_locked_write",
-  "library": "zod",
-  "target_version": "3.23.0",
-  "prompt": "This project uses **Zod v3**. Create a schema for a password field that is at least 8 characters with custom error messages: a `required_error` when the field is missing, an `invalid_type_error` when it's not a string, and a custom `message` for the min length check. Use Zod v3's error API.",
-  "context": {
-    "package_json": "{\n  \"dependencies\": {\n    \"zod\": \"3.23.8\"\n  }\n}"
-  },
-  "reference_solution": "import { z } from 'zod';\n\nconst passwordSchema = z\n  .string({\n    required_error: 'Password is required',\n    invalid_type_error: 'Password must be a string',\n  })\n  .min(8, { message: 'Password must be at least 8 characters' });",
-  "test_spec": {
-    "ast_checks": [
-      {
-        "type": "call_exists",
-        "call": "z.string"
-      },
-      {
-        "type": "property_absent",
-        "property": "error"
-      }
-    ],
-    "type_check": false
-  },
-  "rubric": {
-    "criteria": [
-      {
-        "name": "required_error",
-        "weight": 0.25,
-        "description": "Uses `required_error` (removed in v4)"
-      },
-      {
-        "name": "invalid_type_error",
-        "weight": 0.25,
-        "description": "Uses `invalid_type_error` (removed in v4)"
-      },
-      {
-        "name": "message_param",
-        "weight": 0.25,
-        "description": "Uses `message`, not `error`"
-      },
-      {
-        "name": "no_hallucination",
-        "weight": 0.25,
-        "description": "No v4 patterns"
-      }
-    ]
-  },
-  "common_hallucinations": [
-    "Using `error` parameter instead of `message` (v4 pattern)",
-    "Using `error: (issue) => { ... }` function handler (v4 pattern)",
-    "Omitting `required_error` and `invalid_type_error` (v4 removed these)"
-  ]
+	"id": "zod-3-error-message",
+	"category": "version_locked_write",
+	"library": "zod",
+	"target_version": "3.23.0",
+	"prompt": "This project uses **Zod v3**. Create a schema for a password field that is at least 8 characters with custom error messages: a `required_error` when the field is missing, an `invalid_type_error` when it's not a string, and a custom `message` for the min length check. Use Zod v3's error API.",
+	"context": {
+		"package_json": "{\n  \"dependencies\": {\n    \"zod\": \"3.23.8\"\n  }\n}"
+	},
+	"reference_solution": "import { z } from 'zod';\n\nconst passwordSchema = z\n  .string({\n    required_error: 'Password is required',\n    invalid_type_error: 'Password must be a string',\n  })\n  .min(8, { message: 'Password must be at least 8 characters' });",
+	"test_spec": {
+		"ast_checks": [
+			{
+				"type": "call_exists",
+				"call": "z.string"
+			},
+			{
+				"type": "property_absent",
+				"property": "error"
+			}
+		],
+		"type_check": false
+	},
+	"rubric": {
+		"criteria": [
+			{
+				"name": "required_error",
+				"weight": 0.25,
+				"description": "Uses `required_error` (removed in v4)"
+			},
+			{
+				"name": "invalid_type_error",
+				"weight": 0.25,
+				"description": "Uses `invalid_type_error` (removed in v4)"
+			},
+			{
+				"name": "message_param",
+				"weight": 0.25,
+				"description": "Uses `message`, not `error`"
+			},
+			{
+				"name": "no_hallucination",
+				"weight": 0.25,
+				"description": "No v4 patterns"
+			}
+		]
+	},
+	"common_hallucinations": [
+		"Using `error` parameter instead of `message` (v4 pattern)",
+		"Using `error: (issue) => { ... }` function handler (v4 pattern)",
+		"Omitting `required_error` and `invalid_type_error` (v4 removed these)"
+	]
 }

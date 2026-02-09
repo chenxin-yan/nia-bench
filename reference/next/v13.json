@@ -1,51 +1,58 @@
 {
-  "library": "next",
-  "version": "13",
-  "sync_apis": ["cookies", "headers", "draftMode"],
-  "async_apis": [],
-  "params_type": "direct",
-  "proxy_file": "middleware.ts",
-  "proxy_function": "middleware",
-  "available_imports": {
-    "next/headers": ["cookies", "headers", "draftMode"],
-    "next/navigation": ["redirect", "useRouter", "useSearchParams", "usePathname", "useParams", "notFound"],
-    "next/cache": ["revalidatePath", "revalidateTag"],
-    "next/server": ["NextResponse", "NextRequest"],
-    "next/image": ["default"],
-    "next/link": ["default"],
-    "next/font/google": ["*"],
-    "@next/font/google": ["*"]
-  },
-  "unavailable_apis": [
-    "after",
-    "forbidden",
-    "unauthorized",
-    "Form",
-    "cacheTag",
-    "cacheLife",
-    "updateTag",
-    "unstable_cacheTag",
-    "unstable_cacheLife",
-    "proxy (function)",
-    "proxy.ts (file)"
-  ],
-  "removed_from_previous": [],
-  "caching_defaults": {
-    "fetch": "force-cache",
-    "route_handlers": "cached"
-  },
-  "key_features": [
-    "App Router introduced (alongside Pages Router)",
-    "Server Components by default",
-    "Synchronous cookies() and headers()",
-    "Direct params object access (not Promise)",
-    "middleware.ts for request interception"
-  ],
-  "breaking_changes": [],
-  "notes": [
-    "cookies() and headers() return values synchronously — do NOT await them",
-    "params and searchParams are plain objects, not Promises",
-    "middleware.ts is the file name (not proxy.ts)",
-    "Edge Runtime supported for middleware"
-  ]
+	"library": "next",
+	"version": "13",
+	"sync_apis": ["cookies", "headers", "draftMode"],
+	"async_apis": [],
+	"params_type": "direct",
+	"proxy_file": "middleware.ts",
+	"proxy_function": "middleware",
+	"available_imports": {
+		"next/headers": ["cookies", "headers", "draftMode"],
+		"next/navigation": [
+			"redirect",
+			"useRouter",
+			"useSearchParams",
+			"usePathname",
+			"useParams",
+			"notFound"
+		],
+		"next/cache": ["revalidatePath", "revalidateTag"],
+		"next/server": ["NextResponse", "NextRequest"],
+		"next/image": ["default"],
+		"next/link": ["default"],
+		"next/font/google": ["*"],
+		"@next/font/google": ["*"]
+	},
+	"unavailable_apis": [
+		"after",
+		"forbidden",
+		"unauthorized",
+		"Form",
+		"cacheTag",
+		"cacheLife",
+		"updateTag",
+		"unstable_cacheTag",
+		"unstable_cacheLife",
+		"proxy (function)",
+		"proxy.ts (file)"
+	],
+	"removed_from_previous": [],
+	"caching_defaults": {
+		"fetch": "force-cache",
+		"route_handlers": "cached"
+	},
+	"key_features": [
+		"App Router introduced (alongside Pages Router)",
+		"Server Components by default",
+		"Synchronous cookies() and headers()",
+		"Direct params object access (not Promise)",
+		"middleware.ts for request interception"
+	],
+	"breaking_changes": [],
+	"notes": [
+		"cookies() and headers() return values synchronously — do NOT await them",
+		"params and searchParams are plain objects, not Promises",
+		"middleware.ts is the file name (not proxy.ts)",
+		"Edge Runtime supported for middleware"
+	]
 }
