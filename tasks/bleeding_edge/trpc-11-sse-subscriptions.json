@@ -60,7 +60,7 @@
 		]
 	},
 	"common_hallucinations": [
-		"Using `wsLink` for subscriptions (v10 pattern)",
+		"Using `wsLink` for subscriptions (v10 WebSocket pattern — this task requires SSE via `httpSubscriptionLink`)",
 		"Using Observable-based subscriptions (v10 pattern)",
 		"Inventing a `sseLink` that doesn't exist"
 	]
