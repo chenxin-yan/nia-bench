@@ -21,6 +21,9 @@
 		"skill": false
 	},
 	"permission": {
-		"skill": "deny"
+		"skill": "deny",
+		"edit": "allow",
+		"write": "allow",
+		"bash": "allow"
 	}
 }

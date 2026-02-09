@@ -21,6 +21,9 @@
 		"skill": {
 			"*": "deny",
 			"nia": "allow"
-		}
+		},
+		"edit": "allow",
+		"write": "allow",
+		"bash": "allow"
 	}
 }

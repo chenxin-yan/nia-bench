@@ -95,6 +95,13 @@ const CONFIG_FILE_MAP: Record<Condition, string> = {
 	nia: "nia.opencode.json",
 };
 
+/**
+ * Default model to use for the agent. This is always passed as --model to
+ * opencode to prevent env-based API keys (e.g., GROQ_API_KEY) from
+ * overriding the intended model in .opencode.json config.
+ */
+const DEFAULT_MODEL = "anthropic/claude-sonnet-4-20250514";
+
 // --- Utility Functions ---
 
 /**
@@ -422,10 +429,11 @@ export async function runAgent(
 
 		try {
 			// Build command args
-			const args = ["opencode", "run", "--format", "json"];
-			if (config?.model) {
-				args.push("--model", config.model);
-			}
+			// Always pass --model to override env-based provider resolution.
+			// Without this, opencode may pick a different provider/model based on
+			// which API keys are set in the environment (e.g., GROQ_API_KEY).
+			const model = config?.model ?? DEFAULT_MODEL;
+			const args = ["opencode", "run", "--format", "json", "--model", model];
 			args.push(task.prompt);
 
 			// Resolve the condition-specific config directory for skill isolation.
@@ -458,9 +466,16 @@ export async function runAgent(
 			}, timeout);
 
 			try {
-				// Read stdout
-				rawOutput = await new Response(proc.stdout).text();
+				// Read both stdout and stderr concurrently.
+				// opencode may split NDJSON events across both streams.
+				const [stdoutText, stderrText] = await Promise.all([
+					new Response(proc.stdout).text(),
+					new Response(proc.stderr).text(),
+				]);
 				exitCode = await proc.exited;
+
+				// Combine both streams — opencode may write events to either or both
+				rawOutput = [stdoutText, stderrText].filter(Boolean).join("\n");
 			} finally {
 				clearTimeout(timeoutId);
 			}
