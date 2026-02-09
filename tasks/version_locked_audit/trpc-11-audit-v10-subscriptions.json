@@ -1,0 +1,57 @@
+{
+	"id": "trpc-11-audit-v10-subscriptions",
+	"category": "version_locked_audit",
+	"library": "trpc",
+	"target_version": "11.9.0",
+	"prompt": "This project is upgrading from **tRPC v10 to v11**. The following code uses v10 subscription and real-time patterns. Audit it and identify every pattern that is deprecated or broken in tRPC v11. For each issue, provide the correct v11 replacement.\n\n```typescript\nimport { initTRPC } from '@trpc/server';\nimport { observable } from '@trpc/server/observable';\nimport { createTRPCProxyClient, httpBatchLink, wsLink, splitLink } from '@trpc/client';\nimport { z } from 'zod';\nimport { EventEmitter } from 'events';\n\nconst ee = new EventEmitter();\nconst t = initTRPC.create();\n\nconst appRouter = t.router({\n  onUserUpdate: t.procedure.subscription(() => {\n    return observable<{ userId: string; status: string }>((emit) => {\n      const handler = (data: { userId: string; status: string }) => {\n        emit.next(data);\n      };\n      ee.on('userUpdate', handler);\n\n      return () => {\n        ee.off('userUpdate', handler);\n      };\n    });\n  }),\n});\n\nconst wsClient = createWSClient({ url: 'ws://localhost:3001' });\n\nconst client = createTRPCProxyClient<typeof appRouter>({\n  links: [\n    splitLink({\n      condition: (op) => op.type === 'subscription',\n      true: wsLink({ client: wsClient }),\n      false: httpBatchLink({ url: 'http://localhost:3000/trpc' }),\n    }),\n  ],\n});\n\nclient.onUserUpdate.subscribe(undefined, {\n  onData: (data) => {\n    console.log('User update:', data);\n  },\n  onError: (err) => {\n    console.error('Subscription error:', err);\n  },\n});\n```",
+	"context": {
+		"package_json": "{\n  \"dependencies\": {\n    \"@trpc/server\": \"11.9.0\",\n    \"@trpc/client\": \"11.9.0\",\n    \"zod\": \"3.25.76\"\n  }\n}"
+	},
+	"reference_solution": "Issues identified:\n\n1. `observable((emit) => { emit.next(data); return () => cleanup; })` — The Observable pattern from `@trpc/server/observable` is deprecated in tRPC v11. Use async generators instead: `async function* (opts) { ... yield data; }`. Cleanup is handled via `opts.signal` (AbortSignal) rather than a returned teardown function.\n2. `return () => { ee.off('userUpdate', handler); }` — Teardown-via-return is the v10 Observable pattern. In v11 with async generators, listen for the AbortSignal: `opts.signal.addEventListener('abort', () => ee.off('userUpdate', handler))` or use the `on()` helper from `node:events` with `{ signal: opts.signal }`.\n3. `wsLink({ client: wsClient })` for subscriptions — While wsLink still works, tRPC v11 introduces `httpSubscriptionLink` as the recommended subscription transport using Server-Sent Events (SSE). Replace with `httpSubscriptionLink({ url: 'http://localhost:3000/trpc' })`. This eliminates the need for a separate WebSocket server.\n4. `createWSClient({ url: 'ws://localhost:3001' })` — No longer needed when using httpSubscriptionLink. The SSE-based approach works over standard HTTP, simplifying infrastructure.\n5. `createTRPCProxyClient` — Renamed to `createTRPCClient` in tRPC v11. Import and use `createTRPCClient` from `@trpc/client`.\n6. `import { observable } from '@trpc/server/observable'` — This import is deprecated. The `@trpc/server/observable` module is no longer the recommended approach. Remove this import when migrating to async generators.",
+	"test_spec": {
+		"ast_checks": [],
+		"type_check": false
+	},
+	"rubric": {
+		"criteria": [
+			{
+				"name": "identify_observable_deprecation",
+				"weight": 0.25,
+				"description": "Identifies observable() pattern with emit.next() is deprecated in v11, should use async function* with yield"
+			},
+			{
+				"name": "identify_teardown_change",
+				"weight": 0.15,
+				"description": "Identifies return-based teardown should be replaced with AbortSignal (opts.signal) cleanup pattern"
+			},
+			{
+				"name": "identify_sse_migration",
+				"weight": 0.2,
+				"description": "Identifies wsLink should be replaced with httpSubscriptionLink for SSE-based subscriptions in v11"
+			},
+			{
+				"name": "identify_client_rename",
+				"weight": 0.1,
+				"description": "Identifies createTRPCProxyClient renamed to createTRPCClient in v11"
+			},
+			{
+				"name": "identify_observable_import",
+				"weight": 0.1,
+				"description": "Identifies @trpc/server/observable import is deprecated"
+			},
+			{
+				"name": "correct_replacements",
+				"weight": 0.2,
+				"description": "Provides correct tRPC v11 subscription code using async generators, httpSubscriptionLink, and AbortSignal cleanup"
+			}
+		]
+	},
+	"common_hallucinations": [
+		"Suggesting Observable still works fine in v11 without mentioning deprecation",
+		"Not recognizing the shift from WebSocket to SSE via httpSubscriptionLink",
+		"Missing the teardown pattern change from return function to AbortSignal",
+		"Suggesting both wsLink and httpSubscriptionLink simultaneously without explaining the migration",
+		"Not mentioning that httpSubscriptionLink eliminates the need for a WebSocket server",
+		"Missing createTRPCProxyClient -> createTRPCClient rename"
+	]
+}

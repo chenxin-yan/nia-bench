@@ -1861,6 +1861,154 @@ Each task is defined as a JSON object:
 
 ---
 
+**Task B2-AI-2: Audit AI SDK v4 Streaming Code for v5 Migration**
+
+- **ID:** `ai-sdk-5-audit-v4-streaming`
+- **Prompt:**
+  > This project is upgrading from **Vercel AI SDK v4 to v5**. Audit the following code and identify every pattern that is broken or removed in v5.
+  >
+  > ```typescript
+  > import { streamText, createDataStreamResponse, StreamData, formatDataStreamPart } from 'ai';
+  > import type { Message } from 'ai';
+  > import { getTextFromDataUrl } from '@ai-sdk/ui-utils';
+  > import { openai } from '@ai-sdk/openai';
+  >
+  > export async function POST(req: Request) {
+  >   const { messages } = await req.json();
+  >   const streamData = new StreamData();
+  >   streamData.append({ status: 'processing' });
+  >   return createDataStreamResponse({
+  >     execute: (dataStream) => {
+  >       dataStream.writeData('initialized call');
+  >       dataStream.write(formatDataStreamPart('text', 'Processing...'));
+  >       const result = streamText({ model: openai('gpt-4o'), messages });
+  >       result.mergeIntoDataStream(dataStream);
+  >     },
+  >   });
+  > }
+  > ```
+- **Expected issues to identify:**
+  1. `StreamData` class — removed in v5, use `createUIMessageStream()` with writer
+  2. `createDataStreamResponse` — renamed to `createUIMessageStreamResponse`
+  3. `writeData()`/`formatDataStreamPart()` — replaced by `writer.write({ type, value })`
+  4. `mergeIntoDataStream()` — replaced by `writer.merge(result.toUIMessageStream())`
+  5. `toDataStreamResponse()` — renamed to `toUIMessageStreamResponse()`
+  6. `@ai-sdk/ui-utils` import — package removed, use main `'ai'` package
+  7. `chunk.textDelta` — renamed to `chunk.text` in fullStream
+  8. `Message` type with `.content` — renamed to `UIMessage` with `.parts` array
+- **Rubric:**
+  | Criterion | Weight | Description |
+  | --- | --- | --- |
+  | `identify_stream_data_removal` | 15% | StreamData removed |
+  | `identify_response_rename` | 15% | DataStream response APIs renamed |
+  | `identify_writer_api_change` | 15% | Writer API restructured |
+  | `identify_package_removal` | 10% | @ai-sdk/ui-utils removed |
+  | `identify_chunk_property` | 10% | textDelta → text |
+  | `identify_message_type_change` | 15% | Message → UIMessage |
+  | `correct_replacements` | 20% | Correct v5 alternatives |
+
+---
+
+**Task B2-TR-2: Audit tRPC v10 Subscription Code for v11 Migration**
+
+- **ID:** `trpc-11-audit-v10-subscriptions`
+- **Prompt:**
+  > This project is upgrading from **tRPC v10 to v11**. The following code uses v10 subscription and real-time patterns. Audit it and identify every pattern that is deprecated or broken in tRPC v11.
+  >
+  > ```typescript
+  > import { initTRPC } from '@trpc/server';
+  > import { observable } from '@trpc/server/observable';
+  > import { createTRPCProxyClient, httpBatchLink, wsLink, splitLink } from '@trpc/client';
+  >
+  > const appRouter = t.router({
+  >   onUserUpdate: t.procedure.subscription(() => {
+  >     return observable((emit) => {
+  >       ee.on('userUpdate', (data) => emit.next(data));
+  >       return () => ee.off('userUpdate', handler);
+  >     });
+  >   }),
+  > });
+  >
+  > const client = createTRPCProxyClient<typeof appRouter>({
+  >   links: [
+  >     splitLink({
+  >       condition: (op) => op.type === 'subscription',
+  >       true: wsLink({ client: wsClient }),
+  >       false: httpBatchLink({ url: '/trpc' }),
+  >     }),
+  >   ],
+  > });
+  > ```
+- **Expected issues to identify:**
+  1. `observable()` with `emit.next()` — deprecated, use `async function*` with `yield`
+  2. Return-based teardown — use `opts.signal` (AbortSignal) cleanup
+  3. `wsLink` for subscriptions — replace with `httpSubscriptionLink` (SSE)
+  4. `createWSClient` — no longer needed with SSE transport
+  5. `createTRPCProxyClient` — renamed to `createTRPCClient`
+  6. `@trpc/server/observable` import — deprecated
+- **Rubric:**
+  | Criterion | Weight | Description |
+  | --- | --- | --- |
+  | `identify_observable_deprecation` | 25% | Observable → async generator |
+  | `identify_teardown_change` | 15% | Return teardown → AbortSignal |
+  | `identify_sse_migration` | 20% | wsLink → httpSubscriptionLink |
+  | `identify_client_rename` | 10% | createTRPCProxyClient → createTRPCClient |
+  | `identify_observable_import` | 10% | Import deprecated |
+  | `correct_replacements` | 20% | Correct v11 subscription code |
+
+---
+
+**Task B2-ZD-2: Audit Zod v3 Function/Refinement Code for v4 Migration**
+
+- **ID:** `zod-4-audit-v3-functions`
+- **Prompt:**
+  > This project is upgrading from **Zod v3 to v4**. Audit the following code and identify every pattern that is broken, deprecated, or behaves differently in Zod v4.
+  >
+  > ```typescript
+  > import { z } from 'zod';
+  >
+  > const addUser = z.function()
+  >   .args(z.object({ name: z.string(), age: z.number().int() }))
+  >   .returns(z.object({ id: z.string(), name: z.string() }));
+  > type AddUserFn = z.infer<typeof addUser>;
+  >
+  > const coerceAge = z.coerce.number();
+  > type AgeInput = z.input<typeof coerceAge>; // Expected: number
+  >
+  > const userSchema = z.object({ ... }).superRefine((val, ctx) => {
+  >   ctx.addIssue({ ..., path: ctx.path.concat(['password']) });
+  > });
+  >
+  > const nonEmptyString = z.unknown().refine(
+  >   (val): val is string => typeof val === 'string' && val.length > 0,
+  > );
+  > type NonEmpty = z.infer<typeof nonEmptyString>; // Expected: string
+  >
+  > const formatted = result.error.format();
+  > const flat = result.error.flatten();
+  > const optName = z.ostring();
+  > ```
+- **Expected issues to identify:**
+  1. `z.function().args().returns()` — redesigned to `z.function({ input, output })`
+  2. `z.infer<typeof functionSchema>` — function validators no longer schemas
+  3. `z.input<typeof z.coerce.number()>` = `unknown` now, not `number`
+  4. `ctx.path` in `.superRefine()` — removed in v4
+  5. Type predicate in `.refine()` — ignored in v4, no type narrowing
+  6. `.format()` / `.flatten()` / `.formErrors` — deprecated, use `z.treeifyError()`
+  7. `z.ostring()` / `z.onumber()` / `z.oboolean()` — removed in v4
+- **Rubric:**
+  | Criterion | Weight | Description |
+  | --- | --- | --- |
+  | `identify_function_api_redesign` | 20% | z.function() API changed |
+  | `identify_coerce_input_type` | 10% | coerce input = unknown |
+  | `identify_ctx_path_removal` | 15% | ctx.path removed |
+  | `identify_type_predicate_ignored` | 15% | Type predicates ignored |
+  | `identify_error_methods_deprecated` | 10% | format/flatten deprecated |
+  | `identify_convenience_removal` | 10% | z.ostring etc. removed |
+  | `correct_replacements` | 20% | Correct v4 alternatives |
+
+---
+
 ## 5. Evaluation System
 
 ### 5.1 Layer 1: Automated Tests (60% of final score)
@@ -2096,9 +2244,11 @@ nia-bench/
 │       ├── react-19-audit-removed-apis.json
 │       ├── react-18-audit-missed-features.json
 │       ├── zod-4-audit-v3-code.json
+│       ├── zod-4-audit-v3-functions.json
 │       ├── trpc-11-audit-v10-code.json
+│       ├── trpc-11-audit-v10-subscriptions.json
 │       ├── ai-sdk-4-audit-v3-code.json
-│       └── ...
+│       └── ai-sdk-5-audit-v4-streaming.json
 ├── runner/                          # Benchmark execution engine
 │   ├── agent.ts                     # Agent orchestrator (baseline/context7/nia)
 │   ├── mcp_configs/
@@ -2142,7 +2292,7 @@ nia-bench/
 | --- | --- | --- |
 | **A: Bleeding-Edge** | 14 | Next.js 16 (3), React 19 (3), AI SDK 4-5 (3), tRPC 11 (3), Zod 4 (2) |
 | **B1: Version-Locked Write** | 14 | Next.js 13-15 (3), React 17-18 (3), AI SDK 3 (2), tRPC 10 (3), Zod 3 (3) |
-| **B2: Version-Locked Audit** | 12 | Next.js (3), React (3), Zod (1), tRPC (1), AI SDK (1) + room for 3 more |
+| **B2: Version-Locked Audit** | 12 | Next.js (3), React (3), Zod (2), tRPC (2), AI SDK (2) |
 | **Total** | **40** | |
 
 ### By Library
@@ -2151,10 +2301,10 @@ nia-bench/
 | --- | --- | --- | --- | --- |
 | **Next.js** | 3 | 3 | 3 | **9** |
 | **React** | 3 | 3 | 3 | **9** |
-| **Vercel AI SDK** | 3 | 2 | 1 | **6** |
-| **tRPC** | 3 | 3 | 1 | **7** |
-| **Zod** | 2 | 3 | 1 | **6** |
-| **Total** | **14** | **14** | **9** (+3 slots) | **40** |
+| **Vercel AI SDK** | 3 | 2 | 2 | **7** |
+| **tRPC** | 3 | 3 | 2 | **8** |
+| **Zod** | 2 | 3 | 2 | **7** |
+| **Total** | **14** | **14** | **12** | **40** |
 
 ---
 

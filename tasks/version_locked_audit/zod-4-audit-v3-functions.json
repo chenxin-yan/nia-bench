@@ -1,0 +1,64 @@
+{
+	"id": "zod-4-audit-v3-functions",
+	"category": "version_locked_audit",
+	"library": "zod",
+	"target_version": "4.3.6",
+	"prompt": "This project is upgrading from **Zod v3 to v4**. Audit the following code and identify every pattern that is broken, deprecated, or behaves differently in Zod v4. For each issue, explain why it's invalid and provide the correct v4 replacement.\n\n```typescript\nimport { z } from 'zod';\n\n// Function validation\nconst addUser = z.function()\n  .args(z.object({ name: z.string(), age: z.number().int() }))\n  .returns(z.object({ id: z.string(), name: z.string() }));\n\ntype AddUserFn = z.infer<typeof addUser>;\n\n// Coercion with type inference\nconst coerceAge = z.coerce.number();\ntype AgeInput = z.input<typeof coerceAge>;\n// Expected: AgeInput = number\n\n// Schema with refinement using ctx.path\nconst userSchema = z.object({\n  email: z.string().email(),\n  password: z.string().min(8),\n}).superRefine((val, ctx) => {\n  if (val.password.includes(val.email)) {\n    ctx.addIssue({\n      code: z.ZodIssueCode.custom,\n      message: `Password cannot contain email`,\n      path: ctx.path.concat(['password']),\n    });\n  }\n});\n\n// Type predicate refinement\nconst nonEmptyString = z.unknown().refine(\n  (val): val is string => typeof val === 'string' && val.length > 0,\n  { message: 'Must be a non-empty string' }\n);\ntype NonEmpty = z.infer<typeof nonEmptyString>;\n// Expected: NonEmpty = string\n\n// Error handling\nfunction validateUser(data: unknown) {\n  const result = userSchema.safeParse(data);\n  if (!result.success) {\n    const formatted = result.error.format();\n    const flat = result.error.flatten();\n    const formErrors = result.error.formErrors;\n    return { formatted, flat, formErrors };\n  }\n  return result.data;\n}\n\n// Optional convenience shortcuts\nconst optName = z.ostring();\nconst optAge = z.onumber();\nconst optActive = z.oboolean();\n```",
+	"context": {
+		"package_json": "{\n  \"dependencies\": {\n    \"zod\": \"4.3.6\"\n  }\n}"
+	},
+	"reference_solution": "Issues identified:\n\n1. `z.function().args(...).returns(...)` — The chained `.args()` and `.returns()` API is completely redesigned in Zod v4. Use the object syntax instead: `z.function({ input: z.tuple([z.object({ name: z.string(), age: z.number().int() })]), output: z.object({ id: z.string(), name: z.string() }) })`. The result is used with `.implement(fn)` to create a validated function.\n2. `z.infer<typeof addUser>` on a function schema — In Zod v4, `z.function()` no longer returns a ZodType/schema. It returns a function validator that is not directly inferrable. Use `.implement()` to get a typed function instead of trying to infer the type.\n3. `z.input<typeof coerceAge>` expecting `number` — In Zod v4, all `z.coerce.*` schemas have input type `unknown` (not the specific type). So `z.input<typeof z.coerce.number()>` is `unknown`, not `number`. This is a type-level breaking change.\n4. `ctx.path` in `.superRefine()` — `ctx.path` is no longer available in Zod v4 refinement callbacks. You cannot access the current schema path. Pass the path directly in `ctx.addIssue({ ..., path: ['password'] })` using a hardcoded path array instead.\n5. Type predicate `(val): val is string =>` in `.refine()` — Type predicates in refinement callbacks are ignored in Zod v4. The output type of `z.unknown().refine(...)` remains `unknown`, not `string`. Use `z.string().min(1)` directly, or use `z.check()` / `z.pipe()` for type narrowing.\n6. `error.format()` — Deprecated in Zod v4. Use `z.treeifyError(error)` instead for structured error output.\n7. `error.flatten()` and `error.formErrors` — Deprecated in Zod v4. Use `z.treeifyError(error)` as the unified replacement for all error formatting methods.\n8. `z.ostring()`, `z.onumber()`, `z.oboolean()` — These convenience shortcut methods are removed in Zod v4. Use `z.string().optional()`, `z.number().optional()`, and `z.boolean().optional()` instead.",
+	"test_spec": {
+		"ast_checks": [],
+		"type_check": false
+	},
+	"rubric": {
+		"criteria": [
+			{
+				"name": "identify_function_api_redesign",
+				"weight": 0.2,
+				"description": "Identifies z.function().args().returns() pattern is redesigned in v4, should use object syntax with input/output"
+			},
+			{
+				"name": "identify_coerce_input_type",
+				"weight": 0.1,
+				"description": "Identifies z.coerce schemas now have unknown input type instead of specific type in v4"
+			},
+			{
+				"name": "identify_ctx_path_removal",
+				"weight": 0.15,
+				"description": "Identifies ctx.path is no longer available in superRefine/refine callbacks in v4"
+			},
+			{
+				"name": "identify_type_predicate_ignored",
+				"weight": 0.15,
+				"description": "Identifies type predicates in .refine() are ignored in v4, no longer narrow the output type"
+			},
+			{
+				"name": "identify_error_methods_deprecated",
+				"weight": 0.1,
+				"description": "Identifies .format(), .flatten(), and .formErrors are deprecated in favor of z.treeifyError()"
+			},
+			{
+				"name": "identify_convenience_removal",
+				"weight": 0.1,
+				"description": "Identifies z.ostring(), z.onumber(), z.oboolean() convenience methods are removed in v4"
+			},
+			{
+				"name": "correct_replacements",
+				"weight": 0.2,
+				"description": "Provides correct Zod v4 alternatives for each identified issue"
+			}
+		]
+	},
+	"common_hallucinations": [
+		"Treating z.function() result as a regular schema that can be inferred with z.infer",
+		"Suggesting z.coerce.number() still has number as input type",
+		"Assuming ctx.path is still available in refinement callbacks",
+		"Expecting type predicates in .refine() to narrow the output type in v4",
+		"Suggesting .format() still works in v4 without mentioning deprecation",
+		"Not knowing z.ostring()/z.onumber()/z.oboolean() were removed",
+		"Suggesting the old z.function().args().returns() syntax still works in v4",
+		"Mixing v3 error handling patterns with v4 suggestions"
+	]
+}
