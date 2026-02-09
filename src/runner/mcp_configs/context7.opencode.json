@@ -23,5 +23,11 @@
 			"command": "npx",
 			"args": ["-y", "@context7/mcp"]
 		}
+	},
+	"tools": {
+		"skill": false
+	},
+	"permission": {
+		"skill": "deny"
 	}
 }

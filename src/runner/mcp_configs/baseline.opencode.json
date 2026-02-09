@@ -16,5 +16,11 @@
 			"model": "anthropic/claude-sonnet-4-20250514",
 			"maxTokens": 5000
 		}
+	},
+	"tools": {
+		"skill": false
+	},
+	"permission": {
+		"skill": "deny"
 	}
 }

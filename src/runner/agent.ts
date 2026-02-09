@@ -98,15 +98,44 @@ const CONFIG_FILE_MAP: Record<Condition, string> = {
 // --- Utility Functions ---
 
 /**
+ * Resolves the project root directory from config or by convention.
+ */
+function resolveProjectRoot(config?: AgentRunnerConfig): string {
+	return config?.projectRoot ?? resolve(import.meta.dirname, "..", "..");
+}
+
+/**
  * Resolves the MCP config directory. Defaults to the mcp_configs directory
  * relative to this module's location.
  */
 function resolveMcpConfigDir(config?: AgentRunnerConfig): string {
 	if (config?.mcpConfigDir) return config.mcpConfigDir;
-	// Default: resolve relative to the project root
-	const projectRoot =
-		config?.projectRoot ?? resolve(import.meta.dirname, "..", "..");
-	return join(projectRoot, "src", "runner", "mcp_configs");
+	return join(resolveProjectRoot(config), "src", "runner", "mcp_configs");
+}
+
+/**
+ * Resolves the condition-specific config directory.
+ * Each condition (baseline, context7, nia) has its own directory under
+ * src/runner/condition_configs/{condition}/ containing:
+ * - opencode.json: skill permissions and tool overrides
+ * - skills/: condition-specific skill definitions (e.g., nia/ for the nia condition)
+ *
+ * This directory is passed as OPENCODE_CONFIG_DIR to the opencode process,
+ * ensuring reproducible behavior regardless of the user's global opencode setup.
+ * Skills, permissions, and tools are loaded from this directory instead of
+ * ~/.config/opencode/ or any other global location.
+ */
+function resolveConditionConfigDir(
+	condition: Condition,
+	config?: AgentRunnerConfig,
+): string {
+	return join(
+		resolveProjectRoot(config),
+		"src",
+		"runner",
+		"condition_configs",
+		condition,
+	);
 }
 
 /**
@@ -386,6 +415,7 @@ export async function runAgent(
 		// Step 4: Invoke opencode CLI
 		// opencode v1.1.47 uses: `opencode run --format json "message"`
 		// CWD is set via Bun.spawn's cwd option (opencode loads .opencode.json from CWD)
+		// OPENCODE_CONFIG_DIR overrides skill/permission discovery to use repo-bundled configs
 		const startTime = Date.now();
 		let rawOutput = "";
 		let exitCode = 1;
@@ -398,6 +428,11 @@ export async function runAgent(
 			}
 			args.push(task.prompt);
 
+			// Resolve the condition-specific config directory for skill isolation.
+			// This ensures each condition only sees its own skills/permissions,
+			// regardless of the user's global opencode setup.
+			const conditionConfigDir = resolveConditionConfigDir(condition, config);
+
 			const proc = Bun.spawn(args, {
 				stdout: "pipe",
 				stderr: "pipe",
@@ -406,6 +441,10 @@ export async function runAgent(
 					...process.env,
 					// Ensure HOME is set so opencode can find its global config
 					HOME: process.env.HOME ?? "/tmp",
+					// Override config directory to load condition-specific skills and permissions.
+					// This takes precedence over global ~/.config/opencode/ settings,
+					// making the benchmark reproducible across different machines.
+					OPENCODE_CONFIG_DIR: conditionConfigDir,
 				},
 			});
 

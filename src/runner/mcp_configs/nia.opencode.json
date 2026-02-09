@@ -17,11 +17,10 @@
 			"maxTokens": 5000
 		}
 	},
-	"mcpServers": {
-		"nia": {
-			"type": "stdio",
-			"command": "npx",
-			"args": ["-y", "@nicepkg/nia-mcp"]
+	"permission": {
+		"skill": {
+			"*": "deny",
+			"nia": "allow"
 		}
 	}
 }

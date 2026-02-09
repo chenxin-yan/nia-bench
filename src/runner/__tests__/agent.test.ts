@@ -211,7 +211,7 @@ describe("injectConfig", () => {
 		expect(config.mcpServers.context7.args).toContain("@context7/mcp");
 	});
 
-	test("copies nia config with Nia MCP server", async () => {
+	test("copies nia config with Nia skill permissions (no MCP)", async () => {
 		const workDir = await createWorkDir("task-1", "nia", 0, TEST_TEMP_DIR);
 		await injectConfig(workDir, "nia", { mcpConfigDir: getMcpConfigDir() });
 
@@ -220,10 +220,13 @@ describe("injectConfig", () => {
 		const config = JSON.parse(content);
 
 		expect(config.agents).toBeDefined();
-		expect(config.mcpServers).toBeDefined();
-		expect(config.mcpServers.nia).toBeDefined();
-		expect(config.mcpServers.nia.type).toBe("stdio");
-		expect(config.mcpServers.nia.command).toBe("npx");
+		// Nia uses OpenCode Skills (not MCP) — no mcpServers should be present
+		expect(config.mcpServers).toBeUndefined();
+		// Skill permissions should allow only nia
+		expect(config.permission).toBeDefined();
+		expect(config.permission.skill).toBeDefined();
+		expect(config.permission.skill["*"]).toBe("deny");
+		expect(config.permission.skill.nia).toBe("allow");
 	});
 
 	test("all three conditions use the same model", async () => {
@@ -727,7 +730,7 @@ describe("integration: end-to-end dry run (no opencode call)", () => {
 		expect(config.mcpServers.context7.args).toEqual(["-y", "@context7/mcp"]);
 	});
 
-	test("nia condition gets Nia MCP server in config", async () => {
+	test("nia condition gets Nia skill permissions in config (no MCP)", async () => {
 		const task = makeTask({ id: "test-nia" });
 		const workDir = await createWorkDir(task.id, "nia", 0, TEST_TEMP_DIR);
 
@@ -736,8 +739,10 @@ describe("integration: end-to-end dry run (no opencode call)", () => {
 		const config = JSON.parse(
 			await readFile(join(workDir, ".opencode.json"), "utf-8"),
 		);
-		expect(config.mcpServers.nia).toBeDefined();
-		expect(config.mcpServers.nia.command).toBe("npx");
+		// Nia uses OpenCode Skills (not MCP)
+		expect(config.mcpServers).toBeUndefined();
+		expect(config.permission.skill["*"]).toBe("deny");
+		expect(config.permission.skill.nia).toBe("allow");
 	});
 
 	test("disk files preferred over response files in extraction", async () => {
