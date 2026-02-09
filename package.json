@@ -5,10 +5,9 @@
   "private": true,
   "scripts": {
     "bench": "bun run src/index.ts",
-    "typecheck": "tsc --noEmit",
     "test": "bun test",
-    "lint": "biome check .",
-    "format": "biome format --write ."
+    "check": "biome check .",
+    "check:types": "tsc --noEmit"
   },
   "dependencies": {
     "openai": "^6.18.0",
