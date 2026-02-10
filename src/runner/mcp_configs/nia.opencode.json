@@ -18,10 +18,13 @@
 			"maxTokens": 5000
 		}
 	},
+	"skills": {
+		"paths": ["$SKILLS_DIR"]
+	},
 	"permission": {
 		"skill": {
 			"*": "deny",
-			"nia": "allow"
+			"Nia": "allow"
 		},
 		"edit": "allow",
 		"write": "allow",

@@ -168,35 +168,22 @@ function resolveMcpConfigDir(config?: AgentRunnerConfig): string {
 }
 
 /**
- * Resolves the condition-specific config directory.
- * Each condition (baseline, context7, nia) has its own directory under
- * src/runner/condition_configs/{condition}/ containing:
- * - opencode.json: skill permissions and tool overrides
- * - skills/: condition-specific skill definitions (e.g., nia/ for the nia condition)
+ * Resolves the skills source directory inside mcp_configs/.
+ * Skills are stored at mcp_configs/skills/ and organized by skill name
+ * (e.g., mcp_configs/skills/nia/ containing SKILL.md + scripts/).
  *
- * This directory is passed as OPENCODE_CONFIG_DIR to the opencode process,
- * ensuring reproducible behavior regardless of the user's global opencode setup.
- * Skills, permissions, and tools are loaded from this directory instead of
- * ~/.config/opencode/ or any other global location.
+ * Only the nia condition currently ships skills; baseline and context7
+ * have no skills directory.
  */
-function resolveConditionConfigDir(
-	condition: Condition,
-	config?: AgentRunnerConfig,
-): string {
-	return join(
-		resolveProjectRoot(config),
-		"src",
-		"runner",
-		"condition_configs",
-		condition,
-	);
+function resolveSkillsSrcDir(config?: AgentRunnerConfig): string {
+	return join(resolveMcpConfigDir(config), "skills");
 }
 
 /**
  * Minimal opencode global config for the sandboxed HOME.
  * Contains no agents, plugins, MCP servers, or skills — just bare permissions
- * so opencode can start cleanly. Condition-specific tools are provided via
- * OPENCODE_CONFIG_DIR and the CWD .opencode.json.
+ * so opencode can start cleanly. Condition-specific tools and skill paths are
+ * provided via the CWD opencode.json (from mcp_configs/).
  */
 const SANDBOXED_OPENCODE_CONFIG = JSON.stringify(
 	{
@@ -214,6 +201,19 @@ const SANDBOXED_OPENCODE_CONFIG = JSON.stringify(
 );
 
 /**
+ * Return value from createSandboxedHome, carrying the sandbox HOME path
+ * and the absolute path to the skills directory (if any skills were copied).
+ * The skills path is used to substitute the $SKILLS_DIR placeholder in
+ * the CWD opencode.json so that opencode discovers skills via `skills.paths`.
+ */
+export interface SandboxInfo {
+	/** Absolute path to the sandboxed HOME directory */
+	home: string;
+	/** Absolute path to the skills directory inside the sandbox (null if no skills) */
+	skillsDir: string | null;
+}
+
+/**
  * Creates a sandboxed HOME directory for an opencode execution.
  *
  * opencode discovers agents, skills, plugins, and MCP servers from the global
@@ -224,24 +224,39 @@ const SANDBOXED_OPENCODE_CONFIG = JSON.stringify(
  * This function creates a minimal, isolated HOME directory that contains:
  * - A bare ~/.config/opencode/opencode.json (no agents, plugins, MCP servers)
  * - A copy of ~/.local/share/opencode/auth.json (so API auth still works)
+ * - Skills copied from mcp_configs/skills/ into $SANDBOX_HOME/skills/
  *
- * By setting HOME to this directory when spawning opencode, the benchmark
- * ensures complete isolation: each condition only sees tools provided by its
- * own OPENCODE_CONFIG_DIR and CWD .opencode.json config.
+ * All condition-specific settings (models, MCP servers, permissions, skill
+ * paths) are provided via the CWD opencode.json written by `injectConfig()`.
+ * The HOME-level config only needs to be a clean slate to prevent leakage.
+ *
+ * IMPORTANT — How skill discovery works in opencode:
+ * opencode does NOT automatically scan ~/.config/opencode/skills/. It only
+ * discovers skills from these sources:
+ *   1. External dirs: ~/.claude/skills/, ~/.agents/skills/ (global + project)
+ *   2. .opencode/{skill,skills}/ directories
+ *   3. Explicit paths in config: `skills.paths` array
+ *   4. URLs in config: `skills.urls` array
+ *
+ * We use approach #3: skills are copied into $SANDBOX_HOME/skills/ and the
+ * CWD opencode.json includes `"skills": {"paths": ["$SKILLS_DIR"]}` which
+ * is substituted with the absolute path at runtime by `injectConfig()`.
  */
 export async function createSandboxedHome(
+	config?: AgentRunnerConfig,
 	tempBaseDir: string = DEFAULT_TEMP_BASE,
-): Promise<string> {
+): Promise<SandboxInfo> {
 	const sandboxHome = join(
 		tempBaseDir,
 		`home-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
 	);
 
-	// Create config directory structure
+	// Create config directory structure and write a bare-minimum config.
+	// This prevents opencode from inheriting any agents, plugins, MCP servers,
+	// or skills from the user's real HOME. All condition-specific settings
+	// come from the CWD opencode.json (project-level config).
 	const configDir = join(sandboxHome, ".config", "opencode");
 	await mkdir(configDir, { recursive: true });
-
-	// Write minimal opencode config (no agents, plugins, MCP, or skills)
 	await writeFile(
 		join(configDir, "opencode.json"),
 		SANDBOXED_OPENCODE_CONFIG,
@@ -260,7 +275,55 @@ export async function createSandboxedHome(
 		// auth.json may not exist if using env-based API keys — that's fine
 	}
 
-	return sandboxHome;
+	// Copy skills from mcp_configs/skills/ into the sandbox.
+	// Skills are placed at $SANDBOX_HOME/skills/{skillName}/ and discovered
+	// via the `skills.paths` config in the CWD opencode.json.
+	let skillsDir: string | null = null;
+	const skillsSrcDir = resolveSkillsSrcDir(config);
+	try {
+		const skillEntries = await readdir(skillsSrcDir);
+		const dirs = [];
+		for (const skillName of skillEntries) {
+			const srcSkillDir = join(skillsSrcDir, skillName);
+			const srcStat = await stat(srcSkillDir);
+			if (srcStat.isDirectory()) {
+				dirs.push(skillName);
+			}
+		}
+		if (dirs.length > 0) {
+			const destSkillsDir = join(sandboxHome, "skills");
+			await mkdir(destSkillsDir, { recursive: true });
+			for (const skillName of dirs) {
+				await copyDirRecursive(
+					join(skillsSrcDir, skillName),
+					join(destSkillsDir, skillName),
+				);
+			}
+			skillsDir = destSkillsDir;
+		}
+	} catch {
+		// No skills directory — that's fine for setups without skills
+	}
+
+	return { home: sandboxHome, skillsDir };
+}
+
+/**
+ * Recursively copies a directory and its contents from src to dest.
+ */
+async function copyDirRecursive(src: string, dest: string): Promise<void> {
+	await mkdir(dest, { recursive: true });
+	const entries = await readdir(src);
+	for (const entry of entries) {
+		const srcPath = join(src, entry);
+		const destPath = join(dest, entry);
+		const entryStat = await stat(srcPath);
+		if (entryStat.isDirectory()) {
+			await copyDirRecursive(srcPath, destPath);
+		} else {
+			await copyFile(srcPath, destPath);
+		}
+	}
 }
 
 /**
@@ -281,10 +344,14 @@ export async function createWorkDir(
 }
 
 /**
- * Reads the condition-specific .opencode.json template, substitutes the $MODEL
- * placeholder with the resolved model, and writes the result into the working
- * directory. opencode loads config from CWD, so placing it in the workdir
- * ensures the correct config.
+ * Reads the condition-specific .opencode.json template, substitutes placeholders,
+ * and writes the result into the working directory. opencode loads config from
+ * CWD, so placing it in the workdir ensures the correct config.
+ *
+ * Placeholders:
+ *   - `$MODEL` — resolved model ID (from config.model or DEFAULT_MODEL)
+ *   - `$SKILLS_DIR` — absolute path to the skills directory in the sandbox
+ *     (only relevant for the nia condition; removed for other conditions)
  *
  * The model is resolved from (highest priority first):
  *   1. config.model (--model CLI flag)
@@ -294,6 +361,7 @@ export async function injectConfig(
 	workDir: string,
 	condition: Condition,
 	config?: AgentRunnerConfig,
+	sandboxInfo?: SandboxInfo,
 ): Promise<void> {
 	const mcpConfigDir = resolveMcpConfigDir(config);
 	const configFileName = CONFIG_FILE_MAP[condition];
@@ -301,7 +369,26 @@ export async function injectConfig(
 	const model = config?.model ?? DEFAULT_MODEL;
 
 	const template = await readFile(srcPath, "utf-8");
-	const resolved = template.replaceAll("$MODEL", model);
+	let resolved = template.replaceAll("$MODEL", model);
+
+	// Substitute $SKILLS_DIR with the actual skills path from the sandbox.
+	// If no skills were copied (baseline/context7), remove the entire skills
+	// config block to avoid opencode warnings about missing paths.
+	if (sandboxInfo?.skillsDir) {
+		resolved = resolved.replaceAll("$SKILLS_DIR", sandboxInfo.skillsDir);
+	} else {
+		// Remove the skills.paths entry that references the placeholder.
+		// Parse, remove, re-serialize to avoid brittle regex on JSON.
+		try {
+			const parsed = JSON.parse(resolved);
+			if (parsed.skills) {
+				delete parsed.skills;
+				resolved = JSON.stringify(parsed, null, "\t");
+			}
+		} catch {
+			// If JSON parsing fails, leave as-is (shouldn't happen)
+		}
+	}
 
 	const destPath = join(workDir, "opencode.json");
 	await writeFile(destPath, resolved, "utf-8");
@@ -603,9 +690,10 @@ export async function runAgent(
 	const tempBaseDir = config?.tempBaseDir ?? DEFAULT_TEMP_BASE;
 
 	// Step 1a: Create sandboxed HOME to isolate from user's global opencode config.
-	// This prevents global agents (e.g., nia subagent), skills, plugins, and MCP
-	// servers from leaking into benchmark conditions.
-	const sandboxHome = await createSandboxedHome(tempBaseDir);
+	// This prevents global agents, skills, plugins, and MCP servers from leaking
+	// into benchmark conditions. Skills from mcp_configs/skills/ are copied into
+	// the sandbox and made discoverable via `skills.paths` in the CWD opencode.json.
+	const sandbox = await createSandboxedHome(config, tempBaseDir);
 
 	// Step 1b: Create unique temp directory
 	const workDir = await createWorkDir(
@@ -616,17 +704,17 @@ export async function runAgent(
 	);
 
 	try {
-		// Step 2: Inject condition-specific config
-		await injectConfig(workDir, condition, config);
+		// Step 2: Inject condition-specific config (with $SKILLS_DIR substitution)
+		await injectConfig(workDir, condition, config, sandbox);
 
 		// Step 3: Inject task context files
 		await injectContext(workDir, task);
 
 		// Step 4: Invoke opencode CLI
-		// opencode v1.1.47 uses: `opencode run --format json "message"`
-		// CWD is set via Bun.spawn's cwd option (opencode loads .opencode.json from CWD)
-		// OPENCODE_CONFIG_DIR overrides skill/permission discovery to use repo-bundled configs
+		// opencode v1.1.53 uses: `opencode run --format json "message"`
+		// CWD is set via Bun.spawn's cwd option (opencode loads opencode.json from CWD)
 		// HOME is sandboxed to prevent global agent/skill/plugin leakage
+		// Skills are discovered via `skills.paths` in the CWD opencode.json
 		const startTime = Date.now();
 		let rawOutput = "";
 		let exitCode = 1;
@@ -640,11 +728,6 @@ export async function runAgent(
 			const args = ["opencode", "run", "--format", "json", "--model", model];
 			args.push(buildPrompt(task.prompt, condition));
 
-			// Resolve the condition-specific config directory for skill isolation.
-			// This ensures each condition only sees its own skills/permissions,
-			// regardless of the user's global opencode setup.
-			const conditionConfigDir = resolveConditionConfigDir(condition, config);
-
 			const proc = Bun.spawn(args, {
 				stdout: "pipe",
 				stderr: "pipe",
@@ -652,13 +735,16 @@ export async function runAgent(
 				env: {
 					...process.env,
 					// Sandboxed HOME prevents opencode from discovering user's global
-					// agents, skills, plugins, and MCP servers. Contains only a minimal
-					// opencode config and a copy of auth.json for API authentication.
-					HOME: sandboxHome,
-					// Override config directory to load condition-specific skills and permissions.
-					// This takes precedence over global ~/.config/opencode/ settings,
-					// making the benchmark reproducible across different machines.
-					OPENCODE_CONFIG_DIR: conditionConfigDir,
+					// agents, skills, plugins, and MCP servers. The sandbox contains:
+					// - Condition-specific opencode.json (permissions, skill allowlists)
+					// - Condition-specific skills (e.g., nia skill for the nia condition)
+					// - A copy of auth.json for API authentication
+					//
+					// NOTE: We do NOT set OPENCODE_CONFIG_DIR — it breaks skill
+					// discovery by redirecting config resolution away from HOME.
+					// Skills are instead discovered via `skills.paths` in the
+					// CWD opencode.json, pointing to $SANDBOX_HOME/skills/.
+					HOME: sandbox.home,
 				},
 			});
 
@@ -740,7 +826,7 @@ export async function runAgent(
 				// Cleanup failure is non-fatal
 			}
 			try {
-				await rm(sandboxHome, { recursive: true, force: true });
+				await rm(sandbox.home, { recursive: true, force: true });
 			} catch {
 				// Cleanup failure is non-fatal
 			}

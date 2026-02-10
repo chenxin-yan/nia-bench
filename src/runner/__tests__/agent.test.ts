@@ -222,11 +222,35 @@ describe("injectConfig", () => {
 		expect(config.agent).toBeDefined();
 		// Nia uses OpenCode Skills (not MCP) — no mcp servers should be present
 		expect(config.mcp).toBeUndefined();
-		// Skill permissions should allow only nia
+		// Skill permissions should allow only nia (case-sensitive match)
 		expect(config.permission).toBeDefined();
 		expect(config.permission.skill).toBeDefined();
 		expect(config.permission.skill["*"]).toBe("deny");
-		expect(config.permission.skill.nia).toBe("allow");
+		expect(config.permission.skill.Nia).toBe("allow");
+		// Without sandboxInfo, skills.paths is removed
+		expect(config.skills).toBeUndefined();
+	});
+
+	test("nia config includes skills.paths when sandboxInfo provided", async () => {
+		const workDir = await createWorkDir("task-1", "nia", 0, TEST_TEMP_DIR);
+		const fakeSkillsDir = join(TEST_TEMP_DIR, "fake-skills");
+		await injectConfig(
+			workDir,
+			"nia",
+			{ mcpConfigDir: getMcpConfigDir() },
+			{
+				home: TEST_TEMP_DIR,
+				skillsDir: fakeSkillsDir,
+			},
+		);
+
+		const configPath = join(workDir, "opencode.json");
+		const content = await readFile(configPath, "utf-8");
+		const config = JSON.parse(content);
+
+		// skills.paths should contain the absolute path to the skills directory
+		expect(config.skills).toBeDefined();
+		expect(config.skills.paths).toEqual([fakeSkillsDir]);
 	});
 
 	test("all three conditions use the same model", async () => {
@@ -789,7 +813,7 @@ describe("integration: end-to-end dry run (no opencode call)", () => {
 		// Nia uses OpenCode Skills (not MCP)
 		expect(config.mcp).toBeUndefined();
 		expect(config.permission.skill["*"]).toBe("deny");
-		expect(config.permission.skill.nia).toBe("allow");
+		expect(config.permission.skill.Nia).toBe("allow");
 	});
 
 	test("disk files preferred over response files in extraction", async () => {
