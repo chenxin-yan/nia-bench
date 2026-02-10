@@ -1,5 +1,6 @@
 {
-	"agents": {
+	"$schema": "https://opencode.ai/config.json",
+	"agent": {
 		"coder": {
 			"model": "$MODEL",
 			"maxTokens": 16000
@@ -17,11 +18,10 @@
 			"maxTokens": 5000
 		}
 	},
-	"mcpServers": {
+	"mcp": {
 		"context7": {
-			"type": "stdio",
-			"command": "npx",
-			"args": ["-y", "@context7/mcp"]
+			"type": "remote",
+			"url": "https://mcp.context7.com/mcp"
 		}
 	},
 	"tools": {

@@ -1,5 +1,6 @@
 {
-	"agents": {
+	"$schema": "https://opencode.ai/config.json",
+	"agent": {
 		"coder": {
 			"model": "$MODEL",
 			"maxTokens": 16000

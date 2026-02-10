@@ -178,22 +178,20 @@ describe("createWorkDir", () => {
 });
 
 describe("injectConfig", () => {
-	test("copies baseline config into working directory as .opencode.json", async () => {
+	test("copies baseline config into working directory as opencode.json", async () => {
 		const workDir = await createWorkDir("task-1", "baseline", 0, TEST_TEMP_DIR);
 		await injectConfig(workDir, "baseline", {
 			mcpConfigDir: getMcpConfigDir(),
 		});
 
-		const configPath = join(workDir, ".opencode.json");
+		const configPath = join(workDir, "opencode.json");
 		const content = await readFile(configPath, "utf-8");
 		const config = JSON.parse(content);
 
-		// Baseline should have agent config but NO mcpServers
-		expect(config.agents).toBeDefined();
-		expect(config.agents.coder.model).toBe(
-			"anthropic/claude-sonnet-4-20250514",
-		);
-		expect(config.mcpServers).toBeUndefined();
+		// Baseline should have agent config but NO mcp servers
+		expect(config.agent).toBeDefined();
+		expect(config.agent.coder.model).toBe("anthropic/claude-sonnet-4-20250514");
+		expect(config.mcp).toBeUndefined();
 	});
 
 	test("copies context7 config with Context7 MCP server", async () => {
@@ -202,29 +200,28 @@ describe("injectConfig", () => {
 			mcpConfigDir: getMcpConfigDir(),
 		});
 
-		const configPath = join(workDir, ".opencode.json");
+		const configPath = join(workDir, "opencode.json");
 		const content = await readFile(configPath, "utf-8");
 		const config = JSON.parse(content);
 
-		expect(config.agents).toBeDefined();
-		expect(config.mcpServers).toBeDefined();
-		expect(config.mcpServers.context7).toBeDefined();
-		expect(config.mcpServers.context7.type).toBe("stdio");
-		expect(config.mcpServers.context7.command).toBe("npx");
-		expect(config.mcpServers.context7.args).toContain("@context7/mcp");
+		expect(config.agent).toBeDefined();
+		expect(config.mcp).toBeDefined();
+		expect(config.mcp.context7).toBeDefined();
+		expect(config.mcp.context7.type).toBe("remote");
+		expect(config.mcp.context7.url).toBe("https://mcp.context7.com/mcp");
 	});
 
 	test("copies nia config with Nia skill permissions (no MCP)", async () => {
 		const workDir = await createWorkDir("task-1", "nia", 0, TEST_TEMP_DIR);
 		await injectConfig(workDir, "nia", { mcpConfigDir: getMcpConfigDir() });
 
-		const configPath = join(workDir, ".opencode.json");
+		const configPath = join(workDir, "opencode.json");
 		const content = await readFile(configPath, "utf-8");
 		const config = JSON.parse(content);
 
-		expect(config.agents).toBeDefined();
-		// Nia uses OpenCode Skills (not MCP) — no mcpServers should be present
-		expect(config.mcpServers).toBeUndefined();
+		expect(config.agent).toBeDefined();
+		// Nia uses OpenCode Skills (not MCP) — no mcp servers should be present
+		expect(config.mcp).toBeUndefined();
 		// Skill permissions should allow only nia
 		expect(config.permission).toBeDefined();
 		expect(config.permission.skill).toBeDefined();
@@ -247,17 +244,17 @@ describe("injectConfig", () => {
 				mcpConfigDir: getMcpConfigDir(),
 			});
 			configs[condition] = await readFile(
-				join(workDir, ".opencode.json"),
+				join(workDir, "opencode.json"),
 				"utf-8",
 			);
 		}
 
 		// All configs should use the same model
-		const baselineModel = JSON.parse(configs.baseline ?? "{}").agents.coder
+		const baselineModel = JSON.parse(configs.baseline ?? "{}").agent.coder
 			.model;
-		const context7Model = JSON.parse(configs.context7 ?? "{}").agents.coder
+		const context7Model = JSON.parse(configs.context7 ?? "{}").agent.coder
 			.model;
-		const niaModel = JSON.parse(configs.nia ?? "{}").agents.coder.model;
+		const niaModel = JSON.parse(configs.nia ?? "{}").agent.coder.model;
 
 		expect(baselineModel).toBe(context7Model);
 		expect(context7Model).toBe(niaModel);
@@ -271,15 +268,15 @@ describe("injectConfig", () => {
 			model: customModel,
 		});
 
-		const configPath = join(workDir, ".opencode.json");
+		const configPath = join(workDir, "opencode.json");
 		const content = await readFile(configPath, "utf-8");
 		const config = JSON.parse(content);
 
 		// All agent models should use the custom model
-		expect(config.agents.coder.model).toBe(customModel);
-		expect(config.agents.task.model).toBe(customModel);
-		expect(config.agents.title.model).toBe(customModel);
-		expect(config.agents.summarizer.model).toBe(customModel);
+		expect(config.agent.coder.model).toBe(customModel);
+		expect(config.agent.task.model).toBe(customModel);
+		expect(config.agent.title.model).toBe(customModel);
+		expect(config.agent.summarizer.model).toBe(customModel);
 
 		// No $MODEL placeholders should remain
 		expect(content).not.toContain("$MODEL");
@@ -301,11 +298,11 @@ describe("injectConfig", () => {
 				model: customModel,
 			});
 
-			const content = await readFile(join(workDir, ".opencode.json"), "utf-8");
+			const content = await readFile(join(workDir, "opencode.json"), "utf-8");
 			const config = JSON.parse(content);
 
-			expect(config.agents.coder.model).toBe(customModel);
-			expect(config.agents.task.model).toBe(customModel);
+			expect(config.agent.coder.model).toBe(customModel);
+			expect(config.agent.task.model).toBe(customModel);
 			expect(content).not.toContain("$MODEL");
 		}
 	});
@@ -656,9 +653,9 @@ describe("extractCodeFromDisk", () => {
 		expect(files["code.ts"]).toBe("const x = 1;");
 	});
 
-	test("ignores .opencode.json and node_modules", async () => {
+	test("ignores opencode.json and node_modules", async () => {
 		const workDir = await createWorkDir("task-1", "baseline", 0, TEST_TEMP_DIR);
-		await writeFile(join(workDir, ".opencode.json"), "{}", "utf-8");
+		await writeFile(join(workDir, "opencode.json"), "{}", "utf-8");
 		await mkdir(join(workDir, "node_modules", "pkg"), { recursive: true });
 		await writeFile(
 			join(workDir, "node_modules", "pkg", "index.ts"),
@@ -735,10 +732,10 @@ describe("integration: end-to-end dry run (no opencode call)", () => {
 			mcpConfigDir: getMcpConfigDir(),
 		});
 		const configContent = await readFile(
-			join(workDir, ".opencode.json"),
+			join(workDir, "opencode.json"),
 			"utf-8",
 		);
-		expect(JSON.parse(configContent).agents).toBeDefined();
+		expect(JSON.parse(configContent).agent).toBeDefined();
 
 		// Step 3: Inject context
 		await injectContext(workDir, task);
@@ -773,11 +770,11 @@ describe("integration: end-to-end dry run (no opencode call)", () => {
 		});
 
 		const config = JSON.parse(
-			await readFile(join(workDir, ".opencode.json"), "utf-8"),
+			await readFile(join(workDir, "opencode.json"), "utf-8"),
 		);
-		expect(config.mcpServers.context7).toBeDefined();
-		expect(config.mcpServers.context7.command).toBe("npx");
-		expect(config.mcpServers.context7.args).toEqual(["-y", "@context7/mcp"]);
+		expect(config.mcp.context7).toBeDefined();
+		expect(config.mcp.context7.type).toBe("remote");
+		expect(config.mcp.context7.url).toBe("https://mcp.context7.com/mcp");
 	});
 
 	test("nia condition gets Nia skill permissions in config (no MCP)", async () => {
@@ -787,10 +784,10 @@ describe("integration: end-to-end dry run (no opencode call)", () => {
 		await injectConfig(workDir, "nia", { mcpConfigDir: getMcpConfigDir() });
 
 		const config = JSON.parse(
-			await readFile(join(workDir, ".opencode.json"), "utf-8"),
+			await readFile(join(workDir, "opencode.json"), "utf-8"),
 		);
 		// Nia uses OpenCode Skills (not MCP)
-		expect(config.mcpServers).toBeUndefined();
+		expect(config.mcp).toBeUndefined();
 		expect(config.permission.skill["*"]).toBe("deny");
 		expect(config.permission.skill.nia).toBe("allow");
 	});
@@ -1150,18 +1147,20 @@ describe("buildPrompt", () => {
 		expect(prompt).not.toContain("research tools");
 	});
 
-	test("appends context7 suffix with documentation tools hint", () => {
+	test("appends context7 suffix with MCP tools instructions", () => {
 		const prompt = buildPrompt(taskPrompt, "context7");
 		expect(prompt).toContain(taskPrompt);
-		expect(prompt).toContain("documentation tools");
-		expect(prompt).toContain("verify the correct APIs");
+		expect(prompt).toContain("context7 MCP tools");
+		expect(prompt).toContain("resolve-library-id");
+		expect(prompt).toContain("query-docs");
 	});
 
-	test("appends nia suffix with research tools hint", () => {
+	test("appends nia suffix with skill instructions", () => {
 		const prompt = buildPrompt(taskPrompt, "nia");
 		expect(prompt).toContain(taskPrompt);
-		expect(prompt).toContain("research tools");
-		expect(prompt).toContain("verify the correct APIs");
+		expect(prompt).toContain("nia");
+		expect(prompt).toContain("skill");
+		expect(prompt).toContain("Nia scripts");
 	});
 
 	test("all conditions produce different prompts", () => {

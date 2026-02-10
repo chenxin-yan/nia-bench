@@ -303,7 +303,7 @@ export async function injectConfig(
 	const template = await readFile(srcPath, "utf-8");
 	const resolved = template.replaceAll("$MODEL", model);
 
-	const destPath = join(workDir, ".opencode.json");
+	const destPath = join(workDir, "opencode.json");
 	await writeFile(destPath, resolved, "utf-8");
 }
 
@@ -528,7 +528,7 @@ export async function extractCodeFromDisk(
 			if (
 				entry === "node_modules" ||
 				entry === ".opencode" ||
-				entry === ".opencode.json" ||
+				entry === "opencode.json" ||
 				entry === "package.json" ||
 				entry === "bun.lock" ||
 				entry === "package-lock.json" ||
