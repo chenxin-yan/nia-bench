@@ -38,4 +38,3 @@ results/*/
 
 # Type-check environment node_modules
 typecheck-envs/*/node_modules
-typecheck-envs/*/bun.lock
