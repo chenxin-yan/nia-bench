@@ -12,27 +12,23 @@ It tests a fundamental challenge: LLMs have knowledge cutoffs and can hallucinat
 
 Context tools should help agents write correct code not just for _bleeding-edge_ features (released after training cutoff), but also for _specific legacy versions_ — avoiding both hallucinated new APIs and deprecated old ones.
 
-### Three Test Conditions
-
-| Condition | Description |
-| --- | --- |
-| **Baseline (No Context)** | Claude Sonnet with no external context tools. Relies purely on training data. |
-| **Context7** | Claude Sonnet + Context7 MCP server (`resolve-library-id` -> `query-docs`). |
-| **Nia** | Claude Sonnet + Nia MCP server (full toolset: `search`, `nia_read`, `nia_grep`, `nia_explore`, `nia_package_search_hybrid`, etc.). |
-
----
+| Condition    | Description                                                                                         |
+| ------------ | --------------------------------------------------------------------------------------------------- |
+| **Baseline** | Claude Sonnet 4 with no external context tools. Relies purely on training data.                     |
+| **Context7** | Claude Sonnet 4 + Context7 MCP server (`resolve-library-id` -> `query-docs`).                       |
+| **Nia**      | Claude Sonnet 4 + Nia skills (full toolset: `search`, `nia_read`, `nia_grep`, `nia_explore`, etc.). |
 
 ## 2. Target Libraries
 
 All libraries are from the JavaScript/TypeScript ecosystem, chosen for their rich version histories with significant breaking changes between versions.
 
-| Library | Versions Under Test | Key Breaking Changes |
-| --- | --- | --- |
-| **Next.js** | 13, 14, 15, 16 | `middleware.ts`->`proxy.ts`, enforced async APIs, Turbopack default, cache components, removed AMP/`next lint` |
-| **React** | 17, 18, 19 | Concurrent features, `use()`, `useActionState`, `ref` as prop, removed `ReactDOM.render` |
-| **Vercel AI SDK** | 3, 4, 5 | `experimental_` prefix removal, DataStream->UIMessageStream (SSE), sync vs async |
-| **tRPC** | 10, 11 | Transformer location, React Query v5, renamed exports, SSE subscriptions |
-| **Zod** | 3, 4 | Error API overhaul, string validators to top-level, `z.record()` requires 2 args, `z.function()` redesign |
+| Library           | Versions Under Test | Key Breaking Changes                                                                                           |
+| ----------------- | ------------------- | -------------------------------------------------------------------------------------------------------------- |
+| **Next.js**       | 13, 14, 15, 16      | `middleware.ts`->`proxy.ts`, enforced async APIs, Turbopack default, cache components, removed AMP/`next lint` |
+| **React**         | 17, 18, 19          | Concurrent features, `use()`, `useActionState`, `ref` as prop, removed `ReactDOM.render`                       |
+| **Vercel AI SDK** | 3, 4, 5             | `experimental_` prefix removal, DataStream->UIMessageStream (SSE), sync vs async                               |
+| **tRPC**          | 10, 11              | Transformer location, React Query v5, renamed exports, SSE subscriptions                                       |
+| **Zod**           | 3, 4                | Error API overhaul, string validators to top-level, `z.record()` requires 2 args, `z.function()` redesign      |
 
 ---
 
@@ -63,15 +59,15 @@ Each task is defined as a JSON object:
 ```jsonc
 {
   "id": "nextjs-16-proxy-ts",
-  "category": "bleeding_edge",           // "bleeding_edge" | "version_locked_write" | "version_locked_audit"
-  "library": "next",                     // "next" | "react" | "ai" | "trpc" | "zod"
-  "target_version": "16.0.0",           // exact version the task targets
-  "prompt": "...",                       // the prompt given to the agent
-  "context": {},                         // optional: provided codebase/package.json for version-locked tasks
-  "reference_solution": "...",           // canonical correct code
-  "test_spec": {},                       // automated test configuration
-  "rubric": {},                          // LLM judge evaluation criteria
-  "common_hallucinations": []            // known failure modes for validation
+  "category": "bleeding_edge", // "bleeding_edge" | "version_locked_write" | "version_locked_audit"
+  "library": "next", // "next" | "react" | "ai" | "trpc" | "zod"
+  "target_version": "16.0.0", // exact version the task targets
+  "prompt": "...", // the prompt given to the agent
+  "context": {}, // optional: provided codebase/package.json for version-locked tasks
+  "reference_solution": "...", // canonical correct code
+  "test_spec": {}, // automated test configuration
+  "rubric": {}, // LLM judge evaluation criteria
+  "common_hallucinations": [], // known failure modes for validation
 }
 ```
 
@@ -92,27 +88,29 @@ Each task is defined as a JSON object:
   > Using Next.js 16, create a proxy file that handles authentication. It should check for an `auth-token` cookie on all routes under `/dashboard`. If the token is missing, redirect to `/login`. If the token exists, add a custom `x-user-verified` header to the request.
 - **What it tests:** In Next.js 16, `middleware.ts` was renamed to `proxy.ts` and the exported function was renamed from `middleware()` to `proxy()`. The runtime is now Node.js only (not Edge). This is the most visible breaking change and LLMs will overwhelmingly generate `middleware.ts` with `export function middleware()`.
 - **Reference solution:**
+
   ```typescript
   // proxy.ts (at project root or src/)
-  import { NextResponse } from 'next/server';
-  import type { NextRequest } from 'next/server';
+  import { NextResponse } from "next/server";
+  import type { NextRequest } from "next/server";
 
   export function proxy(request: NextRequest) {
-    const token = request.cookies.get('auth-token');
+    const token = request.cookies.get("auth-token");
 
     if (!token) {
-      return NextResponse.redirect(new URL('/login', request.url));
+      return NextResponse.redirect(new URL("/login", request.url));
     }
 
     const response = NextResponse.next();
-    response.headers.set('x-user-verified', 'true');
+    response.headers.set("x-user-verified", "true");
     return response;
   }
 
   export const config = {
-    matcher: '/dashboard/:path*',
+    matcher: "/dashboard/:path*",
   };
   ```
+
 - **Test spec:**
   - AST: file is named `proxy.ts` (not `middleware.ts`)
   - AST: exports a function named `proxy` (not `middleware`)
@@ -142,6 +140,7 @@ Each task is defined as a JSON object:
   > Using Next.js 16, create an App Router page at `app/dashboard/[id]/page.tsx` that reads the `id` param, the `tab` search parameter, and the user's session from cookies. Also this app uses a parallel route `@modal` — create the required `app/@modal/default.tsx` file. Use the correct Next.js 16 async APIs.
 - **What it tests:** Next.js 16 enforces async request APIs with no synchronous fallback (v15 still had a temporary sync fallback). Also tests the new requirement that parallel route slots must have explicit `default.js` files. LLMs trained on v13/14 will use sync access; those trained on v15 may still try sync fallback.
 - **Reference solution:**
+
   ```typescript
   // app/dashboard/[id]/page.tsx
   import { cookies } from 'next/headers';
@@ -172,6 +171,7 @@ Each task is defined as a JSON object:
     return null;
   }
   ```
+
 - **Test spec:**
   - AST: `params` is awaited before accessing `.id`
   - AST: `searchParams` is awaited before accessing `.tab`
@@ -203,6 +203,7 @@ Each task is defined as a JSON object:
   > Using Next.js 16, create a blog post page component that uses the new `"use cache"` directive for caching. The component should fetch a blog post by slug from a database and use `cacheTag()` for tag-based revalidation and `cacheLife('hours')` for time-based caching. Also create a Server Action that revalidates the post using `updateTag()` (the new read-your-writes cache invalidation API).
 - **What it tests:** Next.js 16 introduced stable `"use cache"` directive, `cacheTag()`, `cacheLife()` (without `unstable_` prefix), and the new `updateTag()` function for read-your-writes cache invalidation. LLMs will not know about these.
 - **Reference solution:**
+
   ```typescript
   // app/blog/[slug]/page.tsx
   'use cache';
@@ -240,6 +241,7 @@ Each task is defined as a JSON object:
     updateTag(`post-${slug}`);
   }
   ```
+
 - **Test spec:**
   - AST: file-level `'use cache'` directive is present
   - AST: imports `cacheLife`, `cacheTag` from `next/cache`
@@ -275,12 +277,17 @@ Each task is defined as a JSON object:
   > Using React 19, create a `Comments` component that receives a `commentsPromise` prop (a Promise that resolves to an array of comments). Use the `use()` hook to read the promise value. Wrap the component in Suspense in the parent. Each comment has `id`, `author`, and `text` fields.
 - **What it tests:** The `use()` hook is entirely new in React 19 — it can read promises and context, and unlike other hooks, can be called conditionally. LLMs will not know about it.
 - **Reference solution:**
+
   ```tsx
-  import { use, Suspense } from 'react';
+  import { use, Suspense } from "react";
 
   type Comment = { id: string; author: string; text: string };
 
-  function Comments({ commentsPromise }: { commentsPromise: Promise<Comment[]> }) {
+  function Comments({
+    commentsPromise,
+  }: {
+    commentsPromise: Promise<Comment[]>;
+  }) {
     const comments = use(commentsPromise);
     return (
       <ul>
@@ -293,7 +300,11 @@ Each task is defined as a JSON object:
     );
   }
 
-  export default function CommentsSection({ commentsPromise }: { commentsPromise: Promise<Comment[]> }) {
+  export default function CommentsSection({
+    commentsPromise,
+  }: {
+    commentsPromise: Promise<Comment[]>;
+  }) {
     return (
       <Suspense fallback={<p>Loading comments...</p>}>
         <Comments commentsPromise={commentsPromise} />
@@ -301,6 +312,7 @@ Each task is defined as a JSON object:
     );
   }
   ```
+
 - **Test spec:**
   - AST: imports `use` from `react`
   - AST: calls `use(commentsPromise)` or `use(props.commentsPromise)`
@@ -328,24 +340,27 @@ Each task is defined as a JSON object:
   > Using React 19, create a login form component that uses `useActionState` for form submission handling and `useFormStatus` for a submit button that shows loading state. The action should validate email and password and return `{ error: string | null }`. Use Server Actions with the `'use server'` directive.
 - **What it tests:** `useActionState` (renamed from `useFormState`) and `useFormStatus` are React 19 hooks. LLMs may hallucinate `useFormState` from react-dom or invent patterns.
 - **Reference solution:**
-  ```tsx
-  'use client';
 
-  import { useActionState } from 'react';
-  import { useFormStatus } from 'react-dom';
-  import { loginAction } from './actions';
+  ```tsx
+  "use client";
+
+  import { useActionState } from "react";
+  import { useFormStatus } from "react-dom";
+  import { loginAction } from "./actions";
 
   function SubmitButton() {
     const { pending } = useFormStatus();
     return (
       <button type="submit" disabled={pending}>
-        {pending ? 'Signing in...' : 'Sign In'}
+        {pending ? "Signing in..." : "Sign In"}
       </button>
     );
   }
 
   export default function LoginForm() {
-    const [state, formAction, isPending] = useActionState(loginAction, { error: null });
+    const [state, formAction, isPending] = useActionState(loginAction, {
+      error: null,
+    });
 
     return (
       <form action={formAction}>
@@ -367,6 +382,7 @@ Each task is defined as a JSON object:
   //   return { error: null };
   // }
   ```
+
 - **Test spec:**
   - AST: imports `useActionState` from `react` (NOT `react-dom`)
   - AST: imports `useFormStatus` from `react-dom`
@@ -397,10 +413,17 @@ Each task is defined as a JSON object:
   > Using React 19, create a reusable `TextInput` component that accepts a `ref` prop to expose the underlying `<input>` element. Do NOT use `forwardRef` — React 19 supports `ref` as a regular prop. Then create a parent component that focuses the input on a button click.
 - **What it tests:** React 19 deprecated `forwardRef` and now supports `ref` as a normal prop. LLMs trained on v17/18 will always use `forwardRef`.
 - **Reference solution:**
-  ```tsx
-  import { useRef } from 'react';
 
-  function TextInput({ placeholder, ref }: { placeholder?: string; ref?: React.Ref<HTMLInputElement> }) {
+  ```tsx
+  import { useRef } from "react";
+
+  function TextInput({
+    placeholder,
+    ref,
+  }: {
+    placeholder?: string;
+    ref?: React.Ref<HTMLInputElement>;
+  }) {
     return <input ref={ref} placeholder={placeholder} />;
   }
 
@@ -415,6 +438,7 @@ Each task is defined as a JSON object:
     );
   }
   ```
+
 - **Test spec:**
   - AST: `TextInput` accepts `ref` in its props destructuring
   - AST: does NOT use `forwardRef`
@@ -445,9 +469,15 @@ Each task is defined as a JSON object:
   > Using Vercel AI SDK v5, create a Next.js Route Handler at `app/api/chat/route.ts` that streams a chat response using the new `createUIMessageStream` and `createUIMessageStreamResponse` APIs with the SSE protocol. Use `openai('gpt-4o')` as the model. The handler should receive messages from the request body.
 - **What it tests:** AI SDK v5 replaced the proprietary DataStream protocol with standard Server-Sent Events (SSE) via `createUIMessageStream`/`createUIMessageStreamResponse`. v3/v4 users will use `toDataStreamResponse()` or `toAIStreamResponse()`.
 - **Reference solution:**
+
   ```typescript
-  import { createUIMessageStream, createUIMessageStreamResponse, streamText, generateId } from 'ai';
-  import { openai } from '@ai-sdk/openai';
+  import {
+    createUIMessageStream,
+    createUIMessageStreamResponse,
+    streamText,
+    generateId,
+  } from "ai";
+  import { openai } from "@ai-sdk/openai";
 
   export async function POST(req: Request) {
     const { messages } = await req.json();
@@ -457,7 +487,7 @@ Each task is defined as a JSON object:
       generateId,
       execute: ({ writer }) => {
         const result = streamText({
-          model: openai('gpt-4o'),
+          model: openai("gpt-4o"),
           messages,
         });
 
@@ -468,6 +498,7 @@ Each task is defined as a JSON object:
     return createUIMessageStreamResponse(stream);
   }
   ```
+
 - **Test spec:**
   - AST: imports `createUIMessageStream` from `ai`
   - AST: imports `createUIMessageStreamResponse` from `ai`
@@ -499,9 +530,15 @@ Each task is defined as a JSON object:
   > Using Vercel AI SDK v5, create a Route Handler that streams a chat response and includes transient "loading status" data parts that update during streaming. The status should show "thinking..." initially, update to "generating..." during streaming, and "complete" when done. Use `writer.write()` for data parts and `writer.merge()` for the main stream.
 - **What it tests:** v5's data parts model with reconciliation and transient data. This feature has no equivalent in v3/v4.
 - **Reference solution:**
+
   ```typescript
-  import { createUIMessageStream, createUIMessageStreamResponse, streamText, generateId } from 'ai';
-  import { openai } from '@ai-sdk/openai';
+  import {
+    createUIMessageStream,
+    createUIMessageStreamResponse,
+    streamText,
+    generateId,
+  } from "ai";
+  import { openai } from "@ai-sdk/openai";
 
   export async function POST(req: Request) {
     const { messages } = await req.json();
@@ -513,28 +550,28 @@ Each task is defined as a JSON object:
         const statusId = generateId();
 
         writer.write({
-          type: 'data',
+          type: "data",
           id: statusId,
-          data: { status: 'thinking...' },
+          data: { status: "thinking..." },
           transient: true,
         });
 
         const result = streamText({
-          model: openai('gpt-4o'),
+          model: openai("gpt-4o"),
           messages,
           onChunk() {
             writer.write({
-              type: 'data',
+              type: "data",
               id: statusId,
-              data: { status: 'generating...' },
+              data: { status: "generating..." },
               transient: true,
             });
           },
           onFinish() {
             writer.write({
-              type: 'data',
+              type: "data",
               id: statusId,
-              data: { status: 'complete' },
+              data: { status: "complete" },
             });
           },
         });
@@ -546,6 +583,7 @@ Each task is defined as a JSON object:
     return createUIMessageStreamResponse(stream);
   }
   ```
+
 - **Test spec:**
   - AST: uses `writer.write()` with objects containing `transient: true`
   - AST: uses consistent `id` across write calls for reconciliation
@@ -574,21 +612,23 @@ Each task is defined as a JSON object:
   > Using Vercel AI SDK v4, create a Next.js Route Handler that uses `streamText` to stream a response. The handler should process chat messages and return the response as a data stream. Use `openai('gpt-4o')` as the model.
 - **What it tests:** In AI SDK v4+, `streamText` is synchronous (no `await`). LLMs trained on v3 will add `await`. Also tests correct response method (`toDataStreamResponse` not `toAIStreamResponse`).
 - **Reference solution:**
+
   ```typescript
-  import { streamText } from 'ai';
-  import { openai } from '@ai-sdk/openai';
+  import { streamText } from "ai";
+  import { openai } from "@ai-sdk/openai";
 
   export async function POST(req: Request) {
     const { messages } = await req.json();
 
     const result = streamText({
-      model: openai('gpt-4o'),
+      model: openai("gpt-4o"),
       messages,
     });
 
     return result.toDataStreamResponse();
   }
   ```
+
 - **Test spec:**
   - AST: `streamText()` is NOT inside an `await` expression
   - AST: calls `toDataStreamResponse()` (not `toAIStreamResponse`)
@@ -621,20 +661,22 @@ Each task is defined as a JSON object:
   > Using tRPC v11 with Next.js App Router, set up the tRPC client configuration. Use `superjson` as the data transformer and `httpBatchLink` as the link. The tRPC API endpoint is at `/api/trpc`.
 - **What it tests:** In tRPC v11, the `transformer` config moved from the client-level to the link-level. This is the most common migration mistake. Also tests that `createTRPCClient` replaced `createTRPCProxyClient`.
 - **Reference solution:**
+
   ```typescript
-  import { createTRPCClient, httpBatchLink } from '@trpc/client';
-  import superjson from 'superjson';
-  import type { AppRouter } from '@/server/routers/_app';
+  import { createTRPCClient, httpBatchLink } from "@trpc/client";
+  import superjson from "superjson";
+  import type { AppRouter } from "@/server/routers/_app";
 
   export const trpc = createTRPCClient<AppRouter>({
     links: [
       httpBatchLink({
-        url: '/api/trpc',
+        url: "/api/trpc",
         transformer: superjson,
       }),
     ],
   });
   ```
+
 - **Test spec:**
   - AST: `transformer` is inside `httpBatchLink({})` options, NOT at `createTRPCClient({})` level
   - AST: uses `createTRPCClient` (not `createTRPCProxyClient`)
@@ -660,10 +702,11 @@ Each task is defined as a JSON object:
   > Using tRPC v11, create a subscription procedure that streams real-time stock price updates using Server-Sent Events (not WebSockets). Create both the server-side procedure using an async generator and the client-side `httpSubscriptionLink` setup.
 - **What it tests:** tRPC v11 introduced SSE-based subscriptions via `httpSubscriptionLink` as an alternative to WebSockets. This uses async generators server-side.
 - **Reference solution:**
+
   ```typescript
   // server/routers/stocks.ts
-  import { initTRPC } from '@trpc/server';
-  import { z } from 'zod';
+  import { initTRPC } from "@trpc/server";
+  import { z } from "zod";
 
   const t = initTRPC.create();
 
@@ -680,18 +723,24 @@ Each task is defined as a JSON object:
   });
 
   // client setup
-  import { createTRPCClient, httpSubscriptionLink, httpBatchLink, splitLink } from '@trpc/client';
+  import {
+    createTRPCClient,
+    httpSubscriptionLink,
+    httpBatchLink,
+    splitLink,
+  } from "@trpc/client";
 
   const client = createTRPCClient<AppRouter>({
     links: [
       splitLink({
-        condition: (op) => op.type === 'subscription',
-        true: httpSubscriptionLink({ url: '/api/trpc' }),
-        false: httpBatchLink({ url: '/api/trpc' }),
+        condition: (op) => op.type === "subscription",
+        true: httpSubscriptionLink({ url: "/api/trpc" }),
+        false: httpBatchLink({ url: "/api/trpc" }),
       }),
     ],
   });
   ```
+
 - **Test spec:**
   - AST: subscription uses `async function*` (async generator)
   - AST: imports `httpSubscriptionLink` from `@trpc/client`
@@ -719,8 +768,9 @@ Each task is defined as a JSON object:
   > Using tRPC v11, create a router that uses shorthand router definitions (plain objects instead of explicit `router()` calls) and includes a query that returns a streaming iterable using an async generator. Create a `posts` namespace with a `list` procedure that streams posts one by one.
 - **What it tests:** Two v11 features: shorthand router (plain objects as sub-routers) and streaming queries via async generators.
 - **Reference solution:**
+
   ```typescript
-  import { initTRPC } from '@trpc/server';
+  import { initTRPC } from "@trpc/server";
 
   const t = initTRPC.create();
 
@@ -736,6 +786,7 @@ Each task is defined as a JSON object:
     },
   });
   ```
+
 - **Test spec:**
   - AST: `posts` key maps to a plain object (not a `t.router()` call)
   - AST: `.query()` uses an `async function*` (async generator)
@@ -765,8 +816,9 @@ Each task is defined as a JSON object:
   > Using Zod v4, create a schema for a user registration form that validates: email (valid email format), website (valid URL), user ID (valid UUID), and IP address (valid IPv4). Use the new v4 top-level format validators.
 - **What it tests:** Zod v4 moved string format validators from `z.string().email()` to `z.email()` as top-level functions. Also, `z.string().ip()` was removed and replaced by `z.ipv4()` / `z.ipv6()`.
 - **Reference solution:**
+
   ```typescript
-  import { z } from 'zod';
+  import { z } from "zod";
 
   const registrationSchema = z.object({
     email: z.email(),
@@ -777,6 +829,7 @@ Each task is defined as a JSON object:
 
   type Registration = z.infer<typeof registrationSchema>;
   ```
+
 - **Test spec:**
   - AST: calls `z.email()` (not `z.string().email()`)
   - AST: calls `z.url()` (not `z.string().url()`)
@@ -805,19 +858,21 @@ Each task is defined as a JSON object:
   > Using Zod v4, create a string schema for a username field that: requires minimum 3 characters, maximum 20 characters, and provides custom error messages for different failure cases (field required vs invalid type vs too short/long). Use the new v4 error customization API.
 - **What it tests:** Zod v4 completely overhauled error customization: `message` -> `error`, removed `invalid_type_error` and `required_error`, replaced `errorMap` with a function-based `error` param.
 - **Reference solution:**
+
   ```typescript
-  import { z } from 'zod';
+  import { z } from "zod";
 
   const usernameSchema = z
     .string({
       error: (issue) => {
-        if (issue.input === undefined) return 'Username is required';
-        return 'Username must be a string';
+        if (issue.input === undefined) return "Username is required";
+        return "Username must be a string";
       },
     })
-    .min(3, { error: 'Username must be at least 3 characters' })
-    .max(20, { error: 'Username must be at most 20 characters' });
+    .min(3, { error: "Username must be at least 3 characters" })
+    .max(20, { error: "Username must be at most 20 characters" });
   ```
+
 - **Test spec:**
   - AST: uses `error` parameter (not `message`)
   - AST: does NOT use `invalid_type_error` property
@@ -852,6 +907,7 @@ Each task is defined as a JSON object:
   > This project uses **Next.js 13** (App Router). Create a server component at `app/profile/page.tsx` that reads the `session` cookie and the `Accept-Language` header to display a personalized greeting. Write code that is correct for Next.js 13 — do NOT use Next.js 14 or 15 patterns.
 - **What it tests:** In Next.js 13, `cookies()` and `headers()` are **synchronous**. An agent influenced by v15 docs would incorrectly `await` them.
 - **Reference solution:**
+
   ```typescript
   import { cookies, headers } from 'next/headers';
 
@@ -870,6 +926,7 @@ Each task is defined as a JSON object:
     );
   }
   ```
+
 - **Test spec:**
   - AST: `cookies()` is NOT inside an `await` expression
   - AST: `headers()` is NOT inside an `await` expression
@@ -894,6 +951,7 @@ Each task is defined as a JSON object:
   > This project uses **Next.js 14**. Create a dynamic page at `app/blog/[slug]/page.tsx` and a `generateMetadata` function for it. The page should display the blog post slug and the `page` search parameter. Write code that is correct for Next.js 14.
 - **What it tests:** In Next.js 14, `params` and `searchParams` are direct objects, NOT Promises.
 - **Reference solution:**
+
   ```typescript
   import { Metadata } from 'next';
 
@@ -915,6 +973,7 @@ Each task is defined as a JSON object:
     );
   }
   ```
+
 - **Test spec:**
   - AST: `params.slug` accessed directly (no `await`)
   - AST: `searchParams.page` accessed directly (no `await`)
@@ -939,27 +998,29 @@ Each task is defined as a JSON object:
   > This project uses **Next.js 15**. Create authentication middleware that checks for an `auth-token` cookie on all `/dashboard` routes. If missing, redirect to `/login`. If present, add an `x-user-id` header. Write code correct for Next.js 15 — do NOT use Next.js 16 patterns.
 - **What it tests:** In Next.js 15, the file is `middleware.ts` and the exported function is `middleware()`. In v16, this was renamed to `proxy.ts`/`proxy()`. An agent influenced by v16 docs would incorrectly create `proxy.ts`.
 - **Reference solution:**
+
   ```typescript
   // middleware.ts
-  import { NextResponse } from 'next/server';
-  import type { NextRequest } from 'next/server';
+  import { NextResponse } from "next/server";
+  import type { NextRequest } from "next/server";
 
   export function middleware(request: NextRequest) {
-    const token = request.cookies.get('auth-token');
+    const token = request.cookies.get("auth-token");
 
     if (!token) {
-      return NextResponse.redirect(new URL('/login', request.url));
+      return NextResponse.redirect(new URL("/login", request.url));
     }
 
     const response = NextResponse.next();
-    response.headers.set('x-user-id', token.value);
+    response.headers.set("x-user-id", token.value);
     return response;
   }
 
   export const config = {
-    matcher: '/dashboard/:path*',
+    matcher: "/dashboard/:path*",
   };
   ```
+
 - **Test spec:**
   - AST: file is named `middleware.ts` (not `proxy.ts`)
   - AST: exports a function named `middleware` (not `proxy`)
@@ -988,8 +1049,9 @@ Each task is defined as a JSON object:
   > This project uses **React 17**. Create a `UserProfile` component that fetches user data from `/api/users/:id` on mount and displays the user's name and email. Handle loading and error states. Write code that only uses React 17 APIs.
 - **What it tests:** In React 17, data fetching is done with `useEffect` + `useState`. There's no `use()` hook, no Suspense for data, no `useTransition`.
 - **Reference solution:**
+
   ```tsx
-  import React, { useState, useEffect } from 'react';
+  import React, { useState, useEffect } from "react";
 
   type User = { id: string; name: string; email: string };
 
@@ -1017,7 +1079,9 @@ Each task is defined as a JSON object:
           }
         });
 
-      return () => { cancelled = true; };
+      return () => {
+        cancelled = true;
+      };
     }, [userId]);
 
     if (loading) return <div>Loading...</div>;
@@ -1032,6 +1096,7 @@ Each task is defined as a JSON object:
     );
   }
   ```
+
 - **Test spec:**
   - AST: uses `useState` and `useEffect` for data fetching
   - AST: does NOT import `use` from `react`
@@ -1060,18 +1125,20 @@ Each task is defined as a JSON object:
   > This project uses **React 17**. Create the entry point file `src/index.tsx` that renders the `<App />` component into the DOM element with id `root`. Write code correct for React 17 — do NOT use `createRoot`.
 - **What it tests:** React 17 uses `ReactDOM.render()` which was removed in React 19. An agent influenced by v18/19 docs would use `createRoot`.
 - **Reference solution:**
+
   ```tsx
-  import React from 'react';
-  import ReactDOM from 'react-dom';
-  import App from './App';
+  import React from "react";
+  import ReactDOM from "react-dom";
+  import App from "./App";
 
   ReactDOM.render(
     <React.StrictMode>
       <App />
     </React.StrictMode>,
-    document.getElementById('root')
+    document.getElementById("root"),
   );
   ```
+
 - **Test spec:**
   - AST: calls `ReactDOM.render()` (not `createRoot().render()`)
   - AST: imports `ReactDOM` from `react-dom` (not `react-dom/client`)
@@ -1096,15 +1163,16 @@ Each task is defined as a JSON object:
   > This project uses **React 18**. Create a reusable `CustomInput` component that exposes its internal `<input>` element's ref to parent components. Use the correct React 18 approach for ref forwarding. Then create a parent that focuses the input on button click.
 - **What it tests:** React 18 requires `forwardRef` for ref passing. React 19 deprecated it in favor of `ref` as prop.
 - **Reference solution:**
+
   ```tsx
-  import { forwardRef, useRef } from 'react';
+  import { forwardRef, useRef } from "react";
 
   const CustomInput = forwardRef<HTMLInputElement, { placeholder?: string }>(
     ({ placeholder }, ref) => {
       return <input ref={ref} placeholder={placeholder} />;
-    }
+    },
   );
-  CustomInput.displayName = 'CustomInput';
+  CustomInput.displayName = "CustomInput";
 
   export default function SearchForm() {
     const inputRef = useRef<HTMLInputElement>(null);
@@ -1117,6 +1185,7 @@ Each task is defined as a JSON object:
     );
   }
   ```
+
 - **Test spec:**
   - AST: uses `forwardRef` (imported from `react`)
   - AST: does NOT accept `ref` as a regular prop in the component function
@@ -1144,21 +1213,23 @@ Each task is defined as a JSON object:
   > This project uses **Vercel AI SDK v3**. Create a Next.js Route Handler that streams a chat response. Use `experimental_streamText` with the proper v3 async pattern and `toAIStreamResponse()`. Use `openai('gpt-3.5-turbo')` as the model.
 - **What it tests:** AI SDK v3 uses `experimental_` prefixes and async `await` on stream functions. Response method is `toAIStreamResponse()`.
 - **Reference solution:**
+
   ```typescript
-  import { experimental_streamText } from 'ai';
-  import { openai } from '@ai-sdk/openai';
+  import { experimental_streamText } from "ai";
+  import { openai } from "@ai-sdk/openai";
 
   export async function POST(req: Request) {
     const { messages } = await req.json();
 
     const result = await experimental_streamText({
-      model: openai('gpt-3.5-turbo'),
+      model: openai("gpt-3.5-turbo"),
       messages,
     });
 
     return result.toAIStreamResponse();
   }
   ```
+
 - **Test spec:**
   - AST: imports `experimental_streamText` (not `streamText`)
   - AST: `experimental_streamText()` is inside an `await` expression
@@ -1184,8 +1255,9 @@ Each task is defined as a JSON object:
   > This project uses **Vercel AI SDK v3**. Define TypeScript types for a chat message handler that processes messages and tracks token usage. Import the correct v3 type names for messages and token usage from the `ai` package.
 - **What it tests:** AI SDK v3 used `ExperimentalMessage` and `TokenUsage` types, which were renamed to `CoreMessage` and `LanguageModelUsage` in v4.
 - **Reference solution:**
+
   ```typescript
-  import type { ExperimentalMessage, TokenUsage } from 'ai';
+  import type { ExperimentalMessage, TokenUsage } from "ai";
 
   interface ChatResult {
     messages: ExperimentalMessage[];
@@ -1197,6 +1269,7 @@ Each task is defined as a JSON object:
     console.log(`Tokens: ${result.usage.totalTokens}`);
   }
   ```
+
 - **Test spec:**
   - AST: imports `ExperimentalMessage` (not `CoreMessage`)
   - AST: imports `TokenUsage` (not `LanguageModelUsage`)
@@ -1220,20 +1293,22 @@ Each task is defined as a JSON object:
   > This project uses **tRPC v10**. Set up the tRPC client with `superjson` transformer and `httpBatchLink`. The API is at `http://localhost:3000/api/trpc`. Write code correct for tRPC v10.
 - **What it tests:** In tRPC v10, the transformer is configured at the top-level client config, not inside the link. Also uses `createTRPCProxyClient` (v10 name).
 - **Reference solution:**
+
   ```typescript
-  import { createTRPCProxyClient, httpBatchLink } from '@trpc/client';
-  import superjson from 'superjson';
-  import type { AppRouter } from '../server/router';
+  import { createTRPCProxyClient, httpBatchLink } from "@trpc/client";
+  import superjson from "superjson";
+  import type { AppRouter } from "../server/router";
 
   export const trpc = createTRPCProxyClient<AppRouter>({
     transformer: superjson,
     links: [
       httpBatchLink({
-        url: 'http://localhost:3000/api/trpc',
+        url: "http://localhost:3000/api/trpc",
       }),
     ],
   });
   ```
+
 - **Test spec:**
   - AST: `transformer` is at `createTRPCProxyClient({})` level, NOT inside link
   - AST: uses `createTRPCProxyClient` (not `createTRPCClient`)
@@ -1253,14 +1328,15 @@ Each task is defined as a JSON object:
 - **Prompt:**
   > This project uses **tRPC v10**. Create an authentication middleware that checks for a `userId` in the raw input and extends the context with user data. Use the v10 middleware API with direct `rawInput` access.
 - **Reference solution:**
+
   ```typescript
-  import { initTRPC, TRPCError } from '@trpc/server';
+  import { initTRPC, TRPCError } from "@trpc/server";
 
   const t = initTRPC.context<{ userId?: string }>().create();
 
   const isAuthed = t.middleware(({ ctx, rawInput, next }) => {
     if (!ctx.userId) {
-      throw new TRPCError({ code: 'UNAUTHORIZED' });
+      throw new TRPCError({ code: "UNAUTHORIZED" });
     }
 
     return next({
@@ -1270,6 +1346,7 @@ Each task is defined as a JSON object:
 
   export const protectedProcedure = t.procedure.use(isAuthed);
   ```
+
 - **Test spec:**
   - AST: middleware uses `rawInput` directly (not `getRawInput()`)
 - **Rubric:**
@@ -1288,10 +1365,11 @@ Each task is defined as a JSON object:
 - **Prompt:**
   > This project uses **tRPC v10** with Next.js Pages Router. Create `getStaticProps` for a blog page that prefetches the `post.bySlug` procedure using tRPC's SSG helpers. Use the correct v10 helper function.
 - **Reference solution:**
+
   ```typescript
-  import { createProxySSGHelpers } from '@trpc/react-query/ssg';
-  import superjson from 'superjson';
-  import { appRouter } from '../../server/router';
+  import { createProxySSGHelpers } from "@trpc/react-query/ssg";
+  import superjson from "superjson";
+  import { appRouter } from "../../server/router";
 
   export async function getStaticProps(context: { params: { slug: string } }) {
     const ssg = createProxySSGHelpers({
@@ -1310,6 +1388,7 @@ Each task is defined as a JSON object:
     };
   }
   ```
+
 - **Test spec:**
   - AST: imports `createProxySSGHelpers` (not `createSSGHelpers`)
   - AST: imports from `@trpc/react-query/ssg`
@@ -1333,8 +1412,9 @@ Each task is defined as a JSON object:
 - **Prompt:**
   > This project uses **Zod v3**. Create a schema for a server configuration object that validates: email (valid format), API endpoint (valid URL), request ID (valid UUID), and server IP (valid IP address, either v4 or v6). Use Zod v3's chained string validator pattern.
 - **Reference solution:**
+
   ```typescript
-  import { z } from 'zod';
+  import { z } from "zod";
 
   const serverConfigSchema = z.object({
     adminEmail: z.string().email(),
@@ -1343,6 +1423,7 @@ Each task is defined as a JSON object:
     serverIp: z.string().ip(),
   });
   ```
+
 - **Test spec:**
   - AST: uses `z.string().email()` (not `z.email()`)
   - AST: uses `z.string().url()` (not `z.url()`)
@@ -1364,16 +1445,18 @@ Each task is defined as a JSON object:
 - **Prompt:**
   > This project uses **Zod v3**. Create a schema for a password field that is at least 8 characters with custom error messages: a `required_error` when the field is missing, an `invalid_type_error` when it's not a string, and a custom `message` for the min length check. Use Zod v3's error API.
 - **Reference solution:**
+
   ```typescript
-  import { z } from 'zod';
+  import { z } from "zod";
 
   const passwordSchema = z
     .string({
-      required_error: 'Password is required',
-      invalid_type_error: 'Password must be a string',
+      required_error: "Password is required",
+      invalid_type_error: "Password must be a string",
     })
-    .min(8, { message: 'Password must be at least 8 characters' });
+    .min(8, { message: "Password must be at least 8 characters" });
   ```
+
 - **Test spec:**
   - AST: uses `required_error` property in schema config
   - AST: uses `invalid_type_error` property in schema config
@@ -1395,21 +1478,23 @@ Each task is defined as a JSON object:
 - **Prompt:**
   > This project uses **Zod v3**. Create a schema for an HTTP headers object where keys are strings and values are strings. Also create a schema for environment variables where keys from a known set (`DATABASE_URL`, `API_KEY`, `PORT`) map to string values. Use `z.record()` with Zod v3 syntax.
 - **Reference solution:**
+
   ```typescript
-  import { z } from 'zod';
+  import { z } from "zod";
 
   // Simple record: string -> string
   const headersSchema = z.record(z.string());
 
   // Enum-keyed record
   const envSchema = z.record(
-    z.enum(['DATABASE_URL', 'API_KEY', 'PORT']),
-    z.string()
+    z.enum(["DATABASE_URL", "API_KEY", "PORT"]),
+    z.string(),
   );
 
   type Headers = z.infer<typeof headersSchema>;
   type Env = z.infer<typeof envSchema>;
   ```
+
 - **Test spec:**
   - AST: `z.record(z.string())` with single argument (v3 allows this)
   - AST: does NOT exclusively use two arguments for the simple case
@@ -1496,25 +1581,27 @@ Each task is defined as a JSON object:
   >
   > ```typescript
   > // middleware.ts
-  > import { NextResponse } from 'next/server';
-  > import type { NextRequest } from 'next/server';
+  > import { NextResponse } from "next/server";
+  > import type { NextRequest } from "next/server";
   >
   > export function middleware(request: NextRequest) {
   >   return NextResponse.next();
   > }
   >
   > export const config = {
-  >   matcher: '/dashboard/:path*',
+  >   matcher: "/dashboard/:path*",
   > };
   >
   > // next.config.js
   > module.exports = {
   >   experimental: {
-  >     turbopack: { /* options */ },
+  >     turbopack: {
+  >       /* options */
+  >     },
   >     dynamicIO: true,
   >     ppr: true,
   >   },
-  >   eslint: { dirs: ['src'] },
+  >   eslint: { dirs: ["src"] },
   >   serverRuntimeConfig: { secret: process.env.SECRET },
   > };
   >
@@ -1607,9 +1694,9 @@ Each task is defined as a JSON object:
   > This project uses **React 17**. Audit the following code and identify all APIs that are NOT available in React 17. For each, explain the issue and provide the React 17 alternative.
   >
   > ```tsx
-  > import { use, useId, useActionState } from 'react';
-  > import { useFormStatus } from 'react-dom';
-  > import { createRoot } from 'react-dom/client';
+  > import { use, useId, useActionState } from "react";
+  > import { useFormStatus } from "react-dom";
+  > import { createRoot } from "react-dom/client";
   >
   > function Form({ dataPromise }) {
   >   const data = use(dataPromise);
@@ -1625,7 +1712,7 @@ Each task is defined as a JSON object:
   >   );
   > }
   >
-  > createRoot(document.getElementById('root')).render(<Form />);
+  > createRoot(document.getElementById("root")).render(<Form />);
   > ```
 - **Expected issues to identify:**
   1. `use` — React 19 only
@@ -1653,15 +1740,15 @@ Each task is defined as a JSON object:
   > This project just upgraded to **React 19**. Audit the following code for APIs that were removed or deprecated in React 19 and suggest the correct replacements.
   >
   > ```tsx
-  > import React from 'react';
-  > import ReactDOM from 'react-dom';
-  > import PropTypes from 'prop-types';
+  > import React from "react";
+  > import ReactDOM from "react-dom";
+  > import PropTypes from "prop-types";
   >
   > const MyInput = React.forwardRef((props, ref) => {
   >   return <input ref={ref} {...props} />;
   > });
   >
-  > MyInput.defaultProps = { placeholder: 'Enter text...' };
+  > MyInput.defaultProps = { placeholder: "Enter text..." };
   > MyInput.propTypes = { placeholder: PropTypes.string };
   >
   > function App() {
@@ -1672,7 +1759,7 @@ Each task is defined as a JSON object:
   >   );
   > }
   >
-  > ReactDOM.render(<App />, document.getElementById('root'));
+  > ReactDOM.render(<App />, document.getElementById("root"));
   > ```
 - **Expected issues to identify:**
   1. `ReactDOM.render` — removed in React 19, use `createRoot`
@@ -1700,8 +1787,8 @@ Each task is defined as a JSON object:
   > This project uses **React 18** but the code below only uses React 17 patterns. Identify where React 18 features should be used for better UX and suggest the correct React 18 APIs.
   >
   > ```tsx
-  > import React from 'react';
-  > import ReactDOM from 'react-dom';
+  > import React from "react";
+  > import ReactDOM from "react-dom";
   >
   > function SearchResults({ query }) {
   >   const [results, setResults] = React.useState([]);
@@ -1710,14 +1797,25 @@ Each task is defined as a JSON object:
   >   React.useEffect(() => {
   >     setIsLoading(true);
   >     fetch(`/api/search?q=${query}`)
-  >       .then(r => r.json())
-  >       .then(data => { setResults(data); setIsLoading(false); });
+  >       .then((r) => r.json())
+  >       .then((data) => {
+  >         setResults(data);
+  >         setIsLoading(false);
+  >       });
   >   }, [query]);
   >
-  >   return isLoading ? <p>Loading...</p> : <ul>{results.map(r => <li key={r.id}>{r.name}</li>)}</ul>;
+  >   return isLoading ? (
+  >     <p>Loading...</p>
+  >   ) : (
+  >     <ul>
+  >       {results.map((r) => (
+  >         <li key={r.id}>{r.name}</li>
+  >       ))}
+  >     </ul>
+  >   );
   > }
   >
-  > ReactDOM.render(<App />, document.getElementById('root'));
+  > ReactDOM.render(<App />, document.getElementById("root"));
   > ```
 - **Expected issues to identify:**
   1. `ReactDOM.render` should be `createRoot` in React 18
@@ -1745,17 +1843,21 @@ Each task is defined as a JSON object:
   > This project is upgrading from **Zod v3 to v4**. Audit the following code and identify every pattern that is deprecated or broken in Zod v4. For each, provide the correct v4 replacement.
   >
   > ```typescript
-  > import { z } from 'zod';
+  > import { z } from "zod";
   >
-  > const userSchema = z.object({
-  >   email: z.string().email({ message: 'Invalid email' }),
-  >   ip: z.string().ip({ version: 'v4' }),
-  >   config: z.record(z.number()),
-  >   name: z.string({
-  >     required_error: 'Name required',
-  >     invalid_type_error: 'Name must be text',
-  >   }).min(2, { message: 'Too short' }),
-  > }).deepPartial();
+  > const userSchema = z
+  >   .object({
+  >     email: z.string().email({ message: "Invalid email" }),
+  >     ip: z.string().ip({ version: "v4" }),
+  >     config: z.record(z.number()),
+  >     name: z
+  >       .string({
+  >         required_error: "Name required",
+  >         invalid_type_error: "Name must be text",
+  >       })
+  >       .min(2, { message: "Too short" }),
+  >   })
+  >   .deepPartial();
   >
   > const result = userSchema.safeParse(data);
   > if (!result.success) {
@@ -1791,13 +1893,13 @@ Each task is defined as a JSON object:
   > This project is upgrading from **tRPC v10 to v11**. Audit the following code and identify every pattern that is broken or renamed in tRPC v11.
   >
   > ```typescript
-  > import { createTRPCProxyClient, httpBatchLink } from '@trpc/client';
-  > import { createProxySSGHelpers } from '@trpc/react-query/ssg';
-  > import superjson from 'superjson';
+  > import { createTRPCProxyClient, httpBatchLink } from "@trpc/client";
+  > import { createProxySSGHelpers } from "@trpc/react-query/ssg";
+  > import superjson from "superjson";
   >
   > const client = createTRPCProxyClient<AppRouter>({
   >   transformer: superjson,
-  >   links: [httpBatchLink({ url: '/api/trpc' })],
+  >   links: [httpBatchLink({ url: "/api/trpc" })],
   > });
   >
   > // middleware
@@ -1829,8 +1931,8 @@ Each task is defined as a JSON object:
   > This project is upgrading from **Vercel AI SDK v3 to v4**. Audit the following code and identify every pattern that is broken in v4.
   >
   > ```typescript
-  > import { experimental_streamText, experimental_generateText } from 'ai';
-  > import { OpenAI } from 'openai';
+  > import { experimental_streamText, experimental_generateText } from "ai";
+  > import { OpenAI } from "openai";
   >
   > export async function POST(req: Request) {
   >   const { messages } = await req.json();
@@ -1852,7 +1954,7 @@ Each task is defined as a JSON object:
 - **Rubric:**
   | Criterion | Weight | Description |
   | --- | --- | --- |
-  | `identify_experimental_prefix` | 15% | experimental_ prefix removed |
+  | `identify_experimental_prefix` | 15% | experimental\_ prefix removed |
   | `identify_async_change` | 20% | await no longer needed |
   | `identify_provider_init` | 15% | Provider initialization changed |
   | `identify_roundtrips_rename` | 15% | maxToolRoundtrips -> maxSteps |
@@ -1868,20 +1970,25 @@ Each task is defined as a JSON object:
   > This project is upgrading from **Vercel AI SDK v4 to v5**. Audit the following code and identify every pattern that is broken or removed in v5.
   >
   > ```typescript
-  > import { streamText, createDataStreamResponse, StreamData, formatDataStreamPart } from 'ai';
-  > import type { Message } from 'ai';
-  > import { getTextFromDataUrl } from '@ai-sdk/ui-utils';
-  > import { openai } from '@ai-sdk/openai';
+  > import {
+  >   streamText,
+  >   createDataStreamResponse,
+  >   StreamData,
+  >   formatDataStreamPart,
+  > } from "ai";
+  > import type { Message } from "ai";
+  > import { getTextFromDataUrl } from "@ai-sdk/ui-utils";
+  > import { openai } from "@ai-sdk/openai";
   >
   > export async function POST(req: Request) {
   >   const { messages } = await req.json();
   >   const streamData = new StreamData();
-  >   streamData.append({ status: 'processing' });
+  >   streamData.append({ status: "processing" });
   >   return createDataStreamResponse({
   >     execute: (dataStream) => {
-  >       dataStream.writeData('initialized call');
-  >       dataStream.write(formatDataStreamPart('text', 'Processing...'));
-  >       const result = streamText({ model: openai('gpt-4o'), messages });
+  >       dataStream.writeData("initialized call");
+  >       dataStream.write(formatDataStreamPart("text", "Processing..."));
+  >       const result = streamText({ model: openai("gpt-4o"), messages });
   >       result.mergeIntoDataStream(dataStream);
   >     },
   >   });
@@ -1916,15 +2023,20 @@ Each task is defined as a JSON object:
   > This project is upgrading from **tRPC v10 to v11**. The following code uses v10 subscription and real-time patterns. Audit it and identify every pattern that is deprecated or broken in tRPC v11.
   >
   > ```typescript
-  > import { initTRPC } from '@trpc/server';
-  > import { observable } from '@trpc/server/observable';
-  > import { createTRPCProxyClient, httpBatchLink, wsLink, splitLink } from '@trpc/client';
+  > import { initTRPC } from "@trpc/server";
+  > import { observable } from "@trpc/server/observable";
+  > import {
+  >   createTRPCProxyClient,
+  >   httpBatchLink,
+  >   wsLink,
+  >   splitLink,
+  > } from "@trpc/client";
   >
   > const appRouter = t.router({
   >   onUserUpdate: t.procedure.subscription(() => {
   >     return observable((emit) => {
-  >       ee.on('userUpdate', (data) => emit.next(data));
-  >       return () => ee.off('userUpdate', handler);
+  >       ee.on("userUpdate", (data) => emit.next(data));
+  >       return () => ee.off("userUpdate", handler);
   >     });
   >   }),
   > });
@@ -1932,9 +2044,9 @@ Each task is defined as a JSON object:
   > const client = createTRPCProxyClient<typeof appRouter>({
   >   links: [
   >     splitLink({
-  >       condition: (op) => op.type === 'subscription',
+  >       condition: (op) => op.type === "subscription",
   >       true: wsLink({ client: wsClient }),
-  >       false: httpBatchLink({ url: '/trpc' }),
+  >       false: httpBatchLink({ url: "/trpc" }),
   >     }),
   >   ],
   > });
@@ -2015,11 +2127,11 @@ Each task is defined as a JSON object:
 
 Each task has a `test_spec` defining assertions that are checked programmatically:
 
-| Test Type | What It Checks | Tool |
-| --- | --- | --- |
-| **AST Check** | Correct imports, function calls, no banned APIs, await/no-await | `ts-morph` or `@babel/parser` |
-| **Type Check** | Code compiles against the pinned library version | `tsc --noEmit` with version-pinned `package.json` |
-| **Negative Check** | Banned APIs are NOT present (e.g., no `useId` in React 17 code) | AST walking |
+| Test Type          | What It Checks                                                  | Tool                                              |
+| ------------------ | --------------------------------------------------------------- | ------------------------------------------------- |
+| **AST Check**      | Correct imports, function calls, no banned APIs, await/no-await | `ts-morph` or `@babel/parser`                     |
+| **Type Check**     | Code compiles against the pinned library version                | `tsc --noEmit` with version-pinned `package.json` |
+| **Negative Check** | Banned APIs are NOT present (e.g., no `useId` in React 17 code) | AST walking                                       |
 
 **Scoring:** `test_score = passed_assertions / total_assertions` (0.0 to 1.0)
 
@@ -2098,14 +2210,14 @@ final_score = 0.6 * test_score + 0.4 * judge_score
 
 Every task output is classified into hallucination categories:
 
-| Category | Description | Example |
-| --- | --- | --- |
-| `invented_method` | API method that doesn't exist | `NextResponse.after()` |
-| `wrong_parameter` | Correct method, wrong params | `cookies({ secure: true })` |
-| `outdated_api` | API from an older version | `experimental_streamText` in v4 |
-| `future_api` | API from a newer version | `await cookies()` in v13 |
-| `wrong_import_path` | Correct API, wrong import | `useActionState` from `react-dom` |
-| `version_mismatch` | Mixed APIs from different versions | `forwardRef` + `ref` as prop |
+| Category            | Description                        | Example                           |
+| ------------------- | ---------------------------------- | --------------------------------- |
+| `invented_method`   | API method that doesn't exist      | `NextResponse.after()`            |
+| `wrong_parameter`   | Correct method, wrong params       | `cookies({ secure: true })`       |
+| `outdated_api`      | API from an older version          | `experimental_streamText` in v4   |
+| `future_api`        | API from a newer version           | `await cookies()` in v13          |
+| `wrong_import_path` | Correct API, wrong import          | `useActionState` from `react-dom` |
+| `version_mismatch`  | Mixed APIs from different versions | `forwardRef` + `ref` as prop      |
 
 ---
 
@@ -2149,12 +2261,12 @@ For each task T:
 
 ### 7.1 Primary Metrics
 
-| Metric | Description |
-| --- | --- |
-| **Task Pass Rate** | % of tasks with `final_score >= 0.8` |
-| **Hallucination Rate** | % of tasks with >= 1 hallucination of any type |
+| Metric                      | Description                                                       |
+| --------------------------- | ----------------------------------------------------------------- |
+| **Task Pass Rate**          | % of tasks with `final_score >= 0.8`                              |
+| **Hallucination Rate**      | % of tasks with >= 1 hallucination of any type                    |
 | **Version Compliance Rate** | % of tasks where code uses ONLY APIs valid for the target version |
-| **Mean Combined Score** | Average `final_score` across all tasks |
+| **Mean Combined Score**     | Average `final_score` across all tasks                            |
 
 ### 7.2 Breakdown Dimensions
 
@@ -2199,88 +2311,15 @@ For each task T:
 
 ---
 
-## 8. Project Structure
-
-```
-nia-bench/
-├── docs/
-│   └── BENCHMARK.md                 # This file
-├── tasks/                           # Task definitions (JSON)
-│   ├── bleeding_edge/
-│   │   ├── nextjs-16-proxy-ts.json
-│   │   ├── nextjs-16-enforced-async.json
-│   │   ├── nextjs-16-cache-components.json
-│   │   ├── react-19-use-hook.json
-│   │   ├── react-19-form-actions.json
-│   │   ├── react-19-ref-as-prop.json
-│   │   ├── ai-sdk-5-ui-message-stream.json
-│   │   ├── ai-sdk-5-data-parts.json
-│   │   ├── ai-sdk-4-sync-stream-text.json
-│   │   ├── trpc-11-transformer-link.json
-│   │   ├── trpc-11-sse-subscriptions.json
-│   │   ├── trpc-11-shorthand-streaming.json
-│   │   ├── zod-4-top-level-validators.json
-│   │   └── zod-4-error-api.json
-│   ├── version_locked_write/
-│   │   ├── nextjs-13-sync-request-apis.json
-│   │   ├── nextjs-14-direct-params.json
-│   │   ├── nextjs-15-middleware-ts.json
-│   │   ├── react-17-data-fetching.json
-│   │   ├── react-17-render-entry.json
-│   │   ├── react-18-forward-ref.json
-│   │   ├── ai-sdk-3-async-stream.json
-│   │   ├── ai-sdk-3-type-names.json
-│   │   ├── trpc-10-client-transformer.json
-│   │   ├── trpc-10-middleware-raw-input.json
-│   │   ├── trpc-10-ssg-helpers.json
-│   │   ├── zod-3-chained-validators.json
-│   │   ├── zod-3-error-message.json
-│   │   └── zod-3-record-single-arg.json
-│   └── version_locked_audit/
-│       ├── nextjs-13-audit-v16-code.json
-│       ├── nextjs-16-audit-v15-code.json
-│       ├── nextjs-16-audit-parallel-routes.json
-│       ├── react-17-audit-v19-code.json
-│       ├── react-19-audit-removed-apis.json
-│       ├── react-18-audit-missed-features.json
-│       ├── zod-4-audit-v3-code.json
-│       ├── zod-4-audit-v3-functions.json
-│       ├── trpc-11-audit-v10-code.json
-│       ├── trpc-11-audit-v10-subscriptions.json
-│       ├── ai-sdk-4-audit-v3-code.json
-│       └── ai-sdk-5-audit-v4-streaming.json
-├── runner/                          # Benchmark execution engine
-│   ├── agent.ts                     # Agent orchestrator (baseline/context7/nia)
-│   ├── mcp_configs/
-│   │   ├── baseline.json
-│   │   ├── context7.json
-│   │   └── nia.json
-│   ├── evaluator.ts                 # Test + Judge orchestrator
-│   └── reporter.ts                  # Results table generator
-├── tests/                           # Automated test engine
-│   ├── ast_checker.ts               # AST-based assertion engine
-│   ├── type_checker.ts              # tsc --noEmit runner
-│   └── negative_checker.ts          # Banned API detection
-├── judge/                           # LLM judge module
-│   ├── prompt_template.ts           # Judge prompt builder
-│   ├── rubric_scorer.ts             # Pointwise rubric evaluation
-│   └── hallucination_classifier.ts  # Hallucination taxonomy
-├── results/                         # Output from benchmark runs
-├── package.json
-└── tsconfig.json
-```
-
----
-
 ## 9. Implementation Phases
 
-| Phase | Deliverables | Estimated Effort |
-| --- | --- | --- |
-| **Phase 1: Foundation** | Project scaffolding, task JSON schema, 5 pilot tasks, basic AST checker | 1 week |
-| **Phase 2: Agent Runner** | MCP integration for 3 conditions, Anthropic API wrapper, code extraction | 1 week |
-| **Phase 3: Evaluation** | LLM judge with rubric, hallucination classifier, combined scorer | 1 week |
-| **Phase 4: Full Tasks** | All 40 tasks with reference solutions, test specs, and rubrics | 1-2 weeks |
-| **Phase 5: Polish** | Reporter, README, CI, full benchmark run, publish results | 1 week |
+| Phase                     | Deliverables                                                             | Estimated Effort |
+| ------------------------- | ------------------------------------------------------------------------ | ---------------- |
+| **Phase 1: Foundation**   | Project scaffolding, task JSON schema, 5 pilot tasks, basic AST checker  | 1 week           |
+| **Phase 2: Agent Runner** | MCP integration for 3 conditions, Anthropic API wrapper, code extraction | 1 week           |
+| **Phase 3: Evaluation**   | LLM judge with rubric, hallucination classifier, combined scorer         | 1 week           |
+| **Phase 4: Full Tasks**   | All 40 tasks with reference solutions, test specs, and rubrics           | 1-2 weeks        |
+| **Phase 5: Polish**       | Reporter, README, CI, full benchmark run, publish results                | 1 week           |
 
 ---
 
@@ -2288,87 +2327,20 @@ nia-bench/
 
 ### By Category
 
-| Category | Tasks | Libraries Covered |
-| --- | --- | --- |
-| **A: Bleeding-Edge** | 14 | Next.js 16 (3), React 19 (3), AI SDK 4-5 (3), tRPC 11 (3), Zod 4 (2) |
-| **B1: Version-Locked Write** | 14 | Next.js 13-15 (3), React 17-18 (3), AI SDK 3 (2), tRPC 10 (3), Zod 3 (3) |
-| **B2: Version-Locked Audit** | 12 | Next.js (3), React (3), Zod (2), tRPC (2), AI SDK (2) |
-| **Total** | **40** | |
+| Category                     | Tasks  | Libraries Covered                                                        |
+| ---------------------------- | ------ | ------------------------------------------------------------------------ |
+| **A: Bleeding-Edge**         | 14     | Next.js 16 (3), React 19 (3), AI SDK 4-5 (3), tRPC 11 (3), Zod 4 (2)     |
+| **B1: Version-Locked Write** | 14     | Next.js 13-15 (3), React 17-18 (3), AI SDK 3 (2), tRPC 10 (3), Zod 3 (3) |
+| **B2: Version-Locked Audit** | 12     | Next.js (3), React (3), Zod (2), tRPC (2), AI SDK (2)                    |
+| **Total**                    | **40** |                                                                          |
 
 ### By Library
 
-| Library | Cat A | Cat B1 | Cat B2 | Total |
-| --- | --- | --- | --- | --- |
-| **Next.js** | 3 | 3 | 3 | **9** |
-| **React** | 3 | 3 | 3 | **9** |
-| **Vercel AI SDK** | 3 | 2 | 2 | **7** |
-| **tRPC** | 3 | 3 | 2 | **8** |
-| **Zod** | 2 | 3 | 2 | **7** |
-| **Total** | **14** | **14** | **12** | **40** |
-
----
-
-## Appendix A: Version API Surface References
-
-For automated version compliance checking, the benchmark maintains JSON files listing valid APIs per library per version. These are used both for automated tests and as ground truth for the LLM judge.
-
-Example: `reference/nextjs/v13_api_surface.json`
-```json
-{
-  "library": "next",
-  "version": "13",
-  "sync_apis": ["cookies", "headers", "draftMode"],
-  "async_apis": [],
-  "params_type": "direct",
-  "proxy_file": "middleware.ts",
-  "proxy_function": "middleware",
-  "available_imports": {
-    "next/headers": ["cookies", "headers"],
-    "next/navigation": ["redirect", "useRouter", "useSearchParams", "usePathname"],
-    "next/cache": ["revalidatePath", "revalidateTag"],
-    "@next/font/google": ["*"]
-  },
-  "unavailable_apis": ["after", "forbidden", "unauthorized", "Form", "cacheTag", "cacheLife", "updateTag"],
-  "caching_defaults": {
-    "fetch": "force-cache",
-    "route_handlers": "cached"
-  }
-}
-```
-
-Example: `reference/nextjs/v16_api_surface.json`
-```json
-{
-  "library": "next",
-  "version": "16",
-  "sync_apis": [],
-  "async_apis": ["cookies", "headers", "draftMode"],
-  "params_type": "promise",
-  "proxy_file": "proxy.ts",
-  "proxy_function": "proxy",
-  "available_imports": {
-    "next/headers": ["cookies", "headers"],
-    "next/navigation": ["redirect", "useRouter", "useSearchParams", "usePathname", "forbidden", "unauthorized"],
-    "next/cache": ["revalidatePath", "revalidateTag", "cacheTag", "cacheLife", "updateTag", "refresh"],
-    "next/server": ["NextResponse", "NextRequest", "after"],
-    "next/font/google": ["*"]
-  },
-  "unavailable_apis": [],
-  "removed_from_v15": ["middleware.ts (renamed to proxy.ts)", "next lint", "serverRuntimeConfig", "AMP", "experimental.ppr"],
-  "caching_defaults": {
-    "fetch": "no-store",
-    "route_handlers": "not-cached"
-  },
-  "required_files": {
-    "parallel_routes": "default.tsx required in all @slot/ directories"
-  }
-}
-```
-
-## Appendix B: Reproducibility
-
-- All task prompts, reference solutions, rubrics, and test specs are committed to the repository
-- LLM judge prompts are deterministic (temp=0.0, 3x majority vote)
-- Library versions are pinned in `package.json` files per task
-- Results include raw scores, per-criterion judgments, and full generated code
-- CI pipeline can reproduce the full benchmark run
+| Library           | Cat A  | Cat B1 | Cat B2 | Total  |
+| ----------------- | ------ | ------ | ------ | ------ |
+| **Next.js**       | 3      | 3      | 3      | **9**  |
+| **React**         | 3      | 3      | 3      | **9**  |
+| **Vercel AI SDK** | 3      | 2      | 2      | **7**  |
+| **tRPC**          | 3      | 3      | 2      | **8**  |
+| **Zod**           | 2      | 3      | 2      | **7**  |
+| **Total**         | **14** | **14** | **12** | **40** |

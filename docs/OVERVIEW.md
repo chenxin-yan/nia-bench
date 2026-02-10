@@ -1,17 +1,6 @@
-# Nia-Bench Codebase: Comprehensive Overview
+# Overview
 
-## 📋 Executive Summary
-
-**Nia-Bench** is a sophisticated version-aware code generation benchmark that measures how well context-augmentation tools help LLM-based coding agents generate **version-correct** code across JavaScript/TypeScript libraries. It evaluates three conditions:
-1. **Baseline**: Claude Sonnet with no external context
-2. **Context7**: Claude Sonnet + Context7 MCP server
-3. **Nia**: Claude Sonnet + Nia MCP server
-
-The benchmark contains **40 tasks** across 5 libraries (Next.js, React, Vercel AI SDK, tRPC, Zod) in 3 categories, with automated AST-based testing and LLM judge evaluation.
-
----
-
-## 🏗️ Architecture Overview
+## Architecture Overview
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -153,6 +142,7 @@ nia-bench/
 ## 🔄 Complete Workflow
 
 ### Phase 1: Initialization & Configuration
+
 ```
 User runs: bun run src/index.ts [--options]
     │
@@ -168,6 +158,7 @@ User runs: bun run src/index.ts [--options]
 ```
 
 ### Phase 2: Task Loading & Validation
+
 ```
 loadTasks(tasksDir, filters)
     │
@@ -183,26 +174,28 @@ loadTasks(tasksDir, filters)
 ```
 
 **Task Structure:**
+
 ```typescript
 interface Task {
-  id: string                          // "nextjs-16-proxy-ts"
-  category: "bleeding_edge" | "version_locked_write" | "version_locked_audit"
-  library: "next" | "react" | "ai" | "trpc" | "zod"
-  target_version: string              // "16.0.0"
-  prompt: string                      // The task prompt
-  reference_solution: string          // Canonical correct code
+  id: string; // "nextjs-16-proxy-ts"
+  category: "bleeding_edge" | "version_locked_write" | "version_locked_audit";
+  library: "next" | "react" | "ai" | "trpc" | "zod";
+  target_version: string; // "16.0.0"
+  prompt: string; // The task prompt
+  reference_solution: string; // Canonical correct code
   test_spec: {
-    ast_checks: AstCheck[]            // Automated validation rules
-    type_check: boolean               // Enable TypeScript checking
-  }
+    ast_checks: AstCheck[]; // Automated validation rules
+    type_check: boolean; // Enable TypeScript checking
+  };
   rubric: {
-    criteria: RubricCriterion[]       // Judge evaluation criteria
-  }
-  common_hallucinations: string[]     // Known failure modes
+    criteria: RubricCriterion[]; // Judge evaluation criteria
+  };
+  common_hallucinations: string[]; // Known failure modes
 }
 ```
 
 ### Phase 3: Work Queue Generation
+
 ```
 generateWorkQueue(taskIds, conditions, reps)
     │
@@ -210,7 +203,7 @@ generateWorkQueue(taskIds, conditions, reps)
     │   (taskId, condition, repIndex)
     │
     └─→ Example: 40 tasks × 3 conditions × 3 reps = 360 work items
-        
+
     Shuffle queue with seeded RNG for reproducibility
 
     Example item:
@@ -222,6 +215,7 @@ generateWorkQueue(taskIds, conditions, reps)
 ```
 
 ### Phase 4: Concurrent Execution
+
 ```
 AsyncSemaphore(maxParallel=N) controls concurrency
 
@@ -308,6 +302,7 @@ For each work item:
 ```
 
 ### Phase 5: Report Generation
+
 ```
 After all work items complete:
 
@@ -344,6 +339,7 @@ generateAndWriteReport(runDir)
 ## 📊 Result Visualization & Report Generation
 
 ### Structured Report Output (JSON)
+
 File: `results/{timestamp}/report.json`
 
 ```typescript
@@ -353,7 +349,7 @@ interface Report {
   totalTasks: number                       // 40
   totalResults: number                     // e.g., 360 (40 × 3 × 3)
   conditions: string[]                     // ["baseline", "context7", "nia"]
-  
+
   overall: ConditionMetrics[]              // Metrics per condition
   byCategory: {
     bleeding_edge: ConditionMetrics[]
@@ -367,13 +363,13 @@ interface Report {
     trpc: ConditionMetrics[]
     zod: ConditionMetrics[]
   }
-  
+
   hallucinationDistribution: {
     baseline: HallucinationDistribution[]   // Per hallucination type
     context7: HallucinationDistribution[]
     nia: HallucinationDistribution[]
   }
-  
+
   taskDetails: TaskDetail[]                // Per-task breakdown
 }
 
@@ -406,6 +402,7 @@ interface TaskDetail {
 File: `results/{timestamp}/report.txt`
 
 Output Example:
+
 ```
 ================================================================
                      NIA-BENCH RESULTS v1.0
@@ -429,19 +426,21 @@ Output Example:
 
 ### Metrics Explained
 
-| Metric | Definition | Context |
-|--------|-----------|---------|
-| **Task Pass Rate** | % of tasks with final_score ≥ 0.8 | Overall success |
-| **Hallucination Rate** | % of tasks with ≥1 hallucination | False APIs, deprecated code |
-| **Version Compliance Rate** | % where ALL AST checks pass | Strict version correctness |
-| **Mean Combined Score** | Weighted average: 0.6×test + 0.4×judge | Overall quality |
+| Metric                      | Definition                             | Context                     |
+| --------------------------- | -------------------------------------- | --------------------------- |
+| **Task Pass Rate**          | % of tasks with final_score ≥ 0.8      | Overall success             |
+| **Hallucination Rate**      | % of tasks with ≥1 hallucination       | False APIs, deprecated code |
+| **Version Compliance Rate** | % where ALL AST checks pass            | Strict version correctness  |
+| **Mean Combined Score**     | Weighted average: 0.6×test + 0.4×judge | Overall quality             |
 
 ---
 
 ## 🎯 Task Categories
 
 ### Category A: Bleeding-Edge (14 tasks)
+
 Features from latest library versions (likely post-training cutoff).
+
 - **Next.js 16**: proxy.ts, enforced async, cache components (3)
 - **React 19**: use() hook, useActionState, ref as prop (3)
 - **AI SDK 5**: UIMessageStream, data parts, sync streamText (3)
@@ -449,7 +448,9 @@ Features from latest library versions (likely post-training cutoff).
 - **Zod 4**: top-level validators, error API (2)
 
 ### Category B1: Version-Locked Write (14 tasks)
-Write code correct for a *specific older version*.
+
+Write code correct for a _specific older version_.
+
 - **Next.js 13**: Sync cookies/headers (3)
 - **Next.js 14**: Direct params access (3)
 - **Next.js 15**: middleware.ts (not proxy.ts) (1)
@@ -460,7 +461,9 @@ Write code correct for a *specific older version*.
 - **Zod 3**: Chained validators (1)
 
 ### Category B2: Version-Locked Audit (12 tasks)
+
 Identify and fix version-incorrect code.
+
 - Agents given code with bugs and must identify issues
 - Suggest correct alternatives for target version
 
@@ -473,14 +476,15 @@ Each task has a `test_spec.ast_checks[]` array with validation rules:
 ```typescript
 // Example checks from nextjs-16-proxy-ts
 [
-  { type: "function_exported", name: "proxy" },           // ✓ export function proxy() {}
-  { type: "function_absent", name: "middleware" },        // ✓ NOT export function middleware() {}
-  { type: "call_exists", call: "config.matcher" },        // ✓ export const config = { matcher: ... }
-  { type: "property_absent", property: "runtime", inObject: "config" }  // ✓ No runtime: 'edge'
-]
+  { type: "function_exported", name: "proxy" }, // ✓ export function proxy() {}
+  { type: "function_absent", name: "middleware" }, // ✓ NOT export function middleware() {}
+  { type: "call_exists", call: "config.matcher" }, // ✓ export const config = { matcher: ... }
+  { type: "property_absent", property: "runtime", inObject: "config" }, // ✓ No runtime: 'edge'
+];
 ```
 
 ### Check Types
+
 - `import_exists`: Requires `import { X } from "module"`
 - `import_absent`: Must NOT import something
 - `module_import_absent`: Must NOT import entire module
@@ -503,7 +507,9 @@ Each task has a `test_spec.ast_checks[]` array with validation rules:
 For tasks where automated AST checks alone aren't sufficient.
 
 **Process:**
+
 1. **Prompt Building** (prompt-template.ts):
+
    ```
    - Task description
    - Reference solution
@@ -518,20 +524,42 @@ For tasks where automated AST checks alone aren't sufficient.
    - Handles retries & timeouts
 
 3. **Score Aggregation**:
+
    ```
    judgeScore = average(criterion_scores)
    finalScore = 0.6 × testScore + 0.4 × judgeScore
    ```
 
 **Rubric Example** (nextjs-16-proxy-ts):
+
 ```json
 {
   "criteria": [
-    { "name": "proxy_filename", "weight": 0.25, "description": "File is proxy.ts, not middleware.ts" },
-    { "name": "proxy_function_name", "weight": 0.25, "description": "Exports function proxy()" },
-    { "name": "no_edge_runtime", "weight": 0.15, "description": "No runtime: 'edge' in config" },
-    { "name": "correct_api_usage", "weight": 0.20, "description": "Correct NextResponse, cookies, redirects" },
-    { "name": "no_hallucination", "weight": 0.15, "description": "No v15 patterns, no invented APIs" }
+    {
+      "name": "proxy_filename",
+      "weight": 0.25,
+      "description": "File is proxy.ts, not middleware.ts"
+    },
+    {
+      "name": "proxy_function_name",
+      "weight": 0.25,
+      "description": "Exports function proxy()"
+    },
+    {
+      "name": "no_edge_runtime",
+      "weight": 0.15,
+      "description": "No runtime: 'edge' in config"
+    },
+    {
+      "name": "correct_api_usage",
+      "weight": 0.2,
+      "description": "Correct NextResponse, cookies, redirects"
+    },
+    {
+      "name": "no_hallucination",
+      "weight": 0.15,
+      "description": "No v15 patterns, no invented APIs"
+    }
   ]
 }
 ```
@@ -544,15 +572,16 @@ Maps failures to specific error categories:
 
 ```typescript
 type HallucinationType =
-  | "invented_method"      // Method that doesn't exist (e.g., z.string().ip())
-  | "wrong_parameter"      // Wrong param name or type
-  | "outdated_api"         // Using old API from earlier version
-  | "future_api"           // Using API from newer version
-  | "wrong_import_path"    // Importing from wrong module
-  | "version_mismatch"     // General version incompatibility
+  | "invented_method" // Method that doesn't exist (e.g., z.string().ip())
+  | "wrong_parameter" // Wrong param name or type
+  | "outdated_api" // Using old API from earlier version
+  | "future_api" // Using API from newer version
+  | "wrong_import_path" // Importing from wrong module
+  | "version_mismatch"; // General version incompatibility
 ```
 
 **Classification Logic:**
+
 1. For each failed AST check → map to hallucination type
 2. Infer direction (older/newer) based on task metadata
 3. Cross-reference with `common_hallucinations` hints
@@ -574,6 +603,7 @@ type HallucinationType =
 ## 🚀 Running the Benchmark
 
 ### Basic Run
+
 ```bash
 bun run src/index.ts
 # Runs all 40 tasks × 3 conditions × 3 reps = 360 items
@@ -582,6 +612,7 @@ bun run src/index.ts
 ```
 
 ### With Options
+
 ```bash
 # Run only Next.js 16 tasks with Nia condition, 2 reps, 4 workers
 bun run src/index.ts \
@@ -605,6 +636,7 @@ bun run src/index.ts --report-only --output-dir results/{timestamp}
 ```
 
 ### CLI Flags
+
 ```
 --category <cat>        Filter: bleeding_edge | version_locked_write | version_locked_audit
 --library <lib>         Filter: next | react | ai | trpc | zod
@@ -664,6 +696,7 @@ results/
 ```
 
 ### Individual Result File (`run-X.json`)
+
 ```typescript
 {
   taskId: "nextjs-16-proxy-ts",
@@ -715,6 +748,7 @@ results/
 ## 🔧 Key Classes & Functions
 
 ### Orchestrator (orchestrator.ts)
+
 - `parseCliArgs(argv)`: Parse command-line arguments
 - `generateWorkQueue(taskIds, conditions, reps)`: Create work items
 - `runBenchmark(config)`: Main entry point
@@ -722,25 +756,30 @@ results/
 - `AsyncSemaphore`: Concurrency control
 
 ### Agent (agent.ts)
+
 - `runAgent(task, condition, repIndex)`: Execute OpenCode
 - `checkOpencodeBinary()`: Verify opencode CLI is installed
 - `extractCodeFromOutput(rawOutput)`: Parse NDJSON events
 
 ### Evaluator (evaluator.ts)
+
 - `evaluateCode(task, extractedFiles, ...)`: Full evaluation pipeline
 - `runAstChecks(code, checks)`: Validate with AST
 - `runTypeCheck(code, envPath)`: TypeScript checking
 
 ### Reporter (reporter.ts)
+
 - `loadResults(runDir)`: Read all result files
 - `computeMetrics(results)`: Aggregate statistics
 - `formatReportText(report)`: Generate ASCII table
 - `generateAndWriteReport(runDir)`: Write JSON + TXT outputs
 
 ### Hallucination Classifier (judge/hallucination-classifier.ts)
+
 - `classifyHallucinations(task, astResults, judgeResult)`: Map failures to types
 
 ### Rubric Scorer (judge/rubric-scorer.ts)
+
 - `scoreWithRubric(code, task, condition)`: LLM judge evaluation
 - `calculateJudgeScore(responses)`: Average criterion scores
 
@@ -779,15 +818,17 @@ Output: Results directory with JSON + text reports
 
 ---
 
-## 🎓 Key Concepts
+## Key Concepts
 
 ### Conditions
+
 - **Baseline**: Pure LLM capability (no context tools)
 - **Context7**: Context augmentation tool #1
 - **Nia**: Context augmentation tool #2 (full toolset)
-→ Measures how much context tools improve accuracy
+  → Measures how much context tools improve accuracy
 
 ### Categories
+
 - **Bleeding-Edge (A)**: Latest features (post-training cutoff)
   - Measures: Can context tools help with unknown features?
 - **Version-Locked Write (B1)**: Code for specific old version
@@ -796,78 +837,8 @@ Output: Results directory with JSON + text reports
   - Measures: Can agents recognize and fix version issues?
 
 ### Scoring
+
 - **Test Score**: % of automated AST checks passing (0-1)
 - **Judge Score**: LLM evaluation of rubric criteria (0-1)
 - **Final Score**: 60% test + 40% judge (0-1)
 - **Pass Threshold**: finalScore ≥ 0.8 for task to count as "passed"
-
----
-
-## 📚 Important Files to Review
-
-1. **BENCHMARK.md** (docs/) - Full specification with all 40 tasks
-2. **orchestrator.ts** - Main entry point & work queue logic
-3. **agent.ts** - OpenCode execution & file extraction
-4. **evaluator.ts** - AST/type checking & judge integration
-5. **reporter.ts** - Metrics computation & report generation
-6. **task.ts** - Task schema and types
-7. **Sample task** - tasks/bleeding_edge/nextjs-16-proxy-ts.json
-
----
-
-## 🛠️ Development & Testing
-
-```bash
-# Run tests
-bun test
-
-# Type check
-bun run check:types
-
-# Format/lint
-bun run check
-```
-
-Test files in `__tests__` directories:
-- Test task loading validation
-- Test AST checks
-- Test type checking logic
-- Test report generation
-- Test hallucination classification
-
----
-
-## 💾 Reproducibility
-
-- **Seeded RNG**: Work queue shuffled deterministically with `--seed`
-- **Atomic writes**: Result files use temp+rename to prevent corruption
-- **Metadata stored**: run-meta.json records all configuration
-- **SHA256 hashes**: Could be added to verify result integrity
-
----
-
-## 🚀 Performance Characteristics
-
-- **Task execution**: ~5-30 seconds per item (depends on agent, model)
-- **Evaluation**: ~1-3 seconds (AST + type check)
-- **Judge scoring**: ~10-15 seconds per task (OpenRouter API)
-- **Total run**: 360 items @ ~30s avg = ~3 hours (with 4 workers)
-- **Concurrency**: Semaphore limits to N workers, prevents resource exhaustion
-
----
-
-## 📋 Summary Checklist
-
-- ✅ **40 tasks** across 5 libraries (Next.js, React, AI SDK, tRPC, Zod)
-- ✅ **3 conditions** (baseline, context7, nia)
-- ✅ **3 repetitions** per task/condition (360 total items)
-- ✅ **Automated AST checks** for strict syntax validation
-- ✅ **Type checking** in version-specific TypeScript environments
-- ✅ **LLM judge scoring** for subjective criteria via OpenRouter API
-- ✅ **Hallucination classification** (6 types) for failure analysis
-- ✅ **Metrics computation** (pass rate, compliance, hallucination rate)
-- ✅ **Report generation** (JSON + human-readable ASCII tables)
-- ✅ **Concurrent execution** with configurable parallelism
-- ✅ **Reproducibility** with seeded RNG
-- ✅ **Graceful handling** of interrupts (SIGINT/SIGTERM)
-

@@ -1,5 +1,5 @@
 /**
- * Validation script to verify all 9 version-locked audit task JSON files
+ * Validation script to verify all 12 version-locked audit task JSON files
  * load correctly and meet structural requirements.
  *
  * Audit tasks have:
@@ -33,7 +33,7 @@ async function main() {
 	);
 	console.log(`\nVersion-locked audit tasks: ${auditTasks.length}`);
 
-	// Expected 9 audit tasks (1 pilot + 8 new)
+	// Expected 12 audit tasks
 	const expectedIds = [
 		"react-17-audit-v19-code",
 		"nextjs-13-audit-v16-code",
@@ -44,6 +44,9 @@ async function main() {
 		"zod-4-audit-v3-code",
 		"trpc-11-audit-v10-code",
 		"ai-sdk-4-audit-v3-code",
+		"trpc-11-audit-v10-subscriptions",
+		"zod-4-audit-v3-functions",
+		"ai-sdk-5-audit-v4-streaming",
 	];
 
 	if (auditTasks.length !== expectedIds.length) {
@@ -58,7 +61,7 @@ async function main() {
 		process.exit(1);
 	}
 
-	console.log("\nVerifying all 9 version-locked audit tasks:");
+	console.log("\nVerifying all 12 version-locked audit tasks:");
 	let allPassed = true;
 
 	for (const id of expectedIds) {
