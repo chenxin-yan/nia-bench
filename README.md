@@ -53,25 +53,54 @@ A task is considered **passed** when `finalScore >= 0.8`.
 
 ### Prerequisites
 
-- [Bun](https://bun.sh/) runtime
+- [Bun](https://bun.sh/) (v1.1+) runtime
 - [OpenCode CLI](https://github.com/opencode-ai/opencode) installed and available on PATH
 - An [OpenRouter](https://openrouter.ai/) API key (for LLM judge evaluation)
-- A context7 API key
-- a Nia Api Key
+- A [Context7](https://context7.com/) API key
+- A [Nia](https://www.trynia.ai/) API key
 
 ### Setup
 
 ```bash
-# Clone the repository
+# 1. Clone the repository
 git clone https://github.com/chenxin-yan/nia-bench.git
 cd nia-bench
 
-# Install dependencies
+# 2. Install project dependencies
 bun install
 
-# Set up environment
+# 3. Install typecheck environment dependencies
+#    Each subdirectory under typecheck-envs/ has its own package.json
+#    with pinned library versions. These must be installed separately.
+for dir in typecheck-envs/*/; do
+  (cd "$dir" && bun install)
+done
+
+# 4. Set up environment variables
 cp .env.example .env
-# Edit .env and add your OPENROUTER_API_KEY
+```
+
+Then edit `.env` and fill in your API keys:
+
+```env
+OPENROUTER_API_KEY=sk-or-...    # Required — used by the LLM judge
+CONTEXT7_API_KEY=...             # Required for the Context7 condition
+NIA_API_KEY=...                  # Required for the Nia condition
+```
+
+### Verify Setup
+
+```bash
+# Run type checking (should pass with no errors)
+bun run check:types
+
+# Run the test suite
+bun test
+
+# Validate all task definitions
+bun run scripts/validate-bleeding-edge-tasks.ts
+bun run scripts/validate-version-locked-write-tasks.ts
+bun run scripts/validate-version-locked-audit-tasks.ts
 ```
 
 ### Run the Benchmark
