@@ -67,8 +67,14 @@ export interface Report {
 	generatedAt: string;
 	/** Source results directory */
 	resultsDir: string;
-	/** Total unique tasks in the results */
+	/** Total unique tasks with at least one result */
 	totalTasks: number;
+	/**
+	 * Expected total tasks from the run configuration (from run-meta.json).
+	 * Null if run-meta.json is not available. When this differs from totalTasks,
+	 * some tasks had zero successful completions.
+	 */
+	expectedTotalTasks: number | null;
 	/** Total result files processed */
 	totalResults: number;
 	/** Conditions found in the results */
@@ -184,11 +190,15 @@ export function computeMetrics(results: EvaluationResult[]): MetricsGroup {
 			passedTasks++;
 		}
 
-		// Task has hallucinations if ANY rep has >= 1 hallucination
-		const hasHallucination = taskResults.some(
+		// Task has hallucinations if a MAJORITY of reps have >= 1 hallucination.
+		// Using majority instead of "any" prevents a single noisy rep from
+		// inflating the hallucination rate, especially when judge disagreements
+		// cause spurious hallucination classifications.
+		const repsWithHallucination = taskResults.filter(
 			(r) => r.hallucinations.types.length > 0,
-		);
-		if (hasHallucination) {
+		).length;
+		const majorityThreshold = Math.ceil(taskResults.length / 2);
+		if (repsWithHallucination >= majorityThreshold) {
 			hallucinatedTasks++;
 		}
 
@@ -297,7 +307,31 @@ interface TaskMetadata {
 }
 
 /**
- * Infers task metadata from the taskId.
+ * Extracts task metadata from an EvaluationResult.
+ *
+ * Prefers the `category`, `library`, and `targetVersion` fields stored
+ * directly on the result (populated since the fix that added them to
+ * EvaluationResult). Falls back to inference from the taskId for older
+ * result files that lack these fields.
+ */
+export function extractTaskMetadata(result: EvaluationResult): TaskMetadata {
+	if (result.category && result.library && result.targetVersion) {
+		return {
+			category: result.category,
+			library: result.library,
+			targetVersion: result.targetVersion,
+		};
+	}
+	// Fallback for older result files without stored metadata
+	return inferTaskMetadata(result.taskId);
+}
+
+/**
+ * Infers task metadata from the taskId string.
+ *
+ * This is a FALLBACK for older result files that don't have category/library/
+ * targetVersion stored directly. New results should use extractTaskMetadata()
+ * which reads these fields from the EvaluationResult.
  *
  * Task ID patterns:
  * - nextjs-16-proxy-ts, nextjs-13-sync-request-apis, nextjs-16-audit-v15-code
@@ -306,10 +340,7 @@ interface TaskMetadata {
  * - trpc-11-transformer-link, trpc-10-client-transformer, trpc-11-audit-v10-code
  * - zod-4-top-level-validators, zod-3-chained-validators, zod-4-audit-v3-code
  */
-export function inferTaskMetadata(
-	taskId: string,
-	resultsDir?: string,
-): TaskMetadata {
+export function inferTaskMetadata(taskId: string): TaskMetadata {
 	// Default values
 	let category = "unknown";
 	let library = "unknown";
@@ -346,8 +377,6 @@ export function inferTaskMetadata(
 		// If we can't determine from the taskId alone, try to infer from known patterns
 		category = inferCategoryFromTaskId(taskId);
 	}
-
-	void resultsDir; // Reserved for future use (loading task JSON files)
 
 	return { category, library, targetVersion };
 }
@@ -402,7 +431,13 @@ export function buildTaskDetails(results: EvaluationResult[]): TaskDetail[] {
 	const details: TaskDetail[] = [];
 
 	for (const [taskId, taskResults] of taskGroups) {
-		const metadata = inferTaskMetadata(taskId);
+		// Use the first result's stored metadata (all results for the same taskId
+		// share the same category/library/version). Falls back to inference for
+		// older result files.
+		const firstResult = taskResults[0];
+		const metadata = firstResult
+			? extractTaskMetadata(firstResult)
+			: inferTaskMetadata(taskId);
 
 		// Group by condition within this task
 		const conditionGroups = groupBy(taskResults, (r) => r.condition);
@@ -467,11 +502,24 @@ export function buildTaskDetails(results: EvaluationResult[]): TaskDetail[] {
 export async function generateReport(runDir: string): Promise<Report> {
 	const results = await loadResults(runDir);
 
+	// Try to load expected total tasks from run-meta.json
+	let expectedTotalTasks: number | null = null;
+	try {
+		const metaContent = await readFile(join(runDir, "run-meta.json"), "utf-8");
+		const meta = JSON.parse(metaContent) as { totalTasks?: number };
+		if (typeof meta.totalTasks === "number") {
+			expectedTotalTasks = meta.totalTasks;
+		}
+	} catch {
+		// run-meta.json may not exist (e.g., for manually constructed result dirs)
+	}
+
 	if (results.length === 0) {
 		return {
 			generatedAt: new Date().toISOString(),
 			resultsDir: runDir,
 			totalTasks: 0,
+			expectedTotalTasks,
 			totalResults: 0,
 			conditions: [],
 			overall: [],
@@ -504,7 +552,7 @@ export async function generateReport(runDir: string): Promise<Report> {
 	const resultsByCategory = new Map<string, EvaluationResult[]>();
 
 	for (const result of results) {
-		const metadata = inferTaskMetadata(result.taskId);
+		const metadata = extractTaskMetadata(result);
 		const key = metadata.category;
 		const existing = resultsByCategory.get(key) ?? [];
 		existing.push(result);
@@ -531,7 +579,7 @@ export async function generateReport(runDir: string): Promise<Report> {
 	const resultsByLibrary = new Map<string, EvaluationResult[]>();
 
 	for (const result of results) {
-		const metadata = inferTaskMetadata(result.taskId);
+		const metadata = extractTaskMetadata(result);
 		const key = metadata.library;
 		const existing = resultsByLibrary.get(key) ?? [];
 		existing.push(result);
@@ -570,6 +618,7 @@ export async function generateReport(runDir: string): Promise<Report> {
 		generatedAt: new Date().toISOString(),
 		resultsDir: runDir,
 		totalTasks: uniqueTaskIds.size,
+		expectedTotalTasks,
 		totalResults: results.length,
 		conditions,
 		overall,
@@ -658,6 +707,18 @@ export function formatReportText(report: Report): string {
 	lines.push(separator);
 	lines.push("                     NIA-BENCH RESULTS v1.0");
 	lines.push(separator);
+
+	// Show task coverage warning if some tasks had zero results
+	if (
+		report.expectedTotalTasks !== null &&
+		report.expectedTotalTasks > report.totalTasks
+	) {
+		const missing = report.expectedTotalTasks - report.totalTasks;
+		lines.push(
+			` WARNING: ${missing} of ${report.expectedTotalTasks} tasks had zero successful completions`,
+		);
+		lines.push(separator);
+	}
 
 	// Header row
 	let headerLine = padRight(" Metric", labelWidth);

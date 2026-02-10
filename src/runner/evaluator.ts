@@ -28,6 +28,12 @@ export interface EvaluationResult {
 	condition: string;
 	/** Repetition index (0-based) */
 	runIndex: number;
+	/** Task category from the task definition */
+	category: string;
+	/** Library name from the task definition */
+	library: string;
+	/** Target version from the task definition */
+	targetVersion: string;
 	/** Automated test score (AST checks + optional type check) as 0.0-1.0 */
 	testScore: number;
 	/** LLM judge score as 0.0-1.0 */
@@ -288,6 +294,9 @@ export async function evaluateCode(
 		taskId: task.id,
 		condition,
 		runIndex,
+		category: task.category,
+		library: task.library,
+		targetVersion: task.target_version,
 		testScore,
 		judgeScore,
 		finalScore,

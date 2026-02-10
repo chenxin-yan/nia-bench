@@ -3,7 +3,7 @@
 	"category": "version_locked_write",
 	"library": "next",
 	"target_version": "14.2.0",
-	"prompt": "This project uses **Next.js 14**. Create a dynamic page at `app/blog/[slug]/page.tsx` and a `generateMetadata` function for it. The page should display the blog post slug and the `page` search parameter. Write code that is correct for Next.js 14.",
+	"prompt": "This project uses **Next.js 14**. Create a dynamic page at `app/blog/[slug]/page.tsx` and a `generateMetadata` function for it. The page should display the blog post slug and the `page` search parameter. In Next.js 14, `params` and `searchParams` are plain objects passed directly to the component — they are NOT Promises and must NOT be awaited. Write code that is correct for Next.js 14.",
 	"context": {
 		"package_json": "{\n  \"dependencies\": {\n    \"next\": \"14.2.35\",\n    \"react\": \"18.3.1\",\n    \"react-dom\": \"18.3.1\"\n  }\n}"
 	},

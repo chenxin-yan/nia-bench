@@ -92,7 +92,7 @@ async function main() {
 		// Run AST checks on reference solution
 		if (task.test_spec.ast_checks.length > 0) {
 			const hasFileSpecificChecks = task.test_spec.ast_checks.some(
-				(c: any) => c.file,
+				(c) => "file" in c && c.file,
 			);
 
 			if (hasFileSpecificChecks) {
@@ -101,7 +101,7 @@ async function main() {
 				console.log(`    Multi-file: ${Object.keys(files).join(", ")}`);
 
 				for (const check of task.test_spec.ast_checks) {
-					const fileHint = (check as any).file;
+					const fileHint = "file" in check ? check.file : undefined;
 					if (fileHint) {
 						const matchingFile = Object.entries(files).find(
 							([name]) =>
@@ -128,7 +128,7 @@ async function main() {
 
 				// Run non-file-specific checks against concatenated code
 				const nonFileChecks = task.test_spec.ast_checks.filter(
-					(c: any) => !c.file,
+					(c) => !("file" in c && c.file),
 				);
 				if (nonFileChecks.length > 0) {
 					const fullCode = Object.values(files).join("\n\n");

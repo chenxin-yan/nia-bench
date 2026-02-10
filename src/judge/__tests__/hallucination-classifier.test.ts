@@ -303,7 +303,15 @@ describe("Test case 4: multiple hallucinations detection", () => {
 
 		const astResults: AstCheckResult[] = [];
 
+		// Include a core criterion failure so the judge hallucination is counted
 		const judgeResult = createMockJudgeResult([
+			{
+				name: "correct_usage",
+				verdict: "FAIL",
+				weight: 0.5,
+				evidence: "Wrong pattern used",
+				reasoning: "Agent used wrong pattern",
+			},
 			{
 				name: "no_hallucination",
 				verdict: "FAIL",
@@ -580,19 +588,39 @@ describe("AST check type classification mapping", () => {
 });
 
 describe("Judge evidence classification", () => {
-	test('classifies judge evidence with "import" and "wrong" as wrong_import_path', () => {
-		const task = createMockTask();
-		const astResults: AstCheckResult[] = [];
-
-		const judgeResult = createMockJudgeResult([
+	// Helper: creates a judge result with a core criterion failure alongside
+	// the no_hallucination FAIL, which is required for the classifier to count
+	// the judge-sourced hallucination (per the hasCoreFailure guard).
+	function createJudgeWithCoreFailure(
+		hallucinationEvidence: string,
+		hallucinationReasoning: string,
+	): JudgeResult {
+		return createMockJudgeResult([
+			{
+				name: "correct_usage",
+				verdict: "FAIL",
+				weight: 0.5,
+				evidence: "Wrong API used",
+				reasoning: "Incorrect implementation",
+			},
 			{
 				name: "no_hallucination",
 				verdict: "FAIL",
 				weight: 0.5,
-				evidence: "Wrong import path used for useActionState",
-				reasoning: "The import should be from react, not react-dom",
+				evidence: hallucinationEvidence,
+				reasoning: hallucinationReasoning,
 			},
 		]);
+	}
+
+	test('classifies judge evidence with "import" and "wrong" as wrong_import_path', () => {
+		const task = createMockTask();
+		const astResults: AstCheckResult[] = [];
+
+		const judgeResult = createJudgeWithCoreFailure(
+			"Wrong import path used for useActionState",
+			"The import should be from react, not react-dom",
+		);
 
 		const result = classifyHallucinations(task, "", astResults, judgeResult);
 		expect(result.types).toContain("wrong_import_path");
@@ -602,15 +630,10 @@ describe("Judge evidence classification", () => {
 		const task = createMockTask();
 		const astResults: AstCheckResult[] = [];
 
-		const judgeResult = createMockJudgeResult([
-			{
-				name: "no_hallucination",
-				verdict: "FAIL",
-				weight: 0.5,
-				evidence: "Incorrect parameter passed to cookies function",
-				reasoning: "cookies() does not accept parameter in this version",
-			},
-		]);
+		const judgeResult = createJudgeWithCoreFailure(
+			"Incorrect parameter passed to cookies function",
+			"cookies() does not accept parameter in this version",
+		);
 
 		const result = classifyHallucinations(task, "", astResults, judgeResult);
 		expect(result.types).toContain("wrong_parameter");
@@ -620,15 +643,10 @@ describe("Judge evidence classification", () => {
 		const task = createMockTask();
 		const astResults: AstCheckResult[] = [];
 
-		const judgeResult = createMockJudgeResult([
-			{
-				name: "no_hallucination",
-				verdict: "FAIL",
-				weight: 0.5,
-				evidence: "Used future API that is not available in this version",
-				reasoning: "This API was introduced in a newer version",
-			},
-		]);
+		const judgeResult = createJudgeWithCoreFailure(
+			"Used future API that is not available in this version",
+			"This API was introduced in a newer version",
+		);
 
 		const result = classifyHallucinations(task, "", astResults, judgeResult);
 		expect(result.types).toContain("future_api");
@@ -638,15 +656,10 @@ describe("Judge evidence classification", () => {
 		const task = createMockTask();
 		const astResults: AstCheckResult[] = [];
 
-		const judgeResult = createMockJudgeResult([
-			{
-				name: "no_hallucination",
-				verdict: "FAIL",
-				weight: 0.5,
-				evidence: "Mixed APIs from different versions detected",
-				reasoning: "Code uses patterns from both v17 and v19",
-			},
-		]);
+		const judgeResult = createJudgeWithCoreFailure(
+			"Mixed APIs from different versions detected",
+			"Code uses patterns from both v17 and v19",
+		);
 
 		const result = classifyHallucinations(task, "", astResults, judgeResult);
 		expect(result.types).toContain("version_mismatch");
@@ -656,18 +669,42 @@ describe("Judge evidence classification", () => {
 		const task = createMockTask();
 		const astResults: AstCheckResult[] = [];
 
+		const judgeResult = createJudgeWithCoreFailure(
+			"Code contains incorrect API usage",
+			"The implementation does not match the specification",
+		);
+
+		const result = classifyHallucinations(task, "", astResults, judgeResult);
+		expect(result.types).toContain("invented_method");
+	});
+
+	test("suppresses judge hallucination when all core criteria pass", () => {
+		// When only no_hallucination fails but all core criteria pass,
+		// the hallucination is likely from supplementary code and should be suppressed
+		const task = createMockTask();
+		const astResults: AstCheckResult[] = [];
+
 		const judgeResult = createMockJudgeResult([
+			{
+				name: "correct_usage",
+				verdict: "PASS",
+				weight: 0.5,
+				evidence: "Correct API used",
+				reasoning: "Correct implementation",
+			},
 			{
 				name: "no_hallucination",
 				verdict: "FAIL",
 				weight: 0.5,
-				evidence: "Code contains incorrect API usage",
-				reasoning: "The implementation does not match the specification",
+				evidence: "Extra import from ai/react not in reference docs",
+				reasoning: "Agent added supplementary code not in reference",
 			},
 		]);
 
 		const result = classifyHallucinations(task, "", astResults, judgeResult);
-		expect(result.types).toContain("invented_method");
+		// Should be empty — the lone no_hallucination FAIL is suppressed
+		expect(result.types).toHaveLength(0);
+		expect(result.details).toHaveLength(0);
 	});
 });
 

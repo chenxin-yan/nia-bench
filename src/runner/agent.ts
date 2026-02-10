@@ -487,13 +487,18 @@ export async function runAgent(
 
 		const durationMs = Date.now() - startTime;
 
-		// Step 5: Extract code from both sources
+		// Step 5: Extract code from both sources and merge
 		const diskFiles = await extractCodeFromDisk(workDir);
 		const responseFiles = extractCodeFromResponse(rawOutput);
 
-		// Prefer files on disk (more complete), fall back to extracted code blocks
-		const extractedFiles: Record<string, string> =
-			Object.keys(diskFiles).length > 0 ? diskFiles : responseFiles;
+		// Merge both sources: disk files take precedence per-filename, but
+		// response-extracted files fill in any gaps. This prevents the case where
+		// the agent writes some helper files to disk but puts the primary solution
+		// in a markdown code block, which would otherwise be silently dropped.
+		const extractedFiles: Record<string, string> = {
+			...responseFiles,
+			...diskFiles,
+		};
 
 		return {
 			taskId: task.id,

@@ -335,6 +335,12 @@ function inferVersionDirection(
 /**
  * Extracts hallucination signals from judge criterion results.
  * Specifically looks at `no_hallucination` criteria that received FAIL verdicts.
+ *
+ * To avoid inflating hallucination counts from supplementary code the agent
+ * writes beyond the task scope (e.g. a UI component for a route-handler task),
+ * we only count judge-sourced hallucinations when at least one non-hallucination
+ * rubric criterion also failed. If all core criteria pass, a lone
+ * `no_hallucination` FAIL is likely triggered by extra code and is excluded.
  */
 function classifyFromJudgeResults(
 	_task: Task,
@@ -342,11 +348,24 @@ function classifyFromJudgeResults(
 ): HallucinationDetail[] {
 	const details: HallucinationDetail[] = [];
 
+	// Check whether any core (non-hallucination) criterion failed
+	const hasCoreFailure = judgeResult.criteria.some(
+		(c) => c.verdict === "FAIL" && !isHallucinationCriterion(c.name),
+	);
+
 	for (const criterion of judgeResult.criteria) {
 		if (
 			criterion.verdict === "FAIL" &&
 			isHallucinationCriterion(criterion.name)
 		) {
+			// Only count judge-sourced hallucinations when the core task also has
+			// failures. A lone no_hallucination FAIL with all other criteria passing
+			// typically means the agent wrote correct core code but added
+			// supplementary code the judge flagged — not a true hallucination.
+			if (!hasCoreFailure) {
+				continue;
+			}
+
 			// The judge identified a hallucination — classify based on evidence
 			const hallucinationType = inferTypeFromJudgeEvidence(criterion);
 			details.push({

@@ -7,6 +7,7 @@ import {
 	buildTaskDetails,
 	computeHallucinationDistribution,
 	computeMetrics,
+	extractTaskMetadata,
 	formatReportText,
 	generateReport,
 	inferTaskMetadata,
@@ -26,6 +27,9 @@ function mockResult(
 		taskId: "nextjs-16-proxy-ts",
 		condition: "baseline",
 		runIndex: 0,
+		category: "bleeding_edge",
+		library: "next",
+		targetVersion: "16",
 		testScore: 1.0,
 		judgeScore: 0.8,
 		finalScore: 0.88,
@@ -373,6 +377,36 @@ describe("inferTaskMetadata", () => {
 	});
 });
 
+// --- extractTaskMetadata tests ---
+
+describe("extractTaskMetadata", () => {
+	test("uses stored metadata when present", () => {
+		const result = mockResult({
+			taskId: "nextjs-16-proxy-ts",
+			category: "bleeding_edge",
+			library: "next",
+			targetVersion: "16",
+		});
+		const meta = extractTaskMetadata(result);
+		expect(meta.category).toBe("bleeding_edge");
+		expect(meta.library).toBe("next");
+		expect(meta.targetVersion).toBe("16");
+	});
+
+	test("falls back to inference when metadata fields are empty", () => {
+		const result = mockResult({
+			taskId: "react-17-render-entry",
+			category: "",
+			library: "",
+			targetVersion: "",
+		});
+		const meta = extractTaskMetadata(result);
+		expect(meta.category).toBe("version_locked_write");
+		expect(meta.library).toBe("react");
+		expect(meta.targetVersion).toBe("17");
+	});
+});
+
 // --- buildTaskDetails tests ---
 
 describe("buildTaskDetails", () => {
@@ -566,12 +600,18 @@ describe("generateReport", () => {
 			// bleeding_edge task
 			mockResult({
 				taskId: "nextjs-16-proxy-ts",
+				category: "bleeding_edge",
+				library: "next",
+				targetVersion: "16",
 				condition: "baseline",
 				finalScore: 0.9,
 			}),
 			// version_locked_write task
 			mockResult({
 				taskId: "react-17-render-entry",
+				category: "version_locked_write",
+				library: "react",
+				targetVersion: "17",
 				condition: "baseline",
 				finalScore: 0.7,
 			}),
@@ -637,16 +677,25 @@ describe("generateReport", () => {
 		const results: EvaluationResult[] = [
 			mockResult({
 				taskId: "nextjs-16-proxy-ts",
+				category: "bleeding_edge",
+				library: "next",
+				targetVersion: "16",
 				condition: "baseline",
 				finalScore: 0.8,
 			}),
 			mockResult({
 				taskId: "react-17-render-entry",
+				category: "version_locked_write",
+				library: "react",
+				targetVersion: "17",
 				condition: "baseline",
 				finalScore: 0.9,
 			}),
 			mockResult({
 				taskId: "zod-3-chained-validators",
+				category: "version_locked_write",
+				library: "zod",
+				targetVersion: "3",
 				condition: "baseline",
 				finalScore: 0.7,
 			}),
@@ -806,6 +855,7 @@ describe("formatReportText", () => {
 			generatedAt: new Date().toISOString(),
 			resultsDir: "/tmp/test",
 			totalTasks: 1,
+			expectedTotalTasks: null,
 			totalResults: 1,
 			conditions: ["nia"],
 			overall: [
@@ -837,6 +887,7 @@ describe("formatReportText", () => {
 			generatedAt: new Date().toISOString(),
 			resultsDir: "/tmp/test",
 			totalTasks: 1,
+			expectedTotalTasks: null,
 			totalResults: 1,
 			conditions: ["baseline", "nia"],
 			overall: [
@@ -876,6 +927,7 @@ describe("formatReportText", () => {
 			generatedAt: new Date().toISOString(),
 			resultsDir: "/tmp/test",
 			totalTasks: 0,
+			expectedTotalTasks: null,
 			totalResults: 0,
 			conditions: [],
 			overall: [],
