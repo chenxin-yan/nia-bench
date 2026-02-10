@@ -1,7 +1,7 @@
 import { resolve } from "node:path";
 import { loadTasks } from "@/loader";
 import type { Condition } from "./agent";
-import { checkOpencodeBinary, runAgent } from "./agent";
+import { checkOpencodeBinary, DEFAULT_MODEL, runAgent } from "./agent";
 import type { EvaluatorConfig } from "./evaluator";
 import { evaluateCode } from "./evaluator";
 import { generateAndWriteReport } from "./reporter";
@@ -376,8 +376,9 @@ export async function runBenchmark(config: CliConfig): Promise<void> {
 	console.log(
 		`Work queue: ${workQueue.length} items (${tasks.length} tasks x ${conditions.length} conditions x ${config.reps} reps)`,
 	);
+	const resolvedModel = config.model ?? DEFAULT_MODEL;
 	console.log(
-		`Seed: ${config.seed} | Parallel: ${config.parallel}${config.model ? ` | Model: ${config.model}` : ""}`,
+		`Seed: ${config.seed} | Parallel: ${config.parallel} | Model: ${resolvedModel}`,
 	);
 
 	// Dry run: print execution plan and exit
@@ -423,6 +424,7 @@ export async function runBenchmark(config: CliConfig): Promise<void> {
 		reps: config.reps,
 		parallel: config.parallel,
 		seed: config.seed,
+		model: resolvedModel,
 		cliArgs: process.argv.slice(2),
 		status: "running",
 		completedItems: 0,

@@ -450,6 +450,7 @@ describe("result-store", () => {
 			reps: 3,
 			parallel: 2,
 			seed: 42,
+			model: "anthropic/claude-sonnet-4-20250514",
 			cliArgs: ["--reps", "3", "--parallel", "2"],
 			status: "running",
 			completedItems: 0,
@@ -462,6 +463,7 @@ describe("result-store", () => {
 		const parsed = JSON.parse(content) as RunMetadata;
 		expect(parsed.totalTasks).toBe(5);
 		expect(parsed.seed).toBe(42);
+		expect(parsed.model).toBe("anthropic/claude-sonnet-4-20250514");
 		expect(parsed.status).toBe("running");
 	});
 
@@ -476,6 +478,7 @@ describe("result-store", () => {
 			reps: 1,
 			parallel: 1,
 			seed: 42,
+			model: "anthropic/claude-sonnet-4-20250514",
 			cliArgs: [],
 			status: "running",
 			completedItems: 0,

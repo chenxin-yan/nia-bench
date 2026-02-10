@@ -129,7 +129,7 @@ const CONFIG_FILE_MAP: Record<Condition, string> = {
  * opencode to prevent env-based API keys (e.g., GROQ_API_KEY) from
  * overriding the intended model in .opencode.json config.
  */
-const DEFAULT_MODEL = "anthropic/claude-sonnet-4-20250514";
+export const DEFAULT_MODEL = "anthropic/claude-sonnet-4-20250514";
 
 /**
  * Per-condition prompt suffixes appended to the task prompt.
