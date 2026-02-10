@@ -259,6 +259,53 @@ describe("injectConfig", () => {
 		expect(baselineModel).toBe(context7Model);
 		expect(context7Model).toBe(niaModel);
 	});
+
+	test("substitutes $MODEL placeholder with custom model from config", async () => {
+		const customModel = "openai/gpt-4o";
+		const workDir = await createWorkDir("task-1", "baseline", 0, TEST_TEMP_DIR);
+		await injectConfig(workDir, "baseline", {
+			mcpConfigDir: getMcpConfigDir(),
+			model: customModel,
+		});
+
+		const configPath = join(workDir, ".opencode.json");
+		const content = await readFile(configPath, "utf-8");
+		const config = JSON.parse(content);
+
+		// All agent models should use the custom model
+		expect(config.agents.coder.model).toBe(customModel);
+		expect(config.agents.task.model).toBe(customModel);
+		expect(config.agents.title.model).toBe(customModel);
+		expect(config.agents.summarizer.model).toBe(customModel);
+
+		// No $MODEL placeholders should remain
+		expect(content).not.toContain("$MODEL");
+	});
+
+	test("custom model override applies consistently across all conditions", async () => {
+		const customModel = "google/gemini-2.5-pro";
+		const conditions: Condition[] = ["baseline", "context7", "nia"];
+
+		for (const condition of conditions) {
+			const workDir = await createWorkDir(
+				"task-1",
+				condition,
+				0,
+				TEST_TEMP_DIR,
+			);
+			await injectConfig(workDir, condition, {
+				mcpConfigDir: getMcpConfigDir(),
+				model: customModel,
+			});
+
+			const content = await readFile(join(workDir, ".opencode.json"), "utf-8");
+			const config = JSON.parse(content);
+
+			expect(config.agents.coder.model).toBe(customModel);
+			expect(config.agents.task.model).toBe(customModel);
+			expect(content).not.toContain("$MODEL");
+		}
+	});
 });
 
 describe("injectContext", () => {

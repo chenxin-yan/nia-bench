@@ -1,5 +1,4 @@
 import {
-	copyFile,
 	mkdir,
 	readdir,
 	readFile,
@@ -163,8 +162,14 @@ export async function createWorkDir(
 }
 
 /**
- * Copies the condition-specific .opencode.json config into the working directory.
- * opencode loads config from CWD, so placing it in the workdir ensures the correct config.
+ * Reads the condition-specific .opencode.json template, substitutes the $MODEL
+ * placeholder with the resolved model, and writes the result into the working
+ * directory. opencode loads config from CWD, so placing it in the workdir
+ * ensures the correct config.
+ *
+ * The model is resolved from (highest priority first):
+ *   1. config.model (--model CLI flag)
+ *   2. DEFAULT_MODEL constant
  */
 export async function injectConfig(
 	workDir: string,
@@ -174,8 +179,13 @@ export async function injectConfig(
 	const mcpConfigDir = resolveMcpConfigDir(config);
 	const configFileName = CONFIG_FILE_MAP[condition];
 	const srcPath = join(mcpConfigDir, configFileName);
+	const model = config?.model ?? DEFAULT_MODEL;
+
+	const template = await readFile(srcPath, "utf-8");
+	const resolved = template.replaceAll("$MODEL", model);
+
 	const destPath = join(workDir, ".opencode.json");
-	await copyFile(srcPath, destPath);
+	await writeFile(destPath, resolved, "utf-8");
 }
 
 /**
