@@ -3,7 +3,7 @@ import { classifyHallucinations, scoreWithRubric } from "@/judge";
 import type { AstCheckResult, TypeCheckResult } from "@/tests";
 import { runAstChecks, runTypeCheck, runTypeCheckMultiFile } from "@/tests";
 import type { AstCheck, Task } from "@/types/task";
-import type { ToolCall } from "./agent";
+import type { AgentError, ToolCall } from "./agent";
 
 // --- Types ---
 
@@ -53,6 +53,8 @@ export interface EvaluationResult {
 	extractedFiles: Record<string, string>;
 	/** Tool calls made by the agent during execution */
 	toolCalls: ToolCall[];
+	/** Agent error if the agent failed to execute (null on success) */
+	agentError: AgentError | null;
 }
 
 // --- Helper Functions ---
@@ -162,6 +164,7 @@ function concatenateFilesForJudge(
  * @param runIndex - Repetition index (for result metadata)
  * @param config - Evaluator configuration
  * @param toolCalls - Tool calls made by the agent (for tracking, not scoring)
+ * @param agentError - Error from the agent execution, if any
  * @returns Full evaluation result
  */
 export async function evaluateCode(
@@ -171,10 +174,16 @@ export async function evaluateCode(
 	runIndex: number,
 	config: EvaluatorConfig = {},
 	toolCalls: ToolCall[] = [],
+	agentError: AgentError | null = null,
 ): Promise<EvaluationResult> {
 	// --- Layer 1: AST Checks ---
 	const astChecks = task.test_spec.ast_checks;
 	const allAstResults: AstCheckResult[] = [];
+
+	// Build a descriptive "no code" message that includes the agent error if available
+	const noCodeMessage = agentError
+		? `Agent error: ${agentError.name}: ${agentError.message}`
+		: "No code files extracted from agent output";
 
 	if (astChecks.length > 0) {
 		// Group checks by file
@@ -190,8 +199,8 @@ export async function evaluateCode(
 						check,
 						passed: false,
 						message: fileKey
-							? `No code found for file '${fileKey}'`
-							: "No code files extracted from agent output",
+							? `No code found for file '${fileKey}'${agentError ? ` (${noCodeMessage})` : ""}`
+							: noCodeMessage,
 					});
 				}
 			} else {
@@ -215,7 +224,7 @@ export async function evaluateCode(
 		if (filenames.length === 0) {
 			typeCheckResult = {
 				passed: false,
-				errors: ["No code files extracted from agent output"],
+				errors: [noCodeMessage],
 			};
 		} else if (filenames.length === 1) {
 			const key = filenames[0];
@@ -311,5 +320,6 @@ export async function evaluateCode(
 		hallucinations,
 		extractedFiles,
 		toolCalls,
+		agentError,
 	};
 }

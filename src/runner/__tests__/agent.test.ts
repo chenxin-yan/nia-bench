@@ -15,6 +15,7 @@ import {
 	createWorkDir,
 	extractCodeFromDisk,
 	extractCodeFromResponse,
+	extractErrors,
 	extractToolCalls,
 	injectConfig,
 	injectContext,
@@ -1034,6 +1035,106 @@ describe("extractToolCalls", () => {
 		expect(toolCalls).toHaveLength(2);
 		expect(toolCalls[0]?.callId).toBe("c1");
 		expect(toolCalls[1]?.callId).toBe("c2");
+	});
+});
+
+describe("extractErrors", () => {
+	test("extracts error from NDJSON with error event", () => {
+		const ndjson = JSON.stringify({
+			type: "error",
+			timestamp: 123,
+			sessionID: "ses_1",
+			error: {
+				name: "UnknownError",
+				data: { message: "Error: Token refresh failed: 400" },
+			},
+		});
+
+		const error = extractErrors(ndjson);
+		expect(error).not.toBeNull();
+		expect(error?.name).toBe("UnknownError");
+		expect(error?.message).toBe("Error: Token refresh failed: 400");
+	});
+
+	test("returns null when no error events", () => {
+		const ndjson = makeNdjsonResponse("Hello world");
+		const error = extractErrors(ndjson);
+		expect(error).toBeNull();
+	});
+
+	test("returns null for empty input", () => {
+		const error = extractErrors("");
+		expect(error).toBeNull();
+	});
+
+	test("combines multiple error events into single message", () => {
+		const events = [
+			{
+				type: "error",
+				timestamp: 1,
+				sessionID: "s",
+				error: { name: "APIError", data: { message: "Rate limit exceeded" } },
+			},
+			{
+				type: "error",
+				timestamp: 2,
+				sessionID: "s",
+				error: { name: "APIError", data: { message: "Retry failed" } },
+			},
+		];
+		const ndjson = events.map((e) => JSON.stringify(e)).join("\n");
+
+		const error = extractErrors(ndjson);
+		expect(error).not.toBeNull();
+		expect(error?.name).toBe("APIError");
+		expect(error?.message).toContain("Rate limit exceeded");
+		expect(error?.message).toContain("Retry failed");
+	});
+
+	test("handles error event without data.message", () => {
+		const ndjson = JSON.stringify({
+			type: "error",
+			timestamp: 123,
+			sessionID: "ses_1",
+			error: { name: "TimeoutError" },
+		});
+
+		const error = extractErrors(ndjson);
+		expect(error).not.toBeNull();
+		expect(error?.name).toBe("TimeoutError");
+		expect(error?.message).toBe("TimeoutError");
+	});
+
+	test("ignores non-error events in mixed output", () => {
+		const events = [
+			{
+				type: "text",
+				timestamp: 1,
+				sessionID: "s",
+				part: { type: "text", text: "some text" },
+			},
+			{
+				type: "error",
+				timestamp: 2,
+				sessionID: "s",
+				error: {
+					name: "AuthError",
+					data: { message: "Invalid API key" },
+				},
+			},
+			{
+				type: "step_finish",
+				timestamp: 3,
+				sessionID: "s",
+				part: { type: "step-finish" },
+			},
+		];
+		const ndjson = events.map((e) => JSON.stringify(e)).join("\n");
+
+		const error = extractErrors(ndjson);
+		expect(error).not.toBeNull();
+		expect(error?.name).toBe("AuthError");
+		expect(error?.message).toBe("Invalid API key");
 	});
 });
 

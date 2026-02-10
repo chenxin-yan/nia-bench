@@ -27,6 +27,16 @@ export interface ToolCall {
 	input?: Record<string, unknown>;
 }
 
+/**
+ * Structured error extracted from the agent's output or process failure.
+ */
+export interface AgentError {
+	/** Short error classification (e.g., "UnknownError", "APIError", "ProcessError") */
+	name: string;
+	/** Human-readable error message */
+	message: string;
+}
+
 export interface AgentResult {
 	/** Task ID from the task definition */
 	taskId: string;
@@ -46,6 +56,8 @@ export interface AgentResult {
 	workDir: string;
 	/** Tool calls made by the agent during execution */
 	toolCalls: ToolCall[];
+	/** Error information if the agent failed (null on success) */
+	error: AgentError | null;
 }
 
 export interface AgentRunnerConfig {
@@ -282,6 +294,38 @@ export function parseOpenCodeEvents(rawOutput: string): OpenCodeEvent[] {
 	}
 
 	return events;
+}
+
+/**
+ * Extracts error information from the agent's streaming NDJSON output.
+ *
+ * Scans for `error` type events and returns a structured AgentError if found.
+ * Multiple error events are concatenated into a single error message.
+ * Returns null if no errors were found.
+ */
+export function extractErrors(rawOutput: string): AgentError | null {
+	const events = parseOpenCodeEvents(rawOutput);
+	const errorEvents = events.filter((e) => e.type === "error" && e.error);
+
+	if (errorEvents.length === 0) return null;
+
+	// Use the first error's name, and combine all messages
+	const firstError = errorEvents[0]?.error;
+	const name = firstError?.name ?? "UnknownError";
+
+	const messages = errorEvents
+		.map((e) => {
+			const data = e.error?.data;
+			const msg =
+				data && typeof data.message === "string" ? data.message : null;
+			return msg ?? e.error?.name ?? "Unknown error";
+		})
+		.filter(Boolean);
+
+	const message =
+		messages.length > 0 ? messages.join("; ") : "Unknown agent error";
+
+	return { name, message };
 }
 
 /**
@@ -567,7 +611,17 @@ export async function runAgent(
 
 		const durationMs = Date.now() - startTime;
 
-		// Step 5: Extract code from both sources and merge
+		// Step 5: Extract errors from agent output (NDJSON error events),
+		// or synthesize one from a process-level failure (e.g., spawn error).
+		let error = extractErrors(rawOutput);
+		if (!error && exitCode !== 0) {
+			error = {
+				name: "ProcessError",
+				message: `opencode exited with code ${exitCode}`,
+			};
+		}
+
+		// Step 6: Extract code from both sources and merge
 		const diskFiles = await extractCodeFromDisk(workDir);
 		const responseFiles = extractCodeFromResponse(rawOutput);
 
@@ -580,7 +634,7 @@ export async function runAgent(
 			...diskFiles,
 		};
 
-		// Step 5b: Extract tool calls for usage tracking
+		// Step 6b: Extract tool calls for usage tracking
 		const toolCalls = extractToolCalls(rawOutput);
 
 		return {
@@ -593,6 +647,7 @@ export async function runAgent(
 			durationMs,
 			workDir,
 			toolCalls,
+			error,
 		};
 	} finally {
 		// Step 6: Cleanup (unless keepWorkdirs is true)

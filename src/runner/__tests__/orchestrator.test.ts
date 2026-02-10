@@ -389,6 +389,7 @@ describe("result-store", () => {
 			hallucinations: { types: [], details: [] },
 			extractedFiles: { "file.ts": "const x = 1;" },
 			toolCalls: [],
+			agentError: null,
 		};
 
 		const filePath = await storeResult(runDir, result);
@@ -420,6 +421,7 @@ describe("result-store", () => {
 			hallucinations: { types: [], details: [] },
 			extractedFiles: {},
 			toolCalls: [],
+			agentError: null,
 		};
 
 		const result1: EvaluationResult = {

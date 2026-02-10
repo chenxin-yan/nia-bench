@@ -51,6 +51,7 @@ function mockResult(
 		hallucinations: { types: [], details: [] },
 		extractedFiles: { "proxy.ts": "export function proxy() {}" },
 		toolCalls: [],
+		agentError: null,
 		...overrides,
 	};
 }

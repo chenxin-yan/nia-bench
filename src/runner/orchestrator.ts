@@ -486,6 +486,20 @@ export async function runBenchmark(config: CliConfig): Promise<void> {
 				model: config.model,
 			});
 
+			// Log warnings for agent failures
+			if (agentResult.error) {
+				console.warn(
+					`  ⚠ Agent error [${item.taskId}/${item.condition}/rep${item.repIndex}]: ${agentResult.error.name}: ${agentResult.error.message}`,
+				);
+			} else if (
+				Object.keys(agentResult.extractedFiles).length === 0 &&
+				agentResult.exitCode === 0
+			) {
+				console.warn(
+					`  ⚠ No code extracted [${item.taskId}/${item.condition}/rep${item.repIndex}]: Agent produced no code files (exit code 0)`,
+				);
+			}
+
 			// Evaluate result
 			const evalResult = await evaluateCode(
 				task,
@@ -494,6 +508,7 @@ export async function runBenchmark(config: CliConfig): Promise<void> {
 				item.repIndex,
 				evaluatorConfig,
 				agentResult.toolCalls,
+				agentResult.error,
 			);
 
 			// Store result
