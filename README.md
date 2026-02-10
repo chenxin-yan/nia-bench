@@ -43,7 +43,7 @@ Each generated code sample goes through a multi-stage evaluation:
 1. **AST Checks** — Structural validation using [ts-morph](https://github.com/dsherret/ts-morph) (import presence/absence, exported functions, call expressions, directives, etc.)
 2. **Type Checking** — Run `tsc` in version-specific TypeScript environments with pinned library versions
 3. **Hallucination Classification** — Map failures to categories: `invented_method`, `wrong_parameter`, `outdated_api`, `future_api`, `wrong_import_path`, `version_mismatch`
-4. **LLM Judge Scoring** — Rubric-based evaluation via OpenRouter API using Claude Opus
+4. **LLM Judge Scoring** — Rubric-based evaluation via OpenRouter API using GPT-5 mini
 
 **Final Score** = `0.6 * testScore + 0.4 * judgeScore`
 
@@ -56,6 +56,8 @@ A task is considered **passed** when `finalScore >= 0.8`.
 - [Bun](https://bun.sh/) runtime
 - [OpenCode CLI](https://github.com/opencode-ai/opencode) installed and available on PATH
 - An [OpenRouter](https://openrouter.ai/) API key (for LLM judge evaluation)
+- A context7 API key
+- a Nia Api Key
 
 ### Setup
 

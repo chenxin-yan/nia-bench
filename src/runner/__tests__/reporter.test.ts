@@ -1104,7 +1104,6 @@ describe("computeToolUsageMetrics", () => {
 	test("handles results with missing toolCalls (backward compatibility)", () => {
 		// Simulate older result files that don't have toolCalls
 		const result = mockResult();
-		// biome-ignore lint/performance/noDelete: testing backward compat
 		delete (result as unknown as Record<string, unknown>).toolCalls;
 
 		const metrics = computeToolUsageMetrics([result]);
