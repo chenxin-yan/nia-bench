@@ -493,6 +493,7 @@ export async function runBenchmark(config: CliConfig): Promise<void> {
 				item.condition,
 				item.repIndex,
 				evaluatorConfig,
+				agentResult.toolCalls,
 			);
 
 			// Store result

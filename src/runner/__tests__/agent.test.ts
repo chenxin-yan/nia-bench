@@ -10,10 +10,12 @@ import {
 import { join } from "node:path";
 import type { Task } from "@/types/task";
 import {
+	buildPrompt,
 	type Condition,
 	createWorkDir,
 	extractCodeFromDisk,
 	extractCodeFromResponse,
+	extractToolCalls,
 	injectConfig,
 	injectContext,
 	parseOpenCodeEvents,
@@ -919,5 +921,168 @@ describe("edge cases", () => {
 		expect(events).toHaveLength(1);
 		expect(events[0]?.type).toBe("error");
 		expect(events[0]?.part).toBeUndefined();
+	});
+});
+
+describe("extractToolCalls", () => {
+	test("extracts tool calls from NDJSON with tool_use events", () => {
+		const events = [
+			{
+				type: "tool_use",
+				timestamp: 1,
+				sessionID: "s",
+				part: {
+					type: "tool",
+					tool: "context7",
+					callID: "call_1",
+					state: {
+						status: "completed",
+						input: { query: "react 19 use hook" },
+					},
+				},
+			},
+			{
+				type: "text",
+				timestamp: 2,
+				sessionID: "s",
+				part: { type: "text", text: "Here's the code" },
+			},
+			{
+				type: "tool_use",
+				timestamp: 3,
+				sessionID: "s",
+				part: {
+					type: "tool",
+					tool: "write",
+					callID: "call_2",
+					state: {
+						status: "completed",
+						input: { filePath: "/tmp/test.ts", content: "code" },
+					},
+				},
+			},
+		];
+		const ndjson = events.map((e) => JSON.stringify(e)).join("\n");
+
+		const toolCalls = extractToolCalls(ndjson);
+		expect(toolCalls).toHaveLength(2);
+		expect(toolCalls[0]?.tool).toBe("context7");
+		expect(toolCalls[0]?.callId).toBe("call_1");
+		expect(toolCalls[0]?.status).toBe("completed");
+		expect(toolCalls[0]?.input).toEqual({ query: "react 19 use hook" });
+		expect(toolCalls[1]?.tool).toBe("write");
+	});
+
+	test("returns empty array when no tool_use events", () => {
+		const ndjson = makeNdjsonResponse("Just text, no tool calls.");
+		const toolCalls = extractToolCalls(ndjson);
+		expect(toolCalls).toHaveLength(0);
+	});
+
+	test("returns empty array for empty input", () => {
+		const toolCalls = extractToolCalls("");
+		expect(toolCalls).toHaveLength(0);
+	});
+
+	test("handles tool_use events without state", () => {
+		const event = JSON.stringify({
+			type: "tool_use",
+			timestamp: 1,
+			sessionID: "s",
+			part: {
+				type: "tool",
+				tool: "nia",
+				callID: "call_1",
+			},
+		});
+
+		const toolCalls = extractToolCalls(event);
+		expect(toolCalls).toHaveLength(1);
+		expect(toolCalls[0]?.tool).toBe("nia");
+		expect(toolCalls[0]?.status).toBeUndefined();
+		expect(toolCalls[0]?.input).toBeUndefined();
+	});
+
+	test("extracts multiple tool calls of same tool", () => {
+		const events = [
+			{
+				type: "tool_use",
+				timestamp: 1,
+				sessionID: "s",
+				part: {
+					type: "tool",
+					tool: "nia",
+					callID: "c1",
+					state: { status: "completed", input: { query: "q1" } },
+				},
+			},
+			{
+				type: "tool_use",
+				timestamp: 2,
+				sessionID: "s",
+				part: {
+					type: "tool",
+					tool: "nia",
+					callID: "c2",
+					state: { status: "completed", input: { query: "q2" } },
+				},
+			},
+		];
+		const ndjson = events.map((e) => JSON.stringify(e)).join("\n");
+
+		const toolCalls = extractToolCalls(ndjson);
+		expect(toolCalls).toHaveLength(2);
+		expect(toolCalls[0]?.callId).toBe("c1");
+		expect(toolCalls[1]?.callId).toBe("c2");
+	});
+});
+
+describe("buildPrompt", () => {
+	const taskPrompt = "Using React 19, create a Comments component.";
+
+	test("appends baseline suffix", () => {
+		const prompt = buildPrompt(taskPrompt, "baseline");
+		expect(prompt).toContain(taskPrompt);
+		expect(prompt).toContain("Ensure your code uses the correct APIs");
+		// Should NOT contain tool-specific language
+		expect(prompt).not.toContain("documentation tools");
+		expect(prompt).not.toContain("research tools");
+	});
+
+	test("appends context7 suffix with documentation tools hint", () => {
+		const prompt = buildPrompt(taskPrompt, "context7");
+		expect(prompt).toContain(taskPrompt);
+		expect(prompt).toContain("documentation tools");
+		expect(prompt).toContain("verify the correct APIs");
+	});
+
+	test("appends nia suffix with research tools hint", () => {
+		const prompt = buildPrompt(taskPrompt, "nia");
+		expect(prompt).toContain(taskPrompt);
+		expect(prompt).toContain("research tools");
+		expect(prompt).toContain("verify the correct APIs");
+	});
+
+	test("all conditions produce different prompts", () => {
+		const baseline = buildPrompt(taskPrompt, "baseline");
+		const context7 = buildPrompt(taskPrompt, "context7");
+		const nia = buildPrompt(taskPrompt, "nia");
+
+		// All start with the original prompt
+		expect(baseline.startsWith(taskPrompt)).toBe(true);
+		expect(context7.startsWith(taskPrompt)).toBe(true);
+		expect(nia.startsWith(taskPrompt)).toBe(true);
+
+		// All are different from each other
+		expect(baseline).not.toBe(context7);
+		expect(baseline).not.toBe(nia);
+		expect(context7).not.toBe(nia);
+	});
+
+	test("preserves original prompt content exactly", () => {
+		const complexPrompt =
+			"Write code for **React 17** — do NOT use `createRoot`. Use `ReactDOM.render()`.";
+		const result = buildPrompt(complexPrompt, "baseline");
+		expect(result.startsWith(complexPrompt)).toBe(true);
 	});
 });

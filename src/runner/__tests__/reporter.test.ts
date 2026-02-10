@@ -7,6 +7,7 @@ import {
 	buildTaskDetails,
 	computeHallucinationDistribution,
 	computeMetrics,
+	computeToolUsageMetrics,
 	extractTaskMetadata,
 	formatReportText,
 	generateReport,
@@ -49,6 +50,7 @@ function mockResult(
 		judgeResult: null,
 		hallucinations: { types: [], details: [] },
 		extractedFiles: { "proxy.ts": "export function proxy() {}" },
+		toolCalls: [],
 		...overrides,
 	};
 }
@@ -873,6 +875,7 @@ describe("formatReportText", () => {
 			byCategory: {},
 			byLibrary: {},
 			hallucinationDistribution: {},
+			toolUsage: {},
 			taskDetails: [],
 		};
 
@@ -915,6 +918,7 @@ describe("formatReportText", () => {
 			byCategory: {},
 			byLibrary: {},
 			hallucinationDistribution: {},
+			toolUsage: {},
 			taskDetails: [],
 		};
 
@@ -934,10 +938,177 @@ describe("formatReportText", () => {
 			byCategory: {},
 			byLibrary: {},
 			hallucinationDistribution: {},
+			toolUsage: {},
 			taskDetails: [],
 		};
 
 		const text = formatReportText(report);
 		expect(text).toContain("NIA-BENCH RESULTS v1.0");
+	});
+
+	test("renders tool usage section when toolUsage data is present", () => {
+		const report = {
+			generatedAt: new Date().toISOString(),
+			resultsDir: "/tmp/test",
+			totalTasks: 1,
+			expectedTotalTasks: null,
+			totalResults: 3,
+			conditions: ["baseline", "context7", "nia"],
+			overall: [
+				{
+					condition: "baseline",
+					metrics: {
+						taskPassRate: 0.5,
+						hallucinationRate: 0,
+						versionComplianceRate: 0.5,
+						meanCombinedScore: 0.5,
+						count: 1,
+					},
+				},
+				{
+					condition: "context7",
+					metrics: {
+						taskPassRate: 0.8,
+						hallucinationRate: 0,
+						versionComplianceRate: 0.8,
+						meanCombinedScore: 0.8,
+						count: 1,
+					},
+				},
+				{
+					condition: "nia",
+					metrics: {
+						taskPassRate: 0.9,
+						hallucinationRate: 0,
+						versionComplianceRate: 0.9,
+						meanCombinedScore: 0.9,
+						count: 1,
+					},
+				},
+			],
+			byCategory: {},
+			byLibrary: {},
+			hallucinationDistribution: {},
+			toolUsage: {
+				baseline: {
+					toolUsageRate: 0,
+					avgToolCallsPerRun: 0,
+					totalToolCalls: 0,
+					toolBreakdown: {},
+					count: 1,
+				},
+				context7: {
+					toolUsageRate: 1.0,
+					avgToolCallsPerRun: 3.0,
+					totalToolCalls: 3,
+					toolBreakdown: { context7: 3 },
+					count: 1,
+				},
+				nia: {
+					toolUsageRate: 1.0,
+					avgToolCallsPerRun: 5.0,
+					totalToolCalls: 5,
+					toolBreakdown: { nia: 4, bash: 1 },
+					count: 1,
+				},
+			},
+			taskDetails: [],
+		};
+
+		const text = formatReportText(report);
+		expect(text).toContain("TOOL USAGE");
+		expect(text).toContain("Tool Usage Rate");
+		expect(text).toContain("Avg Calls/Run");
+		expect(text).toContain("Total Tool Calls");
+		expect(text).toContain("Tool Breakdown");
+	});
+});
+
+describe("computeToolUsageMetrics", () => {
+	test("returns zeros for empty results", () => {
+		const metrics = computeToolUsageMetrics([]);
+		expect(metrics.toolUsageRate).toBe(0);
+		expect(metrics.avgToolCallsPerRun).toBe(0);
+		expect(metrics.totalToolCalls).toBe(0);
+		expect(metrics.count).toBe(0);
+		expect(Object.keys(metrics.toolBreakdown)).toHaveLength(0);
+	});
+
+	test("computes correct metrics when all runs use tools", () => {
+		const results = [
+			mockResult({
+				toolCalls: [
+					{ tool: "context7", callId: "c1", status: "completed" },
+					{ tool: "context7", callId: "c2", status: "completed" },
+				],
+			}),
+			mockResult({
+				runIndex: 1,
+				toolCalls: [{ tool: "context7", callId: "c3", status: "completed" }],
+			}),
+		];
+
+		const metrics = computeToolUsageMetrics(results);
+		expect(metrics.toolUsageRate).toBe(1.0);
+		expect(metrics.avgToolCallsPerRun).toBe(1.5); // 3 calls / 2 runs
+		expect(metrics.totalToolCalls).toBe(3);
+		expect(metrics.toolBreakdown).toEqual({ context7: 3 });
+		expect(metrics.count).toBe(2);
+	});
+
+	test("computes correct metrics when some runs have no tool calls", () => {
+		const results = [
+			mockResult({ toolCalls: [] }),
+			mockResult({
+				runIndex: 1,
+				toolCalls: [{ tool: "nia", callId: "c1", status: "completed" }],
+			}),
+			mockResult({ runIndex: 2, toolCalls: [] }),
+		];
+
+		const metrics = computeToolUsageMetrics(results);
+		expect(metrics.toolUsageRate).toBeCloseTo(1 / 3);
+		expect(metrics.avgToolCallsPerRun).toBeCloseTo(1 / 3);
+		expect(metrics.totalToolCalls).toBe(1);
+		expect(metrics.count).toBe(3);
+	});
+
+	test("computes tool breakdown with multiple tool types", () => {
+		const results = [
+			mockResult({
+				toolCalls: [
+					{ tool: "nia", callId: "c1" },
+					{ tool: "bash", callId: "c2" },
+					{ tool: "nia", callId: "c3" },
+				],
+			}),
+			mockResult({
+				runIndex: 1,
+				toolCalls: [
+					{ tool: "write", callId: "c4" },
+					{ tool: "nia", callId: "c5" },
+				],
+			}),
+		];
+
+		const metrics = computeToolUsageMetrics(results);
+		expect(metrics.totalToolCalls).toBe(5);
+		expect(metrics.toolBreakdown).toEqual({
+			nia: 3,
+			bash: 1,
+			write: 1,
+		});
+	});
+
+	test("handles results with missing toolCalls (backward compatibility)", () => {
+		// Simulate older result files that don't have toolCalls
+		const result = mockResult();
+		// biome-ignore lint/performance/noDelete: testing backward compat
+		delete (result as unknown as Record<string, unknown>).toolCalls;
+
+		const metrics = computeToolUsageMetrics([result]);
+		expect(metrics.toolUsageRate).toBe(0);
+		expect(metrics.totalToolCalls).toBe(0);
+		expect(metrics.count).toBe(1);
 	});
 });

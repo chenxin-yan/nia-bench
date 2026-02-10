@@ -13,6 +13,20 @@ import type { Task } from "@/types/task";
 
 export type Condition = "baseline" | "context7" | "nia";
 
+/**
+ * Represents a single tool call extracted from the agent's NDJSON output.
+ */
+export interface ToolCall {
+	/** Tool name (e.g., "context7", "nia", "write", "bash") */
+	tool: string;
+	/** Tool call ID from the event */
+	callId?: string;
+	/** Completion status of the tool call */
+	status?: string;
+	/** Input parameters passed to the tool */
+	input?: Record<string, unknown>;
+}
+
 export interface AgentResult {
 	/** Task ID from the task definition */
 	taskId: string;
@@ -30,6 +44,8 @@ export interface AgentResult {
 	durationMs: number;
 	/** Path to the working directory used for this run */
 	workDir: string;
+	/** Tool calls made by the agent during execution */
+	toolCalls: ToolCall[];
 }
 
 export interface AgentRunnerConfig {
@@ -100,6 +116,23 @@ const CONFIG_FILE_MAP: Record<Condition, string> = {
  * overriding the intended model in .opencode.json config.
  */
 const DEFAULT_MODEL = "anthropic/claude-sonnet-4-20250514";
+
+/**
+ * Per-condition prompt suffixes appended to the task prompt.
+ *
+ * Each condition gets a short hint that nudges the agent toward using its
+ * available context tools, while baseline gets a neutral version-accuracy
+ * reminder to control for prompt-length effects.
+ *
+ * These are soft hints — the agent still decides whether to use the tools.
+ */
+const PROMPT_SUFFIX: Record<Condition, string> = {
+	baseline:
+		"\n\nEnsure your code uses the correct APIs for the specified library version.",
+	context7:
+		"\n\nBefore writing code, use your available documentation tools to verify the correct APIs for the specified library version.",
+	nia: "\n\nBefore writing code, use your available research tools to look up and verify the correct APIs for the specified library version.",
+};
 
 // --- Utility Functions ---
 
@@ -249,6 +282,43 @@ export function parseOpenCodeEvents(rawOutput: string): OpenCodeEvent[] {
 	}
 
 	return events;
+}
+
+/**
+ * Extracts tool calls from the agent's streaming NDJSON output.
+ *
+ * Scans for `tool_use` type events and extracts the tool name, call ID,
+ * status, and input parameters. This enables tracking which context tools
+ * (Context7, Nia, etc.) the agent actually invoked during a run.
+ */
+export function extractToolCalls(rawOutput: string): ToolCall[] {
+	const events = parseOpenCodeEvents(rawOutput);
+	const toolCalls: ToolCall[] = [];
+
+	for (const event of events) {
+		if (event.type === "tool_use" && event.part?.tool) {
+			toolCalls.push({
+				tool: event.part.tool,
+				callId: event.part.callID,
+				status: event.part.state?.status,
+				input: event.part.state?.input,
+			});
+		}
+	}
+
+	return toolCalls;
+}
+
+/**
+ * Builds the full prompt sent to the agent by appending a condition-specific
+ * suffix to the task prompt.
+ *
+ * - Baseline: neutral reminder about version correctness
+ * - Context7: soft hint to use available documentation tools
+ * - Nia: soft hint to use available research tools
+ */
+export function buildPrompt(taskPrompt: string, condition: Condition): string {
+	return taskPrompt + PROMPT_SUFFIX[condition];
 }
 
 /**
@@ -444,7 +514,7 @@ export async function runAgent(
 			// which API keys are set in the environment (e.g., GROQ_API_KEY).
 			const model = config?.model ?? DEFAULT_MODEL;
 			const args = ["opencode", "run", "--format", "json", "--model", model];
-			args.push(task.prompt);
+			args.push(buildPrompt(task.prompt, condition));
 
 			// Resolve the condition-specific config directory for skill isolation.
 			// This ensures each condition only sees its own skills/permissions,
@@ -510,6 +580,9 @@ export async function runAgent(
 			...diskFiles,
 		};
 
+		// Step 5b: Extract tool calls for usage tracking
+		const toolCalls = extractToolCalls(rawOutput);
+
 		return {
 			taskId: task.id,
 			condition,
@@ -519,6 +592,7 @@ export async function runAgent(
 			exitCode,
 			durationMs,
 			workDir,
+			toolCalls,
 		};
 	} finally {
 		// Step 6: Cleanup (unless keepWorkdirs is true)

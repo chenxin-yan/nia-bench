@@ -3,6 +3,7 @@ import { classifyHallucinations, scoreWithRubric } from "@/judge";
 import type { AstCheckResult, TypeCheckResult } from "@/tests";
 import { runAstChecks, runTypeCheck, runTypeCheckMultiFile } from "@/tests";
 import type { AstCheck, Task } from "@/types/task";
+import type { ToolCall } from "./agent";
 
 // --- Types ---
 
@@ -50,6 +51,8 @@ export interface EvaluationResult {
 	hallucinations: HallucinationResult;
 	/** The extracted code files that were evaluated */
 	extractedFiles: Record<string, string>;
+	/** Tool calls made by the agent during execution */
+	toolCalls: ToolCall[];
 }
 
 // --- Helper Functions ---
@@ -158,6 +161,7 @@ function concatenateFilesForJudge(
  * @param condition - Which condition was used (for result metadata)
  * @param runIndex - Repetition index (for result metadata)
  * @param config - Evaluator configuration
+ * @param toolCalls - Tool calls made by the agent (for tracking, not scoring)
  * @returns Full evaluation result
  */
 export async function evaluateCode(
@@ -166,6 +170,7 @@ export async function evaluateCode(
 	condition: string,
 	runIndex: number,
 	config: EvaluatorConfig = {},
+	toolCalls: ToolCall[] = [],
 ): Promise<EvaluationResult> {
 	// --- Layer 1: AST Checks ---
 	const astChecks = task.test_spec.ast_checks;
@@ -305,5 +310,6 @@ export async function evaluateCode(
 		judgeResult,
 		hallucinations,
 		extractedFiles,
+		toolCalls,
 	};
 }

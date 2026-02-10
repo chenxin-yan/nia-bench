@@ -39,6 +39,22 @@ export interface HallucinationDistribution {
 }
 
 /**
+ * Tool usage metrics for a condition.
+ */
+export interface ToolUsageMetrics {
+	/** % of runs where the context tool was invoked at least once */
+	toolUsageRate: number;
+	/** Average number of tool calls per run (across all runs, including zero-call runs) */
+	avgToolCallsPerRun: number;
+	/** Total number of tool calls across all runs */
+	totalToolCalls: number;
+	/** Breakdown by tool name: tool -> call count */
+	toolBreakdown: Record<string, number>;
+	/** Number of runs in this group */
+	count: number;
+}
+
+/**
  * Per-task detail for the comparison view.
  */
 export interface TaskDetail {
@@ -55,6 +71,10 @@ export interface TaskDetail {
 			avgJudgeScore: number;
 			hallucinationTypes: HallucinationType[];
 			repCount: number;
+			/** Number of tool calls across all reps */
+			totalToolCalls: number;
+			/** Whether any rep used a context tool */
+			usedContextTool: boolean;
 		}
 	>;
 }
@@ -87,6 +107,8 @@ export interface Report {
 	byLibrary: Record<string, ConditionMetrics[]>;
 	/** Hallucination type distribution per condition */
 	hallucinationDistribution: Record<string, HallucinationDistribution[]>;
+	/** Tool usage metrics per condition */
+	toolUsage: Record<string, ToolUsageMetrics>;
 	/** Per-task detail view */
 	taskDetails: TaskDetail[];
 }
@@ -293,6 +315,52 @@ export function computeHallucinationDistribution(
 	}));
 }
 
+// --- Tool Usage Metrics ---
+
+/**
+ * Computes tool usage metrics for a set of evaluation results.
+ *
+ * Tracks how often the agent invoked context tools (Context7, Nia, etc.)
+ * and provides breakdowns by tool name.
+ */
+export function computeToolUsageMetrics(
+	results: EvaluationResult[],
+): ToolUsageMetrics {
+	if (results.length === 0) {
+		return {
+			toolUsageRate: 0,
+			avgToolCallsPerRun: 0,
+			totalToolCalls: 0,
+			toolBreakdown: {},
+			count: 0,
+		};
+	}
+
+	let runsWithToolCalls = 0;
+	let totalCalls = 0;
+	const toolBreakdown: Record<string, number> = {};
+
+	for (const result of results) {
+		const calls = result.toolCalls ?? [];
+		if (calls.length > 0) {
+			runsWithToolCalls++;
+		}
+		totalCalls += calls.length;
+
+		for (const call of calls) {
+			toolBreakdown[call.tool] = (toolBreakdown[call.tool] ?? 0) + 1;
+		}
+	}
+
+	return {
+		toolUsageRate: runsWithToolCalls / results.length,
+		avgToolCallsPerRun: totalCalls / results.length,
+		totalToolCalls: totalCalls,
+		toolBreakdown,
+		count: results.length,
+	};
+}
+
 // --- Task Detail Extraction ---
 
 /**
@@ -463,12 +531,23 @@ export function buildTaskDetails(results: EvaluationResult[]): TaskDetail[] {
 				}
 			}
 
+			// Compute tool usage for this task/condition
+			const totalToolCalls = condResults.reduce(
+				(sum, r) => sum + (r.toolCalls?.length ?? 0),
+				0,
+			);
+			const usedContextTool = condResults.some(
+				(r) => (r.toolCalls?.length ?? 0) > 0,
+			);
+
 			conditions[condition] = {
 				avgFinalScore,
 				avgTestScore,
 				avgJudgeScore,
 				hallucinationTypes: [...allTypes],
 				repCount: condResults.length,
+				totalToolCalls,
+				usedContextTool,
 			};
 		}
 
@@ -526,6 +605,7 @@ export async function generateReport(runDir: string): Promise<Report> {
 			byCategory: {},
 			byLibrary: {},
 			hallucinationDistribution: {},
+			toolUsage: {},
 			taskDetails: [],
 		};
 	}
@@ -611,6 +691,14 @@ export async function generateReport(runDir: string): Promise<Report> {
 			computeHallucinationDistribution(condResults);
 	}
 
+	// --- Tool usage metrics per condition ---
+	const toolUsage: Record<string, ToolUsageMetrics> = {};
+
+	for (const condition of conditions) {
+		const condResults = conditionResults.get(condition) ?? [];
+		toolUsage[condition] = computeToolUsageMetrics(condResults);
+	}
+
 	// --- Per-task details ---
 	const taskDetails = buildTaskDetails(results);
 
@@ -625,6 +713,7 @@ export async function generateReport(runDir: string): Promise<Report> {
 		byCategory,
 		byLibrary,
 		hallucinationDistribution,
+		toolUsage,
 		taskDetails,
 	};
 }
@@ -900,6 +989,77 @@ export function formatReportText(report: Report): string {
 			}
 
 			lines.push(line);
+		}
+
+		lines.push(separator);
+	}
+
+	// Tool usage metrics
+	if (Object.keys(report.toolUsage).length > 0) {
+		lines.push("");
+		lines.push(" TOOL USAGE");
+		lines.push(dashSeparator);
+
+		let toolHeader = padRight(" Metric", labelWidth);
+		for (const cond of conditions) {
+			toolHeader += padLeft(
+				cond.charAt(0).toUpperCase() + cond.slice(1),
+				colWidth,
+			);
+		}
+		lines.push(toolHeader);
+		lines.push(dashSeparator);
+
+		// Tool Usage Rate
+		let usageLine = padRight(" Tool Usage Rate", labelWidth);
+		for (const cond of conditions) {
+			const usage = report.toolUsage[cond];
+			const value =
+				usage && usage.count > 0 ? formatPercent(usage.toolUsageRate) : "N/A";
+			usageLine += padLeft(value, colWidth);
+		}
+		lines.push(usageLine);
+
+		// Avg Tool Calls Per Run
+		let avgLine = padRight(" Avg Calls/Run", labelWidth);
+		for (const cond of conditions) {
+			const usage = report.toolUsage[cond];
+			const value =
+				usage && usage.count > 0 ? usage.avgToolCallsPerRun.toFixed(1) : "N/A";
+			avgLine += padLeft(value, colWidth);
+		}
+		lines.push(avgLine);
+
+		// Total Tool Calls
+		let totalLine = padRight(" Total Tool Calls", labelWidth);
+		for (const cond of conditions) {
+			const usage = report.toolUsage[cond];
+			const value = usage ? `${usage.totalToolCalls}` : "0";
+			totalLine += padLeft(value, colWidth);
+		}
+		lines.push(totalLine);
+
+		// Tool breakdown — show top tools per condition
+		const allToolNames = new Set<string>();
+		for (const usage of Object.values(report.toolUsage)) {
+			for (const tool of Object.keys(usage.toolBreakdown)) {
+				allToolNames.add(tool);
+			}
+		}
+
+		if (allToolNames.size > 0) {
+			lines.push(dashSeparator);
+			lines.push(" Tool Breakdown (calls)");
+
+			for (const tool of [...allToolNames].sort()) {
+				let toolLine = padRight(`   ${tool}`, labelWidth);
+				for (const cond of conditions) {
+					const usage = report.toolUsage[cond];
+					const count = usage?.toolBreakdown[tool] ?? 0;
+					toolLine += padLeft(`${count}`, colWidth);
+				}
+				lines.push(toolLine);
+			}
 		}
 
 		lines.push(separator);
