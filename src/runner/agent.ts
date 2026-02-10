@@ -134,18 +134,19 @@ const DEFAULT_MODEL = "anthropic/claude-sonnet-4-20250514";
 /**
  * Per-condition prompt suffixes appended to the task prompt.
  *
- * Each condition gets a short hint that nudges the agent toward using its
- * available context tools, while baseline gets a neutral version-accuracy
- * reminder to control for prompt-length effects.
+ * Each condition gets an explicit instruction to use its available context
+ * tools, while baseline gets a neutral version-accuracy reminder to control
+ * for prompt-length effects.
  *
- * These are soft hints — the agent still decides whether to use the tools.
+ * The instructions reference exact tool names and required workflows so the
+ * agent does not fall back to general knowledge or web-fetch.
  */
 const PROMPT_SUFFIX: Record<Condition, string> = {
 	baseline:
 		"\n\nEnsure your code uses the correct APIs for the specified library version.",
 	context7:
-		"\n\nBefore writing code, use your available documentation tools to verify the correct APIs for the specified library version.",
-	nia: "\n\nBefore writing code, use your available research tools to look up and verify the correct APIs for the specified library version.",
+		"\n\nIMPORTANT — Before writing any code you MUST look up the library documentation using the context7 MCP tools that are available to you:\n1. Call the `resolve-library-id` tool with the library name to get its Context7 library ID.\n2. Call the `query-docs` tool with that library ID and a query describing the specific APIs you need.\n3. Only after reviewing the returned documentation should you write code.\nDo NOT skip this step or use web-fetch as a substitute.",
+	nia: '\n\nIMPORTANT — Before writing any code you MUST look up the library documentation using Nia:\n1. Load the "nia" skill by calling the skill tool with name "nia".\n2. Use the Nia scripts (e.g. search.sh universal, sources.sh, repos.sh) to look up the correct APIs for the specified library version.\n3. Only after reviewing the returned documentation should you write code.\nDo NOT skip this step or rely on your training knowledge alone.',
 };
 
 // --- Utility Functions ---
