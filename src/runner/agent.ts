@@ -1,4 +1,5 @@
 import {
+	copyFile,
 	mkdir,
 	readdir,
 	readFile,
@@ -6,6 +7,7 @@ import {
 	stat,
 	writeFile,
 } from "node:fs/promises";
+import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import type { Task } from "@/types/task";
 
@@ -113,7 +115,7 @@ export interface OpenCodeEvent {
 
 // --- Constants ---
 
-const DEFAULT_TIMEOUT = 300_000; // 5 minutes
+const DEFAULT_TIMEOUT = 900000; // 15 minutes
 const DEFAULT_TEMP_BASE = "/tmp/nia-bench";
 const CODE_FILE_EXTENSIONS = [".ts", ".tsx", ".js", ".jsx"];
 const CONFIG_FILE_MAP: Record<Condition, string> = {
@@ -187,6 +189,77 @@ function resolveConditionConfigDir(
 		"condition_configs",
 		condition,
 	);
+}
+
+/**
+ * Minimal opencode global config for the sandboxed HOME.
+ * Contains no agents, plugins, MCP servers, or skills — just bare permissions
+ * so opencode can start cleanly. Condition-specific tools are provided via
+ * OPENCODE_CONFIG_DIR and the CWD .opencode.json.
+ */
+const SANDBOXED_OPENCODE_CONFIG = JSON.stringify(
+	{
+		$schema: "https://opencode.ai/config.json",
+		mcp: {},
+		plugin: [],
+		permission: {
+			bash: "allow",
+			edit: "allow",
+			write: "allow",
+		},
+	},
+	null,
+	"\t",
+);
+
+/**
+ * Creates a sandboxed HOME directory for an opencode execution.
+ *
+ * opencode discovers agents, skills, plugins, and MCP servers from the global
+ * config at ~/.config/opencode/. When a user has the "nia" agent or other tools
+ * installed globally, they leak into every opencode session — including benchmark
+ * conditions that should not have access to them (e.g., baseline).
+ *
+ * This function creates a minimal, isolated HOME directory that contains:
+ * - A bare ~/.config/opencode/opencode.json (no agents, plugins, MCP servers)
+ * - A copy of ~/.local/share/opencode/auth.json (so API auth still works)
+ *
+ * By setting HOME to this directory when spawning opencode, the benchmark
+ * ensures complete isolation: each condition only sees tools provided by its
+ * own OPENCODE_CONFIG_DIR and CWD .opencode.json config.
+ */
+export async function createSandboxedHome(
+	tempBaseDir: string = DEFAULT_TEMP_BASE,
+): Promise<string> {
+	const sandboxHome = join(
+		tempBaseDir,
+		`home-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+	);
+
+	// Create config directory structure
+	const configDir = join(sandboxHome, ".config", "opencode");
+	await mkdir(configDir, { recursive: true });
+
+	// Write minimal opencode config (no agents, plugins, MCP, or skills)
+	await writeFile(
+		join(configDir, "opencode.json"),
+		SANDBOXED_OPENCODE_CONFIG,
+		"utf-8",
+	);
+
+	// Copy auth.json so API authentication still works.
+	// opencode stores auth at ~/.local/share/opencode/auth.json (XDG data dir).
+	const realHome = process.env.HOME ?? homedir();
+	const authSrc = join(realHome, ".local", "share", "opencode", "auth.json");
+	const authDestDir = join(sandboxHome, ".local", "share", "opencode");
+	try {
+		await mkdir(authDestDir, { recursive: true });
+		await copyFile(authSrc, join(authDestDir, "auth.json"));
+	} catch {
+		// auth.json may not exist if using env-based API keys — that's fine
+	}
+
+	return sandboxHome;
 }
 
 /**
@@ -507,12 +580,12 @@ export async function checkOpencodeBinary(): Promise<boolean> {
  * Runs the opencode agent for a single task/condition/rep combination.
  *
  * Steps:
- * 1. Create unique temp directory
+ * 1. Create sandboxed HOME and unique temp working directory
  * 2. Copy condition-specific .opencode.json config
  * 3. Inject task context files (package.json, code files)
  * 4. Invoke opencode CLI: `opencode run --format json "prompt"` with cwd set to the workdir
  * 5. Extract code from both stdout response and disk files
- * 6. Clean up temp directory (unless keepWorkdirs is true)
+ * 6. Clean up temp directory and sandboxed HOME (unless keepWorkdirs is true)
  *
  * opencode v1.1.47 uses:
  * - `opencode run --format json "message"` for non-interactive execution
@@ -528,7 +601,12 @@ export async function runAgent(
 	const timeout = config?.timeout ?? DEFAULT_TIMEOUT;
 	const tempBaseDir = config?.tempBaseDir ?? DEFAULT_TEMP_BASE;
 
-	// Step 1: Create unique temp directory
+	// Step 1a: Create sandboxed HOME to isolate from user's global opencode config.
+	// This prevents global agents (e.g., nia subagent), skills, plugins, and MCP
+	// servers from leaking into benchmark conditions.
+	const sandboxHome = await createSandboxedHome(tempBaseDir);
+
+	// Step 1b: Create unique temp directory
 	const workDir = await createWorkDir(
 		task.id,
 		condition,
@@ -547,6 +625,7 @@ export async function runAgent(
 		// opencode v1.1.47 uses: `opencode run --format json "message"`
 		// CWD is set via Bun.spawn's cwd option (opencode loads .opencode.json from CWD)
 		// OPENCODE_CONFIG_DIR overrides skill/permission discovery to use repo-bundled configs
+		// HOME is sandboxed to prevent global agent/skill/plugin leakage
 		const startTime = Date.now();
 		let rawOutput = "";
 		let exitCode = 1;
@@ -571,8 +650,10 @@ export async function runAgent(
 				cwd: workDir,
 				env: {
 					...process.env,
-					// Ensure HOME is set so opencode can find its global config
-					HOME: process.env.HOME ?? "/tmp",
+					// Sandboxed HOME prevents opencode from discovering user's global
+					// agents, skills, plugins, and MCP servers. Contains only a minimal
+					// opencode config and a copy of auth.json for API authentication.
+					HOME: sandboxHome,
 					// Override config directory to load condition-specific skills and permissions.
 					// This takes precedence over global ~/.config/opencode/ settings,
 					// making the benchmark reproducible across different machines.
@@ -650,10 +731,15 @@ export async function runAgent(
 			error,
 		};
 	} finally {
-		// Step 6: Cleanup (unless keepWorkdirs is true)
+		// Cleanup (unless keepWorkdirs is true)
 		if (!config?.keepWorkdirs) {
 			try {
 				await rm(workDir, { recursive: true, force: true });
+			} catch {
+				// Cleanup failure is non-fatal
+			}
+			try {
+				await rm(sandboxHome, { recursive: true, force: true });
 			} catch {
 				// Cleanup failure is non-fatal
 			}
