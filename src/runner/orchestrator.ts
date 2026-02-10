@@ -1,7 +1,12 @@
 import { resolve } from "node:path";
 import { loadTasks } from "@/loader";
 import type { Condition } from "./agent";
-import { checkOpencodeBinary, DEFAULT_MODEL, runAgent } from "./agent";
+import {
+	checkOpencodeBinary,
+	DEFAULT_MODEL,
+	getOpencodeVersion,
+	runAgent,
+} from "./agent";
 import type { EvaluatorConfig } from "./evaluator";
 import { evaluateCode } from "./evaluator";
 import { generateAndWriteReport } from "./reporter";
@@ -411,6 +416,14 @@ export async function runBenchmark(config: CliConfig): Promise<void> {
 		process.exit(1);
 	}
 
+	// Capture opencode version
+	const opencodeVersion = await getOpencodeVersion();
+	if (opencodeVersion) {
+		console.log(`OpenCode version: ${opencodeVersion}`);
+	} else {
+		console.warn("Warning: Could not determine opencode version");
+	}
+
 	// Create results directory
 	const runDir = await createRunDir(config.outputDir);
 	console.log(`Results directory: ${runDir}`);
@@ -425,6 +438,7 @@ export async function runBenchmark(config: CliConfig): Promise<void> {
 		parallel: config.parallel,
 		seed: config.seed,
 		model: resolvedModel,
+		opencodeVersion: opencodeVersion ?? "unknown",
 		cliArgs: process.argv.slice(2),
 		status: "running",
 		completedItems: 0,

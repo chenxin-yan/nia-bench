@@ -24,6 +24,8 @@ export interface RunMetadata {
 	seed: number;
 	/** Resolved model ID used for agent runs (provider/model format) */
 	model: string;
+	/** Installed opencode CLI version */
+	opencodeVersion: string;
 	/** Raw CLI arguments */
 	cliArgs: string[];
 	/** Status of the run */

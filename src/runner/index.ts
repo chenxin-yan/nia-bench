@@ -9,6 +9,7 @@ export {
 	createWorkDir,
 	extractCodeFromDisk,
 	extractCodeFromResponse,
+	getOpencodeVersion,
 	injectConfig,
 	injectContext,
 	parseOpenCodeEvents,

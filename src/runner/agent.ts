@@ -665,6 +665,26 @@ export async function checkOpencodeBinary(): Promise<boolean> {
 }
 
 /**
+ * Retrieves the installed opencode CLI version string.
+ * Returns null if the version cannot be determined.
+ */
+export async function getOpencodeVersion(): Promise<string | null> {
+	try {
+		const proc = Bun.spawn(["opencode", "--version"], {
+			stdout: "pipe",
+			stderr: "pipe",
+		});
+		const exitCode = await proc.exited;
+		if (exitCode !== 0) return null;
+		const stdout = await new Response(proc.stdout).text();
+		const version = stdout.trim();
+		return version || null;
+	} catch {
+		return null;
+	}
+}
+
+/**
  * Runs the opencode agent for a single task/condition/rep combination.
  *
  * Steps:
