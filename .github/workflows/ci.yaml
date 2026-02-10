@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  ci:
+    name: Check & Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Biome check (lint & format)
+        run: bun run check
+
+      - name: TypeScript type check
+        run: bun run check:types
+
+      - name: Run tests
+        run: bun test
+
+      - name: Validate pilot tasks
+        run: bun run scripts/validate-pilot-tasks.ts
+
+      - name: Validate bleeding-edge tasks
+        run: bun run scripts/validate-bleeding-edge-tasks.ts
+
+      - name: Validate version-locked audit tasks
+        run: bun run scripts/validate-version-locked-audit-tasks.ts
+
+      - name: Validate version-locked write tasks
+        run: bun run scripts/validate-version-locked-write-tasks.ts
