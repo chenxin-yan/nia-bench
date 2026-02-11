@@ -31,8 +31,8 @@ export interface NiaIndexTarget {
 	type: "repo" | "docs";
 	/** Repository path (owner/repo) or documentation URL. */
 	identifier: string;
-	/** Branch, tag, or commit ref for repositories. */
-	branch?: string;
+	/** Version tag (e.g. "v19.2.4") for repositories. */
+	tag?: string;
 	/** Human-readable name for the indexed source. */
 	displayName: string;
 	/** Comma-separated URL patterns for docs indexing scope. */
@@ -66,6 +66,19 @@ interface NiaSourceResponse {
 	message?: string;
 }
 
+/**
+ * Result of submitting a target to the Nia API via `POST /sources`.
+ * Contains the source ID needed for per-source status polling.
+ */
+interface IndexResult {
+	/** The target that was submitted. */
+	target: NiaIndexTarget;
+	/** Unique source ID returned by the API (used for `GET /sources/{id}`). */
+	sourceId: string;
+	/** Status at the time of submission (e.g. "indexing", "completed", "indexed"). */
+	status: string;
+}
+
 // --- Version → Target Mapping ---
 
 /**
@@ -75,7 +88,7 @@ interface NiaSourceResponse {
  * The major version is extracted from the task's `target_version` field
  * (e.g. "19.0.0" → "19", "4.2.0" → "4").
  *
- * Repos use specific tags/branches so the agent can search version-accurate
+ * Repos use specific version tags so the agent can search version-accurate
  * source code. Docs use the canonical documentation site for that era.
  */
 const VERSION_TARGETS: Record<string, NiaIndexTarget[]> = {
@@ -84,7 +97,7 @@ const VERSION_TARGETS: Record<string, NiaIndexTarget[]> = {
 		{
 			type: "repo",
 			identifier: "facebook/react",
-			branch: "17.0.2",
+			tag: "17.0.2",
 			displayName: "React v17",
 		},
 		{
@@ -97,7 +110,7 @@ const VERSION_TARGETS: Record<string, NiaIndexTarget[]> = {
 		{
 			type: "repo",
 			identifier: "facebook/react",
-			branch: "18.3.1",
+			tag: "18.3.1",
 			displayName: "React v18",
 		},
 		{
@@ -110,7 +123,7 @@ const VERSION_TARGETS: Record<string, NiaIndexTarget[]> = {
 		{
 			type: "repo",
 			identifier: "facebook/react",
-			branch: "main",
+			tag: "v19.2.4",
 			displayName: "React v19",
 		},
 		{
@@ -125,7 +138,7 @@ const VERSION_TARGETS: Record<string, NiaIndexTarget[]> = {
 		{
 			type: "repo",
 			identifier: "vercel/next.js",
-			branch: "v13.5.7",
+			tag: "v13.5.7",
 			displayName: "Next.js v13",
 		},
 		{
@@ -138,7 +151,7 @@ const VERSION_TARGETS: Record<string, NiaIndexTarget[]> = {
 		{
 			type: "repo",
 			identifier: "vercel/next.js",
-			branch: "v14.2.28",
+			tag: "v14.2.28",
 			displayName: "Next.js v14",
 		},
 		{
@@ -151,7 +164,7 @@ const VERSION_TARGETS: Record<string, NiaIndexTarget[]> = {
 		{
 			type: "repo",
 			identifier: "vercel/next.js",
-			branch: "v15.3.3",
+			tag: "v15.3.3",
 			displayName: "Next.js v15",
 		},
 		{
@@ -164,8 +177,8 @@ const VERSION_TARGETS: Record<string, NiaIndexTarget[]> = {
 		{
 			type: "repo",
 			identifier: "vercel/next.js",
-			branch: "canary",
-			displayName: "Next.js v16 (canary)",
+			tag: "v16.1.6",
+			displayName: "Next.js v16",
 		},
 		{
 			type: "docs",
@@ -179,7 +192,7 @@ const VERSION_TARGETS: Record<string, NiaIndexTarget[]> = {
 		{
 			type: "repo",
 			identifier: "vercel/ai",
-			branch: "v3.4.33",
+			tag: "v3.4.33",
 			displayName: "Vercel AI SDK v3",
 		},
 		{
@@ -192,7 +205,7 @@ const VERSION_TARGETS: Record<string, NiaIndexTarget[]> = {
 		{
 			type: "repo",
 			identifier: "vercel/ai",
-			branch: "v4.2.2",
+			tag: "v4.2.2",
 			displayName: "Vercel AI SDK v4",
 		},
 		{
@@ -205,7 +218,7 @@ const VERSION_TARGETS: Record<string, NiaIndexTarget[]> = {
 		{
 			type: "repo",
 			identifier: "vercel/ai",
-			branch: "main",
+			tag: "ai@5.0.129",
 			displayName: "Vercel AI SDK v5",
 		},
 		{
@@ -220,7 +233,7 @@ const VERSION_TARGETS: Record<string, NiaIndexTarget[]> = {
 		{
 			type: "repo",
 			identifier: "trpc/trpc",
-			branch: "v10",
+			tag: "v10.45.4",
 			displayName: "tRPC v10",
 		},
 		{
@@ -233,7 +246,7 @@ const VERSION_TARGETS: Record<string, NiaIndexTarget[]> = {
 		{
 			type: "repo",
 			identifier: "trpc/trpc",
-			branch: "main",
+			tag: "v11.10.0",
 			displayName: "tRPC v11",
 		},
 		{
@@ -248,7 +261,7 @@ const VERSION_TARGETS: Record<string, NiaIndexTarget[]> = {
 		{
 			type: "repo",
 			identifier: "colinhacks/zod",
-			branch: "v3.24.4",
+			tag: "v3.24.4",
 			displayName: "Zod v3",
 		},
 		{
@@ -261,7 +274,7 @@ const VERSION_TARGETS: Record<string, NiaIndexTarget[]> = {
 		{
 			type: "repo",
 			identifier: "colinhacks/zod",
-			branch: "main",
+			tag: "v4.3.6",
 			displayName: "Zod v4",
 		},
 		{
@@ -310,7 +323,7 @@ export async function resolveNiaApiKey(): Promise<string> {
  *
  * Extracts unique `(library, majorVersion)` pairs from the tasks, looks up
  * the corresponding targets in `VERSION_TARGETS`, and deduplicates by
- * `type + identifier + branch` so shared sources (e.g. legacy.reactjs.org
+ * `type + identifier + tag` so shared sources (e.g. legacy.reactjs.org
  * used by both React 17 and 18) are only indexed once.
  */
 export function getTargetsForTasks(tasks: Task[]): NiaIndexTarget[] {
@@ -333,11 +346,11 @@ export function getTargetsForTasks(tasks: Task[]): NiaIndexTarget[] {
 		}
 	}
 
-	// Deduplicate by (type, identifier, branch)
+	// Deduplicate by (type, identifier, tag)
 	const seen = new Set<string>();
 	const unique: NiaIndexTarget[] = [];
 	for (const target of all) {
-		const dedupeKey = `${target.type}:${target.identifier}:${target.branch ?? ""}`;
+		const dedupeKey = `${target.type}:${target.identifier}:${target.tag ?? ""}`;
 		if (!seen.has(dedupeKey)) {
 			seen.add(dedupeKey);
 			unique.push(target);
@@ -384,132 +397,83 @@ async function niaFetch(
 	return (await res.json()) as NiaSourceResponse;
 }
 
-// --- Status Checking ---
+// --- Status Helpers ---
+
+/** Terminal "ready" statuses — the source is fully indexed and searchable. */
+const READY_STATUSES = new Set(["indexed", "completed"]);
+
+/** In-progress statuses — the source is still being processed. */
+const PENDING_STATUSES = new Set(["indexing", "queued", "processing"]);
 
 /**
- * Status result for a single Nia source.
- */
-interface SourceStatus {
-	/** Whether the source is fully indexed and ready to search. */
-	indexed: boolean;
-	/** Whether the source is currently being indexed. */
-	indexing: boolean;
-	/** Raw status string from the API. */
-	rawStatus: string;
-}
-
-/**
- * Checks whether a repository is indexed in Nia.
+ * Checks the status of a specific Nia source by its ID.
  *
- * Uses `GET /repositories/{owner%2Frepo}` to fetch the repo metadata.
- * The `status` field indicates the indexing state.
+ * Uses the unified `GET /sources/{id}` endpoint which works for all source
+ * types (repos, docs, etc.) and tracks per-source status — including
+ * distinguishing different tags/refs of the same repository.
  */
-export async function checkRepoStatus(
+export async function checkSourceStatus(
 	apiKey: string,
-	ownerRepo: string,
-): Promise<SourceStatus> {
-	const encoded = ownerRepo.replace("/", "%2F");
+	sourceId: string,
+): Promise<{ ready: boolean; pending: boolean; rawStatus: string }> {
 	try {
-		const data = await niaFetch(apiKey, "GET", `/repositories/${encoded}`);
+		const data = await niaFetch(apiKey, "GET", `/sources/${sourceId}`);
 		const status = data.status ?? "unknown";
 		return {
-			indexed: status === "indexed",
-			indexing:
-				status === "indexing" || status === "queued" || status === "processing",
+			ready: READY_STATUSES.has(status),
+			pending: PENDING_STATUSES.has(status),
 			rawStatus: status,
 		};
 	} catch {
-		return { indexed: false, indexing: false, rawStatus: "error" };
+		return { ready: false, pending: false, rawStatus: "error" };
 	}
-}
-
-/**
- * Checks whether a documentation source is indexed in Nia.
- *
- * This is a two-step process because the resolve endpoint only returns
- * `{id, type, display_name, identifier}` without a `status` field:
- * 1. `GET /sources/resolve?identifier={url}` → resolves the source ID
- * 2. `GET /sources/{id}` → fetches full details including `status`
- *
- * Returns indexed=true when status is "completed".
- */
-export async function checkDocStatus(
-	apiKey: string,
-	url: string,
-): Promise<SourceStatus> {
-	const encoded = encodeURIComponent(url);
-	try {
-		// Step 1: resolve URL to source ID
-		const resolved = await niaFetch(
-			apiKey,
-			"GET",
-			`/sources/resolve?identifier=${encoded}`,
-		);
-
-		if (resolved.status === "not_found" || !resolved.id) {
-			return { indexed: false, indexing: false, rawStatus: "not_found" };
-		}
-
-		// Step 2: fetch full details by ID to get status
-		const detail = await niaFetch(apiKey, "GET", `/sources/${resolved.id}`);
-		const status = detail.status ?? "unknown";
-		return {
-			indexed: status === "completed",
-			indexing:
-				status === "indexing" || status === "queued" || status === "processing",
-			rawStatus: status,
-		};
-	} catch {
-		return { indexed: false, indexing: false, rawStatus: "error" };
-	}
-}
-
-/**
- * Checks the current status of a target (dispatches to repo or doc check).
- */
-async function checkTargetStatus(
-	apiKey: string,
-	target: NiaIndexTarget,
-): Promise<SourceStatus> {
-	if (target.type === "repo") {
-		return checkRepoStatus(apiKey, target.identifier);
-	}
-	return checkDocStatus(apiKey, target.identifier);
 }
 
 // --- Indexing ---
 
 /**
- * Starts indexing a repository in Nia.
+ * Submits a repository for indexing via `POST /sources`.
  *
- * Calls `POST /sources` with `type: "repository"`. The Nia API queues the
- * indexing job and returns immediately. Use `checkRepoStatus()` or
- * `pollUntilReady()` to monitor completion.
+ * The API is idempotent — if the repo+ref is already indexed it returns the
+ * existing source with its current status. The returned source ID is used
+ * for subsequent per-source status polling via `GET /sources/{id}`.
+ *
+ * @returns The source ID and current status from the API response
  */
 async function indexRepo(
 	apiKey: string,
 	target: NiaIndexTarget,
-): Promise<void> {
+): Promise<{ id: string; status: string }> {
 	const body: Record<string, unknown> = {
 		type: "repository",
 		repository: target.identifier,
 	};
-	if (target.branch) body.ref = target.branch;
+	if (target.tag) body.ref = target.tag;
 	if (target.displayName) body.display_name = target.displayName;
 
-	await niaFetch(apiKey, "POST", "/sources", body);
+	const res = await niaFetch(apiKey, "POST", "/sources", body);
+
+	if (!res.id) {
+		throw new Error(
+			`POST /sources for ${target.displayName} did not return a source ID`,
+		);
+	}
+
+	return { id: res.id, status: res.status ?? "unknown" };
 }
 
 /**
- * Starts indexing a documentation site in Nia.
+ * Submits a documentation site for indexing via `POST /sources`.
  *
- * Calls `POST /sources` with `type: "documentation"`. Supports optional
- * URL pattern filtering and AI focus instructions via the target config.
+ * Like `indexRepo`, the API is idempotent and returns the source ID for
+ * subsequent status tracking.
+ *
+ * @returns The source ID and current status from the API response
  */
 async function indexDocs(
 	apiKey: string,
 	target: NiaIndexTarget,
-): Promise<void> {
+): Promise<{ id: string; status: string }> {
 	const body: Record<string, unknown> = {
 		type: "documentation",
 		url: target.identifier,
@@ -522,52 +486,68 @@ async function indexDocs(
 	}
 	if (target.focus) body.focus_instructions = target.focus;
 
-	await niaFetch(apiKey, "POST", "/sources", body);
+	const res = await niaFetch(apiKey, "POST", "/sources", body);
+
+	if (!res.id) {
+		throw new Error(
+			`POST /sources for ${target.displayName} did not return a source ID`,
+		);
+	}
+
+	return { id: res.id, status: res.status ?? "unknown" };
 }
 
 /**
- * Starts indexing a target (dispatches to repo or docs indexing).
+ * Submits a target for indexing and returns the source ID + status.
+ *
+ * Dispatches to `indexRepo` or `indexDocs` based on target type.
+ * The API is idempotent: already-indexed sources return immediately with
+ * their current status (e.g. "completed"/"indexed").
  */
-async function indexTarget(
+async function submitTarget(
 	apiKey: string,
 	target: NiaIndexTarget,
-): Promise<void> {
+): Promise<{ id: string; status: string }> {
 	if (target.type === "repo") {
-		await indexRepo(apiKey, target);
-	} else {
-		await indexDocs(apiKey, target);
+		return indexRepo(apiKey, target);
 	}
+	return indexDocs(apiKey, target);
 }
 
 // --- Polling ---
 
 /**
- * Polls a target until it reaches "indexed"/"completed" status or the
- * deadline is exceeded.
+ * Polls a source by ID until it reaches a ready status or the deadline
+ * is exceeded.
+ *
+ * Uses `GET /sources/{id}` for accurate per-source tracking, which
+ * correctly distinguishes different tags/refs of the same repository.
  *
  * @param apiKey - Nia API key
- * @param target - The target to poll
+ * @param sourceId - Source ID returned by `POST /sources`
+ * @param displayName - Human-readable name for log messages
  * @param pollInterval - Interval between polls in ms
  * @param deadline - Absolute timestamp (Date.now() + maxWaitTime) to stop polling
- * @throws {Error} if the deadline is exceeded
+ * @throws {Error} if the deadline is exceeded or a terminal error state is reached
  */
 async function pollUntilReady(
 	apiKey: string,
-	target: NiaIndexTarget,
+	sourceId: string,
+	displayName: string,
 	pollInterval: number,
 	deadline: number,
 ): Promise<void> {
 	while (Date.now() < deadline) {
-		const status = await checkTargetStatus(apiKey, target);
+		const status = await checkSourceStatus(apiKey, sourceId);
 
-		if (status.indexed) {
+		if (status.ready) {
 			return;
 		}
 
-		if (!status.indexing && status.rawStatus !== "queued") {
-			// Unexpected terminal state (e.g. "failed", "error")
+		if (!status.pending) {
+			// Unexpected terminal state (e.g. "error", "failed")
 			throw new Error(
-				`${target.displayName}: indexing ended with status "${status.rawStatus}"`,
+				`${displayName}: indexing ended with status "${status.rawStatus}"`,
 			);
 		}
 
@@ -578,9 +558,7 @@ async function pollUntilReady(
 		await new Promise((r) => setTimeout(r, wait));
 	}
 
-	throw new Error(
-		`${target.displayName}: timed out waiting for indexing to complete`,
-	);
+	throw new Error(`${displayName}: timed out waiting for indexing to complete`);
 }
 
 // --- Main Entry Point ---
@@ -591,11 +569,16 @@ async function pollUntilReady(
  * This function is the main entry point for the Nia setup phase. It:
  * 1. Resolves the Nia API key
  * 2. Derives required targets from the task list
- * 3. Checks which targets are already indexed
- * 4. Starts indexing any missing targets (with concurrency control)
- * 5. Waits for all indexing (new + already in-progress) to complete
+ * 3. Submits all targets via `POST /sources` (idempotent — returns existing
+ *    source if already indexed) to obtain per-source IDs
+ * 4. Polls any sources that aren't yet ready using `GET /sources/{id}` for
+ *    accurate per-tag/ref status tracking
  *
- * If a target fails to index, a warning is logged but other targets continue.
+ * This approach avoids the legacy `GET /repositories/{id}` endpoint which
+ * only provides repo-level status and cannot distinguish between different
+ * tags/refs of the same repository.
+ *
+ * If a target fails to submit, a warning is logged but other targets continue.
  * The function only throws if the API key is missing or a fatal error occurs.
  *
  * @param tasks - Loaded benchmark tasks (used to derive required targets)
@@ -620,93 +603,84 @@ export async function ensureNiaSetup(
 	}
 
 	console.log(
-		`  Checking ${targets.length} source(s) needed for the selected tasks...`,
+		`  Submitting ${targets.length} source(s) needed for the selected tasks...`,
 	);
 
-	// Step 3: Check status of all targets (parallel)
-	const statusChecks = await Promise.all(
-		targets.map(async (target) => {
-			const status = await checkTargetStatus(apiKey, target);
-			return { target, status };
-		}),
-	);
-
-	// Partition into categories
-	const alreadyIndexed: NiaIndexTarget[] = [];
-	const inProgress: NiaIndexTarget[] = [];
-	const needsIndexing: NiaIndexTarget[] = [];
-
-	for (const { target, status } of statusChecks) {
-		if (status.indexed) {
-			alreadyIndexed.push(target);
-			console.log(`  ✓ ${target.displayName} (indexed)`);
-		} else if (status.indexing) {
-			inProgress.push(target);
-			console.log(`  ↻ ${target.displayName} (indexing in progress)`);
-		} else {
-			needsIndexing.push(target);
-			console.log(`  ✗ ${target.displayName} (needs indexing)`);
-		}
-	}
-
-	// If everything is already indexed, we're done
-	if (needsIndexing.length === 0 && inProgress.length === 0) {
-		console.log(`\n  All ${alreadyIndexed.length} source(s) already indexed.`);
-		return;
-	}
-
-	// Step 4: Start indexing missing targets with concurrency control
-	const deadline = Date.now() + maxWaitTime;
-
-	if (needsIndexing.length > 0) {
-		console.log(
-			`\n  Starting indexing for ${needsIndexing.length} source(s) (parallel: ${parallel})...`,
-		);
-
-		const semaphore = new AsyncSemaphore(parallel);
-		const indexPromises = needsIndexing.map(async (target) => {
+	// Step 3: Submit all targets via POST /sources (with concurrency control)
+	// The API is idempotent — already-indexed sources return immediately with
+	// their existing source ID and status. This gives us the per-source IDs
+	// we need for accurate polling.
+	const semaphore = new AsyncSemaphore(parallel);
+	const submitPromises = targets.map(
+		async (target): Promise<IndexResult | null> => {
 			await semaphore.acquire();
 			try {
-				console.log(`  → Indexing ${target.displayName}...`);
-				await indexTarget(apiKey, target);
+				const { id, status } = await submitTarget(apiKey, target);
+				return { target, sourceId: id, status };
 			} catch (err) {
 				const msg = err instanceof Error ? err.message : String(err);
-				console.warn(
-					`  ⚠ Failed to start indexing ${target.displayName}: ${msg}`,
-				);
+				console.warn(`  ⚠ Failed to submit ${target.displayName}: ${msg}`);
+				return null;
 			} finally {
 				semaphore.release();
 			}
-		});
-		await Promise.allSettled(indexPromises);
+		},
+	);
+	const results = (await Promise.all(submitPromises)).filter(
+		(r): r is IndexResult => r !== null,
+	);
+
+	// Partition into ready vs needs-polling
+	const alreadyReady: IndexResult[] = [];
+	const needsPolling: IndexResult[] = [];
+
+	for (const result of results) {
+		if (READY_STATUSES.has(result.status)) {
+			alreadyReady.push(result);
+			console.log(`  ✓ ${result.target.displayName} (${result.status})`);
+		} else {
+			needsPolling.push(result);
+			console.log(`  ↻ ${result.target.displayName} (${result.status})`);
+		}
 	}
 
-	// Step 5: Wait for all non-indexed targets (newly started + already in-progress)
-	const toWaitFor = [...needsIndexing, ...inProgress];
-	if (toWaitFor.length > 0) {
-		console.log(
-			`\n  Waiting for ${toWaitFor.length} source(s) to finish indexing...`,
-		);
-		console.log(
-			`  (timeout: ${formatDuration(maxWaitTime)}, polling every ${formatDuration(pollInterval)})`,
-		);
-
-		const pollPromises = toWaitFor.map(async (target) => {
-			try {
-				await pollUntilReady(apiKey, target, pollInterval, deadline);
-				console.log(`  ✓ ${target.displayName} ready`);
-			} catch (err) {
-				const msg = err instanceof Error ? err.message : String(err);
-				console.warn(`  ⚠ ${msg}`);
-			}
-		});
-		await Promise.allSettled(pollPromises);
+	// If everything is already ready, we're done
+	if (needsPolling.length === 0) {
+		console.log(`\n  All ${alreadyReady.length} source(s) already indexed.`);
+		return;
 	}
+
+	// Step 4: Poll sources that aren't ready yet using GET /sources/{id}
+	const deadline = Date.now() + maxWaitTime;
+
+	console.log(
+		`\n  Waiting for ${needsPolling.length} source(s) to finish indexing...`,
+	);
+	console.log(
+		`  (timeout: ${formatDuration(maxWaitTime)}, polling every ${formatDuration(pollInterval)})`,
+	);
+
+	const pollPromises = needsPolling.map(async (result) => {
+		try {
+			await pollUntilReady(
+				apiKey,
+				result.sourceId,
+				result.target.displayName,
+				pollInterval,
+				deadline,
+			);
+			console.log(`  ✓ ${result.target.displayName} ready`);
+		} catch (err) {
+			const msg = err instanceof Error ? err.message : String(err);
+			console.warn(`  ⚠ ${msg}`);
+		}
+	});
+	await Promise.allSettled(pollPromises);
 
 	// Summary
 	const elapsed = Date.now() + maxWaitTime - deadline; // time already spent
 	console.log(
 		`\n  Nia setup finished (${formatDuration(elapsed)}). ` +
-			`${alreadyIndexed.length} cached, ${needsIndexing.length + inProgress.length} indexed/waited.`,
+			`${alreadyReady.length} cached, ${needsPolling.length} indexed/waited.`,
 	);
 }
