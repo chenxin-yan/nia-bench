@@ -67,7 +67,39 @@ interface NiaSourceResponse {
 }
 
 /**
- * Result of submitting a target to the Nia API via `POST /sources`.
+ * Possible actions returned by `POST /global-sources/subscribe`.
+ *
+ * - `instant_access`   — Source is already indexed globally; use immediately.
+ * - `wait_for_indexing` — Source is being indexed; we've been subscribed.
+ * - `not_indexed`       — Source is not globally available; fall back to private.
+ * - `use_private`       — A private copy already exists for this user.
+ * - `indexing_started`  — Indexing was auto-triggered (HuggingFace datasets only).
+ */
+type GlobalSubscribeAction =
+	| "instant_access"
+	| "wait_for_indexing"
+	| "not_indexed"
+	| "use_private"
+	| "indexing_started";
+
+/**
+ * Response shape from `POST /global-sources/subscribe`.
+ *
+ * @see https://docs.trynia.ai/api-reference/global-sources
+ */
+interface NiaGlobalSourceResponse {
+	action: GlobalSubscribeAction;
+	message: string;
+	global_source_id: string | null;
+	namespace: string | null;
+	status: string | null;
+	local_reference_id: string | null;
+	display_name: string | null;
+}
+
+/**
+ * Result of submitting a target to the Nia API via `POST /sources` or
+ * subscribing to a global source via `POST /global-sources/subscribe`.
  * Contains the source ID needed for per-source status polling.
  */
 interface IndexResult {
@@ -77,6 +109,8 @@ interface IndexResult {
 	sourceId: string;
 	/** Status at the time of submission (e.g. "indexing", "completed", "indexed"). */
 	status: string;
+	/** Whether this source was resolved from the global source registry. */
+	global: boolean;
 }
 
 // --- Version → Target Mapping ---
@@ -508,7 +542,7 @@ async function indexDocs(
  * The API is idempotent: already-indexed sources return immediately with
  * their current status (e.g. "completed"/"indexed").
  */
-async function submitTarget(
+async function submitTargetPrivate(
 	apiKey: string,
 	target: NiaIndexTarget,
 ): Promise<{ id: string; status: string }> {
@@ -516,6 +550,101 @@ async function submitTarget(
 		return indexRepo(apiKey, target);
 	}
 	return indexDocs(apiKey, target);
+}
+
+// --- Global Source Subscription ---
+
+/**
+ * Attempts to subscribe to a pre-indexed global source via
+ * `POST /global-sources/subscribe`.
+ *
+ * Nia maintains a shared registry of popular repositories and documentation
+ * sites. Subscribing creates a lightweight local reference to the global
+ * index — no re-indexing required — which can reduce setup time from minutes
+ * to near-zero for commonly used libraries.
+ *
+ * @returns The source ID and status if the global source is available
+ *          (instant_access or wait_for_indexing), or `null` if the source
+ *          is not globally available and private indexing should be used.
+ */
+async function tryGlobalSubscribe(
+	apiKey: string,
+	target: NiaIndexTarget,
+): Promise<{ id: string; status: string } | null> {
+	const url =
+		target.type === "repo"
+			? `https://github.com/${target.identifier}`
+			: target.identifier;
+
+	const body: Record<string, unknown> = {
+		url,
+		source_type: target.type === "repo" ? "repository" : "documentation",
+	};
+	if (target.tag) body.ref = target.tag;
+
+	const res = await fetch(`${NIA_BASE_URL}/global-sources/subscribe`, {
+		method: "POST",
+		headers: {
+			Authorization: `Bearer ${apiKey}`,
+			"Content-Type": "application/json",
+		},
+		body: JSON.stringify(body),
+	});
+
+	// Non-200 means the endpoint isn't available or errored — fall back
+	if (!res.ok) return null;
+
+	const data = (await res.json()) as NiaGlobalSourceResponse;
+
+	switch (data.action) {
+		case "instant_access":
+		case "use_private": {
+			// Source is ready — use the local reference ID
+			const id = data.local_reference_id;
+			if (!id) return null;
+			return { id, status: data.status ?? "indexed" };
+		}
+
+		case "wait_for_indexing":
+		case "indexing_started": {
+			// Source is being indexed — use whichever ID is available for polling
+			const id = data.local_reference_id ?? data.global_source_id;
+			if (!id) return null;
+			return { id, status: data.status ?? "indexing" };
+		}
+
+		default:
+			// "not_indexed" or any unexpected action — fall back to private indexing
+			return null;
+	}
+}
+
+/**
+ * Resolves a target by first attempting a global source subscription, then
+ * falling back to private indexing via `POST /sources`.
+ *
+ * The global path is significantly faster for popular libraries (React,
+ * Next.js, Zod, etc.) that are already indexed in Nia's shared registry.
+ *
+ * @returns The source ID, current status, and whether a global source was used.
+ */
+async function submitTarget(
+	apiKey: string,
+	target: NiaIndexTarget,
+): Promise<{ id: string; status: string; global: boolean }> {
+	// Try global subscribe first (fast path)
+	try {
+		const globalResult = await tryGlobalSubscribe(apiKey, target);
+		if (globalResult) {
+			return { ...globalResult, global: true };
+		}
+	} catch {
+		// Global subscribe failed — fall through to private indexing
+	}
+
+	// Fall back to private indexing (slow path)
+	const privateResult = await submitTargetPrivate(apiKey, target);
+	return { ...privateResult, global: false };
 }
 
 // --- Polling ---
@@ -573,14 +702,16 @@ async function pollUntilReady(
  * This function is the main entry point for the Nia setup phase. It:
  * 1. Resolves the Nia API key
  * 2. Derives required targets from the task list
- * 3. Submits all targets via `POST /sources` (idempotent — returns existing
- *    source if already indexed) to obtain per-source IDs
+ * 3. For each target, first attempts `POST /global-sources/subscribe` to
+ *    leverage Nia's shared global index (instant access for popular libraries).
+ *    Falls back to private `POST /sources` indexing if the source is not
+ *    globally available.
  * 4. Polls any sources that aren't yet ready using `GET /sources/{id}` for
  *    accurate per-tag/ref status tracking
  *
- * This approach avoids the legacy `GET /repositories/{id}` endpoint which
- * only provides repo-level status and cannot distinguish between different
- * tags/refs of the same repository.
+ * The global-source-first approach can reduce setup time from hours to seconds
+ * for commonly used libraries (React, Next.js, Zod, etc.) that are already
+ * indexed in Nia's shared registry.
  *
  * If a target fails to submit, a warning is logged but other targets continue.
  * The function only throws if the API key is missing or a fatal error occurs.
@@ -607,20 +738,19 @@ export async function ensureNiaSetup(
 	}
 
 	console.log(
-		`  Submitting ${targets.length} source(s) needed for the selected tasks...`,
+		`  Resolving ${targets.length} source(s) needed for the selected tasks...`,
 	);
 
-	// Step 3: Submit all targets via POST /sources (with concurrency control)
-	// The API is idempotent — already-indexed sources return immediately with
-	// their existing source ID and status. This gives us the per-source IDs
-	// we need for accurate polling.
+	// Step 3: For each target, try global subscribe first, then fall back to
+	// private indexing via POST /sources. Global sources resolve instantly for
+	// popular libraries already in Nia's shared registry.
 	const semaphore = new AsyncSemaphore(parallel);
 	const submitPromises = targets.map(
 		async (target): Promise<IndexResult | null> => {
 			await semaphore.acquire();
 			try {
-				const { id, status } = await submitTarget(apiKey, target);
-				return { target, sourceId: id, status };
+				const { id, status, global } = await submitTarget(apiKey, target);
+				return { target, sourceId: id, status, global };
 			} catch (err) {
 				const msg = err instanceof Error ? err.message : String(err);
 				console.warn(`  ⚠ Failed to submit ${target.displayName}: ${msg}`);
@@ -639,18 +769,30 @@ export async function ensureNiaSetup(
 	const needsPolling: IndexResult[] = [];
 
 	for (const result of results) {
+		const tag = result.global ? "global" : "private";
 		if (READY_STATUSES.has(result.status)) {
 			alreadyReady.push(result);
-			console.log(`  ✓ ${result.target.displayName} (${result.status})`);
+			console.log(
+				`  ✓ ${result.target.displayName} (${result.status}, ${tag})`,
+			);
 		} else {
 			needsPolling.push(result);
-			console.log(`  ↻ ${result.target.displayName} (${result.status})`);
+			console.log(
+				`  ↻ ${result.target.displayName} (${result.status}, ${tag})`,
+			);
 		}
 	}
 
+	// Tally global vs private for summary
+	const globalCount = results.filter((r) => r.global).length;
+	const privateCount = results.length - globalCount;
+
 	// If everything is already ready, we're done
 	if (needsPolling.length === 0) {
-		console.log(`\n  All ${alreadyReady.length} source(s) already indexed.`);
+		console.log(
+			`\n  All ${alreadyReady.length} source(s) already indexed` +
+				` (${globalCount} global, ${privateCount} private).`,
+		);
 		return;
 	}
 
@@ -685,6 +827,7 @@ export async function ensureNiaSetup(
 	const elapsed = Date.now() + maxWaitTime - deadline; // time already spent
 	console.log(
 		`\n  Nia setup finished (${formatDuration(elapsed)}). ` +
-			`${alreadyReady.length} cached, ${needsPolling.length} indexed/waited.`,
+			`${alreadyReady.length} cached, ${needsPolling.length} indexed/waited ` +
+			`(${globalCount} global, ${privateCount} private).`,
 	);
 }
