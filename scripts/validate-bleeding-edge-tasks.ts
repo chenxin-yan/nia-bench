@@ -1,5 +1,5 @@
 /**
- * Validation script to verify all 14 bleeding-edge task JSON files
+ * Validation script to verify all 13 bleeding-edge task JSON files
  * load correctly and their reference solutions pass all AST checks.
  */
 
@@ -28,7 +28,7 @@ async function main() {
 	);
 	console.log(`\nBleeding-edge tasks: ${bleedingEdge.length}`);
 
-	// Expected 14 bleeding-edge tasks
+	// Expected 13 bleeding-edge tasks
 	const expectedIds = [
 		"nextjs-16-proxy-ts",
 		"nextjs-16-enforced-async",
@@ -36,9 +36,8 @@ async function main() {
 		"react-19-use-hook",
 		"react-19-form-actions",
 		"react-19-ref-as-prop",
-		"ai-sdk-5-ui-message-stream",
-		"ai-sdk-5-data-parts",
-		"ai-sdk-4-sync-stream-text",
+		"ai-sdk-6-output-api",
+		"ai-sdk-6-tool-loop-agent",
 		"trpc-11-transformer-link",
 		"trpc-11-sse-subscriptions",
 		"trpc-11-shorthand-streaming",
@@ -53,7 +52,7 @@ async function main() {
 		process.exit(1);
 	}
 
-	console.log("\nVerifying all 14 bleeding-edge tasks:");
+	console.log("\nVerifying all 13 bleeding-edge tasks:");
 	let allPassed = true;
 
 	for (const id of expectedIds) {

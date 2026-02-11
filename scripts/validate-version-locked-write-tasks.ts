@@ -1,5 +1,5 @@
 /**
- * Validation script to verify all 14 version-locked-write task JSON files
+ * Validation script to verify all 15 version-locked-write task JSON files
  * load correctly and their reference solutions pass all AST checks.
  */
 
@@ -28,7 +28,7 @@ async function main() {
 	);
 	console.log(`\nVersion-locked-write tasks: ${versionLockedWrite.length}`);
 
-	// Expected 14 version-locked-write tasks
+	// Expected 15 version-locked-write tasks
 	const expectedIds = [
 		"nextjs-13-sync-request-apis",
 		"nextjs-14-direct-params",
@@ -36,8 +36,9 @@ async function main() {
 		"react-17-data-fetching",
 		"react-17-render-entry",
 		"react-18-forward-ref",
-		"ai-sdk-3-async-stream",
-		"ai-sdk-3-type-names",
+		"ai-sdk-4-sync-stream-text",
+		"ai-sdk-4-type-names",
+		"ai-sdk-4-generate-object",
 		"trpc-10-client-transformer",
 		"trpc-10-middleware-raw-input",
 		"trpc-10-ssg-helpers",
@@ -58,7 +59,7 @@ async function main() {
 		process.exit(1);
 	}
 
-	console.log("\nVerifying all 14 version-locked-write tasks:");
+	console.log("\nVerifying all 15 version-locked-write tasks:");
 	let allPassed = true;
 
 	for (const id of expectedIds) {

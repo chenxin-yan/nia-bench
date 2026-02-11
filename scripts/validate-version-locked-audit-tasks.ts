@@ -43,10 +43,10 @@ async function main() {
 		"react-18-audit-missed-features",
 		"zod-4-audit-v3-code",
 		"trpc-11-audit-v10-code",
-		"ai-sdk-4-audit-v3-code",
+		"ai-sdk-5-audit-v4-streaming",
 		"trpc-11-audit-v10-subscriptions",
 		"zod-4-audit-v3-functions",
-		"ai-sdk-5-audit-v4-streaming",
+		"ai-sdk-6-audit-v5-code",
 	];
 
 	if (auditTasks.length !== expectedIds.length) {
