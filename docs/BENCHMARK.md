@@ -2240,6 +2240,7 @@ For each task T:
   For each condition C in [baseline, context7, nia]:
     Repeat 3 times (for statistical stability):
       1. Send task prompt to Claude Sonnet with condition C's MCP config
+         (retry up to --max-retries times on non-zero exit, fresh sandbox each attempt)
       2. Extract generated code from response
       3. Run automated test assertions -> test_score
       4. Run LLM judge (3x majority vote) -> judge_score

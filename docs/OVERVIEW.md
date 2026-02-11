@@ -16,10 +16,19 @@
 │  (src/loader/)       │          │  & CONCURRENCY       │
 │  - Loads JSON tasks  │          │  - AsyncSemaphore    │
 │  - Validates schema  │          │  - Shuffle with seed │
+│                      │          │  - Stratified sample │
 └──────────┬───────────┘          └──────────┬───────────┘
            │                               │
            └───────────────────┬───────────┘
                                ▼
+                   ┌─────────────────────────┐
+                   │  NIA SETUP (optional)   │
+                   │  (src/runner/           │
+                   │   nia-setup.ts)         │
+                   │  - Index repos & docs   │
+                   │  - Poll until ready     │
+                   └────────────┬────────────┘
+                                │
                    ┌─────────────────────────┐
                    │  WORK ITEM EXECUTION    │
                    │  (Per condition & rep)   │
@@ -37,8 +46,9 @@
     │   files     │         │  check   │          │  JSON      │
     │ - Parses    │         │- Judge   │          │  results   │
     │   output    │         │  scoring │          │- Atomic    │
-    └─────────────┘         └──────────┘          │  writes    │
-                                                  └────────────┘
+    │ - Retries   │         └──────────┘          │  writes    │
+    │   on failure│                               └────────────┘
+    └─────────────┘
                                 │
                                 ▼
                     ┌──────────────────────┐
@@ -54,92 +64,7 @@
 
 ---
 
-## 📁 Directory Structure
-
-```
-nia-bench/
-├── src/
-│   ├── index.ts                      # Entry point → orchestrator
-│   ├── types/
-│   │   ├── task.ts                   # Task schema (Zod)
-│   │   └── reference.ts              # Reference solution types
-│   ├── loader/
-│   │   ├── task-loader.ts            # Loads & validates task JSON files
-│   │   └── __tests__/
-│   ├── runner/                       # Core orchestration
-│   │   ├── orchestrator.ts           # Main benchmark runner
-│   │   ├── agent.ts                  # OpenCode agent executor
-│   │   ├── evaluator.ts              # Evaluation (AST + type check + judge)
-│   │   ├── reporter.ts               # Report generation & metrics
-│   │   ├── result-store.ts           # Result persistence
-│   │   ├── mcp_configs/              # OpenCode configuration files
-│   │   │   ├── nia.opencode.json
-│   │   │   ├── context7.opencode.json
-│   │   │   └── baseline.opencode.json
-│   │   └── __tests__/
-│   ├── judge/                        # LLM-based evaluation
-│   │   ├── hallucination-classifier.ts # Classifies failure types
-│   │   ├── rubric-scorer.ts          # Scores against rubric
-│   │   ├── prompt-template.ts        # Judge prompts
-│   │   ├── openrouter-client.ts      # LLM API calls
-│   │   └── __tests__/
-│   └── tests/                        # Automated code evaluation
-│       ├── ast-checker.ts            # AST validation
-│       ├── type-checker.ts           # TypeScript type checking
-│       └── __tests__/
-│
-├── tasks/                            # Task definitions (40 JSON files)
-│   ├── bleeding_edge/                # Category A: Latest features
-│   │   ├── nextjs-16-*.json          # 3 Next.js 16 tasks
-│   │   ├── react-19-*.json           # 3 React 19 tasks
-│   │   ├── ai-sdk-5-*.json           # 3 AI SDK 5 tasks
-│   │   ├── trpc-11-*.json            # 3 tRPC 11 tasks
-│   │   └── zod-4-*.json              # 2 Zod 4 tasks
-│   ├── version_locked_write/         # Category B1: Write for specific version
-│   │   ├── nextjs-13-*.json
-│   │   ├── nextjs-14-*.json
-│   │   ├── nextjs-15-*.json
-│   │   ├── react-17-*.json
-│   │   ├── react-18-*.json
-│   │   ├── ai-sdk-3-*.json
-│   │   ├── trpc-10-*.json
-│   │   └── zod-3-*.json
-│   └── version_locked_audit/         # Category B2: Audit code for version
-│       └── (12 audit tasks)
-│
-├── results/                          # Output directory (created at runtime)
-│   └── {timestamp}/
-│       ├── run-meta.json             # Run metadata
-│       ├── report.json               # Structured report
-│       ├── report.txt                # Human-readable report
-│       └── {taskId}/
-│           └── {condition}/
-│               └── run-{index}.json  # Individual result files
-│
-├── typecheck-envs/                   # TypeScript environments for version testing
-│   ├── react-17/
-│   ├── react-18/
-│   ├── react-19/
-│   ├── next-13/ through next-16/
-│   ├── zod-3/
-│   ├── zod-4/
-│   ├── ai-sdk-3/ through ai-sdk-5/
-│   └── trpc-10/
-│       trpc-11/
-│
-├── docs/
-│   └── BENCHMARK.md                  # Detailed specification (1500+ lines)
-│
-└── scripts/                          # Validation scripts
-    ├── validate-bleeding-edge-tasks.ts
-    ├── validate-version-locked-write-tasks.ts
-    ├── validate-version-locked-audit-tasks.ts
-    └── validate-pilot-tasks.ts
-```
-
----
-
-## 🔄 Complete Workflow
+## Complete Workflow
 
 ### Phase 1: Initialization & Configuration
 
@@ -153,7 +78,10 @@ User runs: bun run src/index.ts [--options]
             - Output directory
             - Parallelization level (1-N workers)
             - Repetitions per task/condition (default: 3)
+            - Max retries per agent execution (default: 3)
             - Random seed for reproducibility
+            - Task limit with stratified sampling (optional)
+            - Skip Nia setup flag (optional)
             - Model override (optional)
 ```
 
@@ -173,25 +101,22 @@ loadTasks(tasksDir, filters)
         (Tasks marked with "status: 'error'" are filtered out)
 ```
 
-**Task Structure:**
+### Phase 2b: Stratified Sampling (optional)
 
-```typescript
-interface Task {
-  id: string; // "nextjs-16-proxy-ts"
-  category: "bleeding_edge" | "version_locked_write" | "version_locked_audit";
-  library: "next" | "react" | "ai" | "trpc" | "zod";
-  target_version: string; // "16.0.0"
-  prompt: string; // The task prompt
-  reference_solution: string; // Canonical correct code
-  test_spec: {
-    ast_checks: AstCheck[]; // Automated validation rules
-    type_check: boolean; // Enable TypeScript checking
-  };
-  rubric: {
-    criteria: RubricCriterion[]; // Judge evaluation criteria
-  };
-  common_hallucinations: string[]; // Known failure modes
-}
+```
+If --limit N is set (and N < total tasks):
+
+stratifiedSample(tasks, limit, rng)
+    │
+    ├─→ Group tasks by category
+    ├─→ Compute proportional allocation (largest-remainder method)
+    ├─→ Shuffle each group with seeded RNG
+    └─→ Select allocated count from each group
+
+    Example: 40 tasks with --limit 10
+      bleeding_edge:         14/40 × 10 = 3.5 → 4
+      version_locked_write:  14/40 × 10 = 3.5 → 3
+      version_locked_audit:  12/40 × 10 = 3.0 → 3
 ```
 
 ### Phase 3: Work Queue Generation
@@ -214,6 +139,29 @@ generateWorkQueue(taskIds, conditions, reps)
     }
 ```
 
+### Phase 3b: Nia Setup (conditional)
+
+```
+If "nia" condition is active AND --skip-nia-setup is NOT set:
+
+ensureNiaSetup(tasks, options)
+    │
+    ├─→ Resolve Nia API key (env var or ~/.config/nia/api_key)
+    ├─→ Derive required targets from tasks:
+    │   Map (library, majorVersion) → repo tags + doc URLs
+    │   Example: react:19 → [facebook/react@main, https://react.dev]
+    │
+    ├─→ Check status of all targets via Nia API
+    │   ├─→ Already indexed → skip
+    │   ├─→ Indexing in progress → wait
+    │   └─→ Not indexed → start indexing
+    │
+    ├─→ Start indexing missing targets (parallel, concurrency-limited)
+    │
+    └─→ Poll until all targets reach "indexed"/"completed" status
+        (default timeout: 10 minutes, poll interval: 15 seconds)
+```
+
 ### Phase 4: Concurrent Execution
 
 ```
@@ -223,7 +171,12 @@ For each work item:
   ┌────────────────────────────────────────────┐
   │ AGENT EXECUTION (agent.ts)                 │
   ├────────────────────────────────────────────┤
-  │ 1. Create temp working directory            │
+  │ Retries up to --max-retries times on       │
+  │ non-zero exit (default: 3). Each attempt   │
+  │ uses a fresh sandbox + working directory.  │
+  │                                             │
+  │ Per attempt:                                │
+  │ 1. Create sandboxed HOME + temp workdir    │
   │ 2. Set up opencode environment              │
   │    - Select config based on condition       │
   │    - Add baseline/context7/nia MCP configs  │
@@ -236,7 +189,8 @@ For each work item:
   │    (Parse "tool_output" events)             │
   │ 7. Return AgentResult {                     │
   │      taskId, condition, runIndex,           │
-  │      extractedFiles, rawOutput, exitCode... │
+  │      extractedFiles, rawOutput, exitCode,   │
+  │      attempts...                            │
   │    }                                        │
   └────────────────────────────────────────────┘
                     │
@@ -336,7 +290,7 @@ generateAndWriteReport(runDir)
 
 ---
 
-## 📊 Result Visualization & Report Generation
+## Result Visualization & Report Generation
 
 ### Structured Report Output (JSON)
 
@@ -401,29 +355,6 @@ interface TaskDetail {
 
 File: `results/{timestamp}/report.txt`
 
-Output Example:
-
-```
-================================================================
-                     NIA-BENCH RESULTS v1.0
-================================================================
- Metric                       Baseline    Context7        Nia
-----------------------------------------------------------------
- Task Pass Rate                78.5%        82.1%       85.3%
- Hallucination Rate            12.3%         8.7%        5.2%
- Version Compliance Rate       85.0%        90.0%       93.0%
- Mean Combined Score            0.76         0.81        0.85
-================================================================
- CATEGORY A: BLEEDING-EDGE TASKS
- Task Pass Rate                72.0%        80.0%       85.0%
- Hallucination Rate            20.0%        10.0%        5.0%
-================================================================
- CATEGORY B1: VERSION-LOCKED WRITE
- Task Pass Rate                85.0%        90.0%       92.0%
- Version Compliance Rate       90.0%        95.0%       97.0%
-...
-```
-
 ### Metrics Explained
 
 | Metric                      | Definition                             | Context                     |
@@ -469,7 +400,7 @@ Identify and fix version-incorrect code.
 
 ---
 
-## 🔍 AST Checks (Automated Testing)
+## AST Checks (Automated Testing)
 
 Each task has a `test_spec.ast_checks[]` array with validation rules:
 
@@ -502,7 +433,7 @@ Each task has a `test_spec.ast_checks[]` array with validation rules:
 
 ---
 
-## 🤖 LLM Judge Scoring
+## LLM Judge Scoring
 
 For tasks where automated AST checks alone aren't sufficient.
 
@@ -519,7 +450,7 @@ For tasks where automated AST checks alone aren't sufficient.
    ```
 
 2. **API Call** (openrouter-client.ts):
-   - Calls OpenRouter API with Claude Opus
+   - Calls OpenRouter API
    - Parses JSON response with criterion scores
    - Handles retries & timeouts
 
@@ -566,7 +497,7 @@ For tasks where automated AST checks alone aren't sufficient.
 
 ---
 
-## 🐛 Hallucination Classification
+## Hallucination Classification
 
 Maps failures to specific error categories:
 
@@ -586,259 +517,3 @@ type HallucinationType =
 2. Infer direction (older/newer) based on task metadata
 3. Cross-reference with `common_hallucinations` hints
 4. Aggregate into HallucinationResult
-
----
-
-## 📦 Key Dependencies
-
-- **ts-morph** (v27.0.2): AST parsing and manipulation for code validation
-- **zod** (v4.3.6): Runtime schema validation for task definitions
-- **openai** (v6.18.0): OpenRouter API calls for LLM judge
-- **bun**: Runtime and package manager
-- **TypeScript** (v5): Type safety
-- **Biome** (v2.3.14): Code formatting & linting
-
----
-
-## 🚀 Running the Benchmark
-
-### Basic Run
-
-```bash
-bun run src/index.ts
-# Runs all 40 tasks × 3 conditions × 3 reps = 360 items
-# Uses 1 worker (sequential)
-# Results written to results/{timestamp}/
-```
-
-### With Options
-
-```bash
-# Run only Next.js 16 tasks with Nia condition, 2 reps, 4 workers
-bun run src/index.ts \
-  --library next \
-  --task nextjs-16-proxy-ts \
-  --condition nia \
-  --reps 2 \
-  --parallel 4
-
-# Dry run: print execution plan without running
-bun run src/index.ts --dry-run
-
-# Skip judge evaluation (faster for iteration)
-bun run src/index.ts --skip-judge
-
-# Override model (use different Claude version)
-bun run src/index.ts --model anthropic/claude-opus-4-1-20250805
-
-# Generate report from existing results
-bun run src/index.ts --report-only --output-dir results/{timestamp}
-```
-
-### CLI Flags
-
-```
---category <cat>        Filter: bleeding_edge | version_locked_write | version_locked_audit
---library <lib>         Filter: next | react | ai | trpc | zod
---task <id>             Filter: single task ID
---condition <cond>      Filter: baseline | context7 | nia
---reps <n>              Repetitions per task (default: 3)
---parallel <n>          Worker threads (default: 1)
---skip-judge            Disable LLM judge (faster)
---keep-workdirs         Keep temp working directories (for debugging)
---timeout <ms>          Per-agent timeout (default: 300000)
---seed <n>              Random seed for work queue shuffle (reproducible order)
---dry-run               Print plan without executing
---eval-only             Re-run evaluation on existing results (partial support)
---report-only           Generate report from existing results
---output-dir <dir>      Results directory (default: results/)
---tasks-dir <dir>       Tasks directory (default: tasks/)
---model <id>            Model override (provider/model format)
-```
-
----
-
-## 📝 Result File Structure
-
-```
-results/
-└── 2025-02-09T02-22-33-456Z/
-    ├── run-meta.json
-    │   {
-    │     "startTime": "2025-02-09T02:22:33.456Z",
-    │     "endTime": "2025-02-09T03:15:44.123Z",
-    │     "totalTasks": 40,
-    │     "conditions": ["baseline", "context7", "nia"],
-    │     "reps": 3,
-    │     "parallel": 4,
-    │     "seed": 12345,
-    │     "status": "completed",
-    │     "completedItems": 360,
-    │     "totalItems": 360
-    │   }
-    ├── report.json          # Structured report (for parsing)
-    ├── report.txt           # Human-readable ASCII table
-    │
-    ├── nextjs-16-proxy-ts/
-    │   ├── baseline/
-    │   │   ├── run-0.json   # Rep 0 result
-    │   │   ├── run-1.json   # Rep 1 result
-    │   │   └── run-2.json   # Rep 2 result
-    │   ├── context7/
-    │   │   └── run-*.json
-    │   └── nia/
-    │       └── run-*.json
-    │
-    ├── nextjs-16-enforced-async/
-    │   └── ...
-    │
-    └── [38 more task directories]
-```
-
-### Individual Result File (`run-X.json`)
-
-```typescript
-{
-  taskId: "nextjs-16-proxy-ts",
-  condition: "nia",
-  runIndex: 0,
-  testScore: 0.95,                    // % AST checks passed
-  judgeScore: 0.88,                   // Judge's evaluation
-  finalScore: 0.922,                  // 0.6×0.95 + 0.4×0.88
-  astResults: [                       // One per check
-    {
-      check: { type: "function_exported", name: "proxy" },
-      passed: true,
-      message: "Found function export: proxy"
-    },
-    ...
-  ],
-  typeCheckResult: {                  // If enabled
-    passed: true,
-    errors: []
-  },
-  judgeResult: {
-    criterion_scores: {
-      proxy_filename: 1.0,
-      proxy_function_name: 1.0,
-      no_edge_runtime: 1.0,
-      correct_api_usage: 0.75,
-      no_hallucination: 0.5
-    },
-    explanations: { ... }
-  },
-  hallucinations: {
-    types: ["wrong_parameter"],       // Classification
-    details: [
-      {
-        type: "wrong_parameter",
-        evidence: "...",
-        description: "..."
-      }
-    ]
-  },
-  extractedFiles: {
-    "proxy.ts": "export function proxy(request) { ... }"
-  }
-}
-```
-
----
-
-## 🔧 Key Classes & Functions
-
-### Orchestrator (orchestrator.ts)
-
-- `parseCliArgs(argv)`: Parse command-line arguments
-- `generateWorkQueue(taskIds, conditions, reps)`: Create work items
-- `runBenchmark(config)`: Main entry point
-- `ProgressLogger`: Tracks completion + ETA
-- `AsyncSemaphore`: Concurrency control
-
-### Agent (agent.ts)
-
-- `runAgent(task, condition, repIndex)`: Execute OpenCode
-- `checkOpencodeBinary()`: Verify opencode CLI is installed
-- `extractCodeFromOutput(rawOutput)`: Parse NDJSON events
-
-### Evaluator (evaluator.ts)
-
-- `evaluateCode(task, extractedFiles, ...)`: Full evaluation pipeline
-- `runAstChecks(code, checks)`: Validate with AST
-- `runTypeCheck(code, envPath)`: TypeScript checking
-
-### Reporter (reporter.ts)
-
-- `loadResults(runDir)`: Read all result files
-- `computeMetrics(results)`: Aggregate statistics
-- `formatReportText(report)`: Generate ASCII table
-- `generateAndWriteReport(runDir)`: Write JSON + TXT outputs
-
-### Hallucination Classifier (judge/hallucination-classifier.ts)
-
-- `classifyHallucinations(task, astResults, judgeResult)`: Map failures to types
-
-### Rubric Scorer (judge/rubric-scorer.ts)
-
-- `scoreWithRubric(code, task, condition)`: LLM judge evaluation
-- `calculateJudgeScore(responses)`: Average criterion scores
-
----
-
-## 📊 Data Flow Summary
-
-```
-Input: User CLI args
-  │
-  ├─→ Load tasks (validate with Zod)
-  ├─→ Generate work queue (shuffle with seed)
-  │
-  ├─→ For each work item [taskId, condition, rep]:
-  │   │
-  │   ├─→ Run Agent
-  │   │   └─→ Execute opencode CLI
-  │   │   └─→ Extract code files from NDJSON stream
-  │   │
-  │   ├─→ Evaluate Code
-  │   │   ├─→ AST Checks (ts-morph)
-  │   │   ├─→ Type Check (tsc in version-specific env)
-  │   │   ├─→ Classify Hallucinations
-  │   │   └─→ Judge Scoring (OpenRouter API)
-  │   │
-  │   └─→ Store Result (atomic write to JSON)
-  │
-  └─→ Generate Report
-      ├─→ Load all results
-      ├─→ Compute metrics (pass rate, compliance, etc.)
-      ├─→ Aggregate by category/library/condition
-      └─→ Write report.json + report.txt + stdout
-
-Output: Results directory with JSON + text reports
-```
-
----
-
-## Key Concepts
-
-### Conditions
-
-- **Baseline**: Pure LLM capability (no context tools)
-- **Context7**: Context augmentation tool #1
-- **Nia**: Context augmentation tool #2 (full toolset)
-  → Measures how much context tools improve accuracy
-
-### Categories
-
-- **Bleeding-Edge (A)**: Latest features (post-training cutoff)
-  - Measures: Can context tools help with unknown features?
-- **Version-Locked Write (B1)**: Code for specific old version
-  - Measures: Can agents stick to old APIs when required?
-- **Version-Locked Audit (B2)**: Identify version bugs in given code
-  - Measures: Can agents recognize and fix version issues?
-
-### Scoring
-
-- **Test Score**: % of automated AST checks passing (0-1)
-- **Judge Score**: LLM evaluation of rubric criteria (0-1)
-- **Final Score**: 60% test + 40% judge (0-1)
-- **Pass Threshold**: finalScore ≥ 0.8 for task to count as "passed"

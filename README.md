@@ -118,6 +118,9 @@ bun run bench -- --library next --condition nia --reps 2
 # Skip judge for faster iteration
 bun run bench -- --skip-judge
 
+# Run a quick subset (10 tasks, stratified by category)
+bun run bench -- --limit 10 --seed 42
+
 # Parallel execution
 bun run bench -- --parallel 4
 
@@ -134,7 +137,10 @@ bun run bench -- --report-only --output-dir results/<timestamp>
 --condition <cond>      Filter: baseline | context7 | nia
 --reps <n>              Repetitions per task/condition (default: 3)
 --parallel <n>          Concurrent workers (default: 1)
+--limit <n>             Max tasks to run, stratified proportionally by category
+--max-retries <n>       Retries per agent on non-zero exit (default: 3)
 --skip-judge            Disable LLM judge evaluation
+--skip-nia-setup        Skip the Nia pre-indexing setup phase
 --keep-workdirs         Keep temp working directories for debugging
 --timeout <ms>          Per-agent timeout (default: 300000)
 --seed <n>              Random seed for reproducible execution order
@@ -143,6 +149,32 @@ bun run bench -- --report-only --output-dir results/<timestamp>
 --output-dir <dir>      Output directory (default: results/)
 --tasks-dir <dir>       Tasks directory (default: tasks/)
 --model <id>            Override model (provider/model format)
+```
+
+## Nia Setup Phase
+
+When the `nia` condition is included, the benchmark automatically runs a **pre-indexing setup phase** before task execution. This ensures all required documentation sites and GitHub repositories are indexed in Nia so the agent has version-accurate context available during generation.
+
+The setup phase:
+
+1. Derives required sources from the task list (maps each `library:majorVersion` to specific repo tags and doc sites)
+2. Checks which sources are already indexed via the Nia API
+3. Starts indexing any missing sources (with configurable concurrency)
+4. Polls until all indexing completes (default timeout: 10 minutes)
+
+Use `--skip-nia-setup` to bypass this phase if sources are already indexed.
+
+## Task Retry
+
+Agent executions that exit with a non-zero exit code are automatically retried up to `--max-retries` times (default: 3). Each retry uses a fresh sandboxed HOME and working directory to avoid leftover state. The `attempts` count is recorded in each result for analysis.
+
+## Stratified Sampling (`--limit`)
+
+The `--limit <n>` flag selects a subset of tasks while preserving proportional category representation using the **largest-remainder method** (Hamilton method). Combined with `--seed`, this produces reproducible subsets — useful for quick iteration or CI smoke tests.
+
+```bash
+# Run 10 tasks with proportional category distribution
+bun run bench -- --limit 10 --seed 42
 ```
 
 ## Results Structure
