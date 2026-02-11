@@ -518,14 +518,11 @@ export async function runBenchmark(config: CliConfig): Promise<void> {
 		console.log("\n=== Nia Setup Phase ===");
 		console.log("Checking required documentation and repository sources...");
 		try {
-			await ensureNiaSetup(selectedTasks, {
-				maxWaitTime: 600_000,
-				parallel: 3,
-			});
+			await ensureNiaSetup(selectedTasks);
 			console.log("=== Nia Setup Complete ===\n");
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : String(err);
-			console.warn(`\n  ⚠ Nia setup incomplete: ${msg}`);
+			console.warn(`\n  ! Nia setup incomplete: ${msg}`);
 			console.warn(
 				"  Continuing — agent may have limited documentation context.\n",
 			);
@@ -658,14 +655,14 @@ export async function runBenchmark(config: CliConfig): Promise<void> {
 			// Log warnings for agent failures
 			if (agentResult.error) {
 				console.warn(
-					`  ⚠ Agent error [${item.taskId}/${item.condition}/rep${item.repIndex}]: ${agentResult.error.name}: ${agentResult.error.message}`,
+					`  ! Agent error [${item.taskId}/${item.condition}/rep${item.repIndex}]: ${agentResult.error.name}: ${agentResult.error.message}`,
 				);
 			} else if (
 				Object.keys(agentResult.extractedFiles).length === 0 &&
 				agentResult.exitCode === 0
 			) {
 				console.warn(
-					`  ⚠ No code extracted [${item.taskId}/${item.condition}/rep${item.repIndex}]: Agent produced no code files (exit code 0)`,
+					`  ! No code extracted [${item.taskId}/${item.condition}/rep${item.repIndex}]: Agent produced no code files (exit code 0)`,
 				);
 			}
 

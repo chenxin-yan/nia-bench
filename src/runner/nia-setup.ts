@@ -8,8 +8,8 @@ import { AsyncSemaphore, formatDuration } from "./orchestrator";
 
 const NIA_BASE_URL = "https://apigcp.trynia.ai/v2";
 
-/** Default overall timeout for the setup phase (10 minutes). */
-const DEFAULT_MAX_WAIT_TIME = 600_000;
+/** Default overall timeout for the setup phase (2 hours). */
+const DEFAULT_MAX_WAIT_TIME = 7_200_000;
 
 /** How often to poll for indexing completion (15 seconds). */
 const DEFAULT_POLL_INTERVAL = 15_000;
