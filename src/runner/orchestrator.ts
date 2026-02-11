@@ -9,6 +9,7 @@ import {
 } from "./agent";
 import type { EvaluatorConfig } from "./evaluator";
 import { evaluateCode } from "./evaluator";
+import { ensureNiaSetup } from "./nia-setup";
 import { generateAndWriteReport } from "./reporter";
 import type { RunMetadata } from "./result-store";
 import { createRunDir, storeResult, writeRunMetadata } from "./result-store";
@@ -71,6 +72,8 @@ export interface CliConfig {
 	 * Example: "anthropic/claude-sonnet-4-20250514"
 	 */
 	model?: string;
+	/** Skip Nia setup phase that indexes required docs/repos (default: false) */
+	skipNiaSetup: boolean;
 }
 
 // --- Seeded Random ---
@@ -261,6 +264,7 @@ export function parseCliArgs(argv: string[]): CliConfig {
 		reportOnly: false,
 		tasksDir: resolve(process.cwd(), "tasks"),
 		projectRoot: process.cwd(),
+		skipNiaSetup: false,
 	};
 
 	for (let i = 0; i < args.length; i++) {
@@ -317,6 +321,9 @@ export function parseCliArgs(argv: string[]): CliConfig {
 				break;
 			case "--model":
 				config.model = args[++i];
+				break;
+			case "--skip-nia-setup":
+				config.skipNiaSetup = true;
 				break;
 		}
 	}
@@ -391,6 +398,30 @@ export async function runBenchmark(config: CliConfig): Promise<void> {
 	console.log(
 		`Seed: ${config.seed} | Parallel: ${config.parallel} | Max retries: ${config.maxRetries} | Model: ${resolvedModel}`,
 	);
+
+	// Nia Setup Phase: ensure required docs/repos are indexed before running
+	if (
+		conditions.includes("nia") &&
+		!config.skipNiaSetup &&
+		!config.dryRun &&
+		!config.evalOnly
+	) {
+		console.log("\n=== Nia Setup Phase ===");
+		console.log("Checking required documentation and repository sources...");
+		try {
+			await ensureNiaSetup(tasks, {
+				maxWaitTime: 600_000,
+				parallel: 3,
+			});
+			console.log("=== Nia Setup Complete ===\n");
+		} catch (err) {
+			const msg = err instanceof Error ? err.message : String(err);
+			console.warn(`\n  ⚠ Nia setup incomplete: ${msg}`);
+			console.warn(
+				"  Continuing — agent may have limited documentation context.\n",
+			);
+		}
+	}
 
 	// Dry run: print execution plan and exit
 	if (config.dryRun) {
