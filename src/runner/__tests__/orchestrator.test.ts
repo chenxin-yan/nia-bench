@@ -598,9 +598,12 @@ describe("result-store", () => {
 			judgeResult: null,
 			hallucinations: { types: [], details: [] },
 			extractedFiles: { "file.ts": "const x = 1;" },
-			toolCalls: [],
+			prompt: "",
+			durationMs: 0,
 			agentError: null,
 			attempts: 1,
+			toolCallCount: 0,
+			toolCallSummary: {},
 		};
 
 		const filePath = await storeResult(runDir, result);
@@ -631,9 +634,12 @@ describe("result-store", () => {
 			judgeResult: null,
 			hallucinations: { types: [], details: [] },
 			extractedFiles: {},
-			toolCalls: [],
+			prompt: "",
+			durationMs: 0,
 			agentError: null,
 			attempts: 1,
+			toolCallCount: 0,
+			toolCallSummary: {},
 		};
 
 		const result1: EvaluationResult = {

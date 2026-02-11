@@ -3,9 +3,12 @@ export type {
 	AgentRunnerConfig,
 	Condition,
 	OpenCodeEvent,
+	ToolCall,
 } from "./agent";
 export {
+	buildPrompt,
 	checkOpencodeBinary,
+	cleanupAgentDirs,
 	createWorkDir,
 	extractCodeFromDisk,
 	extractCodeFromResponse,
@@ -48,4 +51,11 @@ export {
 	writeReport,
 } from "./reporter";
 export type { RunMetadata } from "./result-store";
-export { createRunDir, storeResult, writeRunMetadata } from "./result-store";
+export {
+	copyWorkdir,
+	createRunDir,
+	storeResult,
+	storeToolCalls,
+	storeTranscript,
+	writeRunMetadata,
+} from "./result-store";

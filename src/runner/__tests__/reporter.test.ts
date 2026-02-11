@@ -50,9 +50,12 @@ function mockResult(
 		judgeResult: null,
 		hallucinations: { types: [], details: [] },
 		extractedFiles: { "proxy.ts": "export function proxy() {}" },
-		toolCalls: [],
+		prompt: "",
+		durationMs: 0,
 		agentError: null,
 		attempts: 1,
+		toolCallCount: 0,
+		toolCallSummary: {},
 		...overrides,
 	};
 }
@@ -1039,14 +1042,13 @@ describe("computeToolUsageMetrics", () => {
 	test("computes correct metrics when all runs use tools", () => {
 		const results = [
 			mockResult({
-				toolCalls: [
-					{ tool: "context7", callId: "c1", status: "completed" },
-					{ tool: "context7", callId: "c2", status: "completed" },
-				],
+				toolCallCount: 2,
+				toolCallSummary: { context7: 2 },
 			}),
 			mockResult({
 				runIndex: 1,
-				toolCalls: [{ tool: "context7", callId: "c3", status: "completed" }],
+				toolCallCount: 1,
+				toolCallSummary: { context7: 1 },
 			}),
 		];
 
@@ -1060,12 +1062,13 @@ describe("computeToolUsageMetrics", () => {
 
 	test("computes correct metrics when some runs have no tool calls", () => {
 		const results = [
-			mockResult({ toolCalls: [] }),
+			mockResult({ toolCallCount: 0, toolCallSummary: {} }),
 			mockResult({
 				runIndex: 1,
-				toolCalls: [{ tool: "nia", callId: "c1", status: "completed" }],
+				toolCallCount: 1,
+				toolCallSummary: { nia: 1 },
 			}),
-			mockResult({ runIndex: 2, toolCalls: [] }),
+			mockResult({ runIndex: 2, toolCallCount: 0, toolCallSummary: {} }),
 		];
 
 		const metrics = computeToolUsageMetrics(results);
@@ -1078,18 +1081,13 @@ describe("computeToolUsageMetrics", () => {
 	test("computes tool breakdown with multiple tool types", () => {
 		const results = [
 			mockResult({
-				toolCalls: [
-					{ tool: "nia", callId: "c1" },
-					{ tool: "bash", callId: "c2" },
-					{ tool: "nia", callId: "c3" },
-				],
+				toolCallCount: 3,
+				toolCallSummary: { nia: 2, bash: 1 },
 			}),
 			mockResult({
 				runIndex: 1,
-				toolCalls: [
-					{ tool: "write", callId: "c4" },
-					{ tool: "nia", callId: "c5" },
-				],
+				toolCallCount: 2,
+				toolCallSummary: { write: 1, nia: 1 },
 			}),
 		];
 

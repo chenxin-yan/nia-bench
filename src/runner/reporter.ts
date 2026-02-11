@@ -341,14 +341,17 @@ export function computeToolUsageMetrics(
 	const toolBreakdown: Record<string, number> = {};
 
 	for (const result of results) {
-		const calls = result.toolCalls ?? [];
-		if (calls.length > 0) {
+		// Use the new summary fields; fall back to legacy toolCalls array for old results
+		const callCount = result.toolCallCount ?? 0;
+		const summary = result.toolCallSummary ?? {};
+
+		if (callCount > 0) {
 			runsWithToolCalls++;
 		}
-		totalCalls += calls.length;
+		totalCalls += callCount;
 
-		for (const call of calls) {
-			toolBreakdown[call.tool] = (toolBreakdown[call.tool] ?? 0) + 1;
+		for (const [tool, count] of Object.entries(summary)) {
+			toolBreakdown[tool] = (toolBreakdown[tool] ?? 0) + count;
 		}
 	}
 
@@ -533,11 +536,11 @@ export function buildTaskDetails(results: EvaluationResult[]): TaskDetail[] {
 
 			// Compute tool usage for this task/condition
 			const totalToolCalls = condResults.reduce(
-				(sum, r) => sum + (r.toolCalls?.length ?? 0),
+				(sum, r) => sum + (r.toolCallCount ?? 0),
 				0,
 			);
 			const usedContextTool = condResults.some(
-				(r) => (r.toolCalls?.length ?? 0) > 0,
+				(r) => (r.toolCallCount ?? 0) > 0,
 			);
 
 			conditions[condition] = {

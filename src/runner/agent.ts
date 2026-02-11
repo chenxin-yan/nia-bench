@@ -27,6 +27,8 @@ export interface ToolCall {
 	status?: string;
 	/** Input parameters passed to the tool */
 	input?: Record<string, unknown>;
+	/** Output/response returned by the tool */
+	output?: string;
 }
 
 /**
@@ -56,6 +58,8 @@ export interface AgentResult {
 	durationMs: number;
 	/** Path to the working directory used for this run */
 	workDir: string;
+	/** Path to the sandboxed HOME directory used for this run */
+	sandboxHome: string;
 	/** Tool calls made by the agent during execution */
 	toolCalls: ToolCall[];
 	/** Error information if the agent failed (null on success) */
@@ -516,6 +520,7 @@ export function extractToolCalls(rawOutput: string): ToolCall[] {
 				callId: event.part.callID,
 				status: event.part.state?.status,
 				input: event.part.state?.input,
+				output: event.part.state?.output,
 			});
 		}
 	}
@@ -727,6 +732,9 @@ export async function runAgent(
 	let lastResult: AgentResult | null = null;
 
 	for (let attempt = 1; attempt <= maxRetries; attempt++) {
+		// Track exitCode at loop scope so the finally block can decide on cleanup
+		let attemptExitCode = 1 as number;
+
 		// Step 1a: Create sandboxed HOME to isolate from user's global opencode config.
 		// This prevents global agents, skills, plugins, and MCP servers from leaking
 		// into benchmark conditions. Skills from mcp_configs/skills/ are copied into
@@ -816,6 +824,7 @@ export async function runAgent(
 			}
 
 			const durationMs = Date.now() - startTime;
+			attemptExitCode = exitCode;
 
 			// Step 5: Extract errors from agent output (NDJSON error events),
 			// or synthesize one from a process-level failure (e.g., spawn error).
@@ -852,6 +861,7 @@ export async function runAgent(
 				exitCode,
 				durationMs,
 				workDir,
+				sandboxHome: sandbox.home,
 				toolCalls,
 				error,
 				attempts: attempt,
@@ -869,8 +879,11 @@ export async function runAgent(
 				);
 			}
 		} finally {
-			// Cleanup (unless keepWorkdirs is true)
-			if (!config?.keepWorkdirs) {
+			// On success or final attempt, defer cleanup to the caller so it can
+			// store artifacts (transcript, workdir snapshot) before removing temp dirs.
+			// On non-final retry attempts, clean up the failed attempt's dirs immediately.
+			const isFinalAttempt = attemptExitCode === 0 || attempt === maxRetries;
+			if (!isFinalAttempt && !config?.keepWorkdirs) {
 				try {
 					await rm(workDir, { recursive: true, force: true });
 				} catch {
@@ -888,4 +901,28 @@ export async function runAgent(
 	// All retries exhausted — return the last failed result
 	// This is guaranteed to be non-null since the loop runs at least once
 	return lastResult as AgentResult;
+}
+
+/**
+ * Cleans up temporary directories created by runAgent().
+ *
+ * Call this after storing artifacts (transcript, workdir snapshot) to remove
+ * the temp working directory and sandboxed HOME. Skipped if keepWorkdirs is true.
+ */
+export async function cleanupAgentDirs(
+	agentResult: AgentResult,
+	keepWorkdirs = false,
+): Promise<void> {
+	if (keepWorkdirs) return;
+
+	try {
+		await rm(agentResult.workDir, { recursive: true, force: true });
+	} catch {
+		// Cleanup failure is non-fatal
+	}
+	try {
+		await rm(agentResult.sandboxHome, { recursive: true, force: true });
+	} catch {
+		// Cleanup failure is non-fatal
+	}
 }

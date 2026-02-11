@@ -237,9 +237,13 @@ For each work item:
   │                                             │
   │ 6. Return EvaluationResult {                │
   │      taskId, condition, runIndex,          │
+  │      category, library, targetVersion,     │
   │      testScore, judgeScore, finalScore,    │
   │      astResults[], typeCheckResult,        │
-  │      judgeResult, hallucinations...        │
+  │      judgeResult, hallucinations,          │
+  │      extractedFiles, prompt, durationMs,   │
+  │      agentError, attempts,                 │
+  │      toolCallCount, toolCallSummary        │
   │    }                                        │
   └────────────────────────────────────────────┘
                     │
@@ -248,10 +252,19 @@ For each work item:
   │ RESULT PERSISTENCE (result-store.ts)       │
   ├────────────────────────────────────────────┤
   │ Write to: results/{runDir}/{taskId}/       │
-  │           {condition}/run-{repIndex}.json  │
+  │           {condition}/                     │
+  │                                             │
+  │ Files per rep:                              │
+  │  - run-{repIndex}.json      (scorecard)    │
+  │  - transcript-{repIndex}.ndjson (events)   │
+  │  - tool-calls-{repIndex}.json (tool I/O)   │
+  │  - workdir-{repIndex}/      (file snapshot)│
   │                                             │
   │ Atomic write: write to .tmp, then rename   │
   │ (prevents corruption from parallel workers)│
+  │                                             │
+  │ Artifacts (transcript, tool-calls, workdir)│
+  │ skipped when --skip-artifacts is set.      │
   └────────────────────────────────────────────┘
 ```
 
@@ -263,7 +276,7 @@ After all work items complete:
 generateAndWriteReport(runDir)
     │
     ├─→ loadResults(runDir)
-    │   └─→ Read all result-{index}.json files
+    │   └─→ Read all run-{index}.json files
     │       Group by taskId/condition
     │
     ├─→ computeMetrics(results)
@@ -296,61 +309,6 @@ generateAndWriteReport(runDir)
 
 File: `results/{timestamp}/report.json`
 
-```typescript
-interface Report {
-  generatedAt: string                      // ISO timestamp
-  resultsDir: string                       // Source directory path
-  totalTasks: number                       // 40
-  totalResults: number                     // e.g., 360 (40 × 3 × 3)
-  conditions: string[]                     // ["baseline", "context7", "nia"]
-
-  overall: ConditionMetrics[]              // Metrics per condition
-  byCategory: {
-    bleeding_edge: ConditionMetrics[]
-    version_locked_write: ConditionMetrics[]
-    version_locked_audit: ConditionMetrics[]
-  }
-  byLibrary: {
-    next: ConditionMetrics[]
-    react: ConditionMetrics[]
-    ai: ConditionMetrics[]
-    trpc: ConditionMetrics[]
-    zod: ConditionMetrics[]
-  }
-
-  hallucinationDistribution: {
-    baseline: HallucinationDistribution[]   // Per hallucination type
-    context7: HallucinationDistribution[]
-    nia: HallucinationDistribution[]
-  }
-
-  taskDetails: TaskDetail[]                // Per-task breakdown
-}
-
-interface ConditionMetrics {
-  condition: string                        // "baseline", "context7", "nia"
-  metrics: {
-    taskPassRate: number                   // 0.0-1.0 (% tasks passing)
-    hallucinationRate: number              // 0.0-1.0
-    versionComplianceRate: number          // 0.0-1.0 (all AST checks pass)
-    meanCombinedScore: number              // 0.0-1.0
-    count: number                          // Sample size
-  }
-}
-
-interface TaskDetail {
-  taskId: string
-  category: string
-  library: string
-  targetVersion: string
-  conditions: {
-    baseline: { avgFinalScore, avgTestScore, ... }
-    context7: { ... }
-    nia: { ... }
-  }
-}
-```
-
 ### Human-Readable Report (ASCII Table)
 
 File: `results/{timestamp}/report.txt`
@@ -366,7 +324,7 @@ File: `results/{timestamp}/report.txt`
 
 ---
 
-## 🎯 Task Categories
+## Task Categories
 
 ### Category A: Bleeding-Edge (14 tasks)
 
@@ -427,9 +385,11 @@ Each task has a `test_spec.ast_checks[]` array with validation rules:
 - `call_absent`: Must NOT call something
 - `directive_present`: Must have directive (e.g., `'use server'`)
 - `property_location`: Property must be in specific object
+- `property_absent`: Property must NOT be in specific object
 - `async_function`: Function must be async
 - `async_generator`: Function must be async generator
-- `string_literal_check`: Check for literal strings in code
+- `yield_present`: Function must contain a yield expression
+- `type_annotation`: Check for specific type annotations
 
 ---
 
@@ -461,39 +421,7 @@ For tasks where automated AST checks alone aren't sufficient.
    finalScore = 0.6 × testScore + 0.4 × judgeScore
    ```
 
-**Rubric Example** (nextjs-16-proxy-ts):
-
-```json
-{
-  "criteria": [
-    {
-      "name": "proxy_filename",
-      "weight": 0.25,
-      "description": "File is proxy.ts, not middleware.ts"
-    },
-    {
-      "name": "proxy_function_name",
-      "weight": 0.25,
-      "description": "Exports function proxy()"
-    },
-    {
-      "name": "no_edge_runtime",
-      "weight": 0.15,
-      "description": "No runtime: 'edge' in config"
-    },
-    {
-      "name": "correct_api_usage",
-      "weight": 0.2,
-      "description": "Correct NextResponse, cookies, redirects"
-    },
-    {
-      "name": "no_hallucination",
-      "weight": 0.15,
-      "description": "No v15 patterns, no invented APIs"
-    }
-  ]
-}
-```
+````
 
 ---
 
@@ -509,7 +437,7 @@ type HallucinationType =
   | "future_api" // Using API from newer version
   | "wrong_import_path" // Importing from wrong module
   | "version_mismatch"; // General version incompatibility
-```
+````
 
 **Classification Logic:**
 

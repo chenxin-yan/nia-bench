@@ -3,7 +3,7 @@ import { classifyHallucinations, scoreWithRubric } from "@/judge";
 import type { AstCheckResult, TypeCheckResult } from "@/tests";
 import { runAstChecks, runTypeCheck, runTypeCheckMultiFile } from "@/tests";
 import type { AstCheck, Task } from "@/types/task";
-import type { AgentError, ToolCall } from "./agent";
+import type { AgentError } from "./agent";
 
 // --- Types ---
 
@@ -21,6 +21,11 @@ export interface EvaluatorConfig {
 
 /**
  * Full evaluation result for a single code sample.
+ *
+ * This is the lean "scorecard" stored as run-{index}.json. Verbose artifacts
+ * (full agent transcript, tool call details with outputs, working directory
+ * snapshot) are stored as separate files alongside this JSON. See result-store.ts
+ * for the full artifact layout.
  */
 export interface EvaluationResult {
 	/** Task ID from the task definition */
@@ -51,12 +56,18 @@ export interface EvaluationResult {
 	hallucinations: HallucinationResult;
 	/** The extracted code files that were evaluated */
 	extractedFiles: Record<string, string>;
-	/** Tool calls made by the agent during execution */
-	toolCalls: ToolCall[];
+	/** The full prompt sent to the agent (task prompt + condition suffix) */
+	prompt: string;
+	/** Agent execution duration in milliseconds */
+	durationMs: number;
 	/** Agent error if the agent failed to execute (null on success) */
 	agentError: AgentError | null;
 	/** Number of agent execution attempts (1 = succeeded first try, >1 = required retries) */
 	attempts: number;
+	/** Total number of tool calls made by the agent (details in tool-calls-{index}.json) */
+	toolCallCount: number;
+	/** Tool call summary: tool name → invocation count (for reporting without loading full tool-calls file) */
+	toolCallSummary: Record<string, number>;
 }
 
 // --- Helper Functions ---
@@ -165,9 +176,7 @@ function concatenateFilesForJudge(
  * @param condition - Which condition was used (for result metadata)
  * @param runIndex - Repetition index (for result metadata)
  * @param config - Evaluator configuration
- * @param toolCalls - Tool calls made by the agent (for tracking, not scoring)
- * @param agentError - Error from the agent execution, if any
- * @param attempts - Number of agent execution attempts (1 = first try, >1 = retried)
+ * @param agentMeta - Agent execution metadata (prompt, duration, tool counts, error, attempts)
  * @returns Full evaluation result
  */
 export async function evaluateCode(
@@ -176,17 +185,29 @@ export async function evaluateCode(
 	condition: string,
 	runIndex: number,
 	config: EvaluatorConfig = {},
-	toolCalls: ToolCall[] = [],
-	agentError: AgentError | null = null,
-	attempts = 1,
+	agentMeta: {
+		prompt: string;
+		durationMs: number;
+		toolCallCount: number;
+		toolCallSummary: Record<string, number>;
+		agentError: AgentError | null;
+		attempts: number;
+	} = {
+		prompt: "",
+		durationMs: 0,
+		toolCallCount: 0,
+		toolCallSummary: {},
+		agentError: null,
+		attempts: 1,
+	},
 ): Promise<EvaluationResult> {
 	// --- Layer 1: AST Checks ---
 	const astChecks = task.test_spec.ast_checks;
 	const allAstResults: AstCheckResult[] = [];
 
 	// Build a descriptive "no code" message that includes the agent error if available
-	const noCodeMessage = agentError
-		? `Agent error: ${agentError.name}: ${agentError.message}`
+	const noCodeMessage = agentMeta.agentError
+		? `Agent error: ${agentMeta.agentError.name}: ${agentMeta.agentError.message}`
 		: "No code files extracted from agent output";
 
 	if (astChecks.length > 0) {
@@ -203,7 +224,7 @@ export async function evaluateCode(
 						check,
 						passed: false,
 						message: fileKey
-							? `No code found for file '${fileKey}'${agentError ? ` (${noCodeMessage})` : ""}`
+							? `No code found for file '${fileKey}'${agentMeta.agentError ? ` (${noCodeMessage})` : ""}`
 							: noCodeMessage,
 					});
 				}
@@ -323,8 +344,11 @@ export async function evaluateCode(
 		judgeResult,
 		hallucinations,
 		extractedFiles,
-		toolCalls,
-		agentError,
-		attempts,
+		prompt: agentMeta.prompt,
+		durationMs: agentMeta.durationMs,
+		agentError: agentMeta.agentError,
+		attempts: agentMeta.attempts,
+		toolCallCount: agentMeta.toolCallCount,
+		toolCallSummary: agentMeta.toolCallSummary,
 	};
 }

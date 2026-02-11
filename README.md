@@ -141,6 +141,7 @@ bun run bench -- --report-only --output-dir results/<timestamp>
 --max-retries <n>       Retries per agent on non-zero exit (default: 3)
 --skip-judge            Disable LLM judge evaluation
 --skip-nia-setup        Skip the Nia pre-indexing setup phase
+--skip-artifacts        Skip storing transcript, tool calls, and workdir snapshots
 --keep-workdirs         Keep temp working directories for debugging
 --timeout <ms>          Per-agent timeout (default: 300000)
 --seed <n>              Random seed for reproducible execution order
@@ -177,26 +178,10 @@ The `--limit <n>` flag selects a subset of tasks while preserving proportional c
 bun run bench -- --limit 10 --seed 42
 ```
 
-## Results Structure
-
-Each benchmark run produces a timestamped output directory:
-
-```
-results/<timestamp>/
-├── run-meta.json                 # Run configuration and metadata
-├── report.json                   # Structured report (for programmatic use)
-├── report.txt                    # Human-readable ASCII table
-└── <task-id>/
-    └── <condition>/
-        ├── run-0.json            # Per-rep evaluation result
-        ├── run-1.json
-        └── run-2.json
-```
-
 ## Development
 
 ```bash
-# Run unit tests (318 tests)
+# Run unit tests
 bun test
 
 # Type check

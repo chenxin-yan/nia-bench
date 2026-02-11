@@ -3,7 +3,9 @@ import { loadTasks } from "@/loader";
 import type { Task } from "@/types/task";
 import type { Condition } from "./agent";
 import {
+	buildPrompt,
 	checkOpencodeBinary,
+	cleanupAgentDirs,
 	DEFAULT_MODEL,
 	getOpencodeVersion,
 	runAgent,
@@ -13,7 +15,14 @@ import { evaluateCode } from "./evaluator";
 import { ensureNiaSetup } from "./nia-setup";
 import { generateAndWriteReport } from "./reporter";
 import type { RunMetadata } from "./result-store";
-import { createRunDir, storeResult, writeRunMetadata } from "./result-store";
+import {
+	copyWorkdir,
+	createRunDir,
+	storeResult,
+	storeToolCalls,
+	storeTranscript,
+	writeRunMetadata,
+} from "./result-store";
 
 // --- Types ---
 
@@ -77,6 +86,8 @@ export interface CliConfig {
 	skipNiaSetup: boolean;
 	/** Maximum number of tasks to run, stratified proportionally by category (optional) */
 	limit?: number;
+	/** Skip storing artifacts (transcript, tool calls, workdir snapshot) for faster iteration */
+	skipArtifacts: boolean;
 }
 
 // --- Seeded Random ---
@@ -337,6 +348,7 @@ export function parseCliArgs(argv: string[]): CliConfig {
 		tasksDir: resolve(process.cwd(), "tasks"),
 		projectRoot: process.cwd(),
 		skipNiaSetup: false,
+		skipArtifacts: false,
 	};
 
 	for (let i = 0; i < args.length; i++) {
@@ -399,6 +411,9 @@ export function parseCliArgs(argv: string[]): CliConfig {
 				break;
 			case "--limit":
 				config.limit = Number.parseInt(args[++i] ?? "0", 10);
+				break;
+			case "--skip-artifacts":
+				config.skipArtifacts = true;
 				break;
 		}
 	}
@@ -617,6 +632,8 @@ export async function runBenchmark(config: CliConfig): Promise<void> {
 			return;
 		}
 
+		let agentResult: Awaited<ReturnType<typeof runAgent>> | null = null;
+
 		try {
 			const task = taskMap.get(item.taskId);
 			if (!task) {
@@ -626,8 +643,11 @@ export async function runBenchmark(config: CliConfig): Promise<void> {
 
 			const startMs = Date.now();
 
-			// Run agent
-			const agentResult = await runAgent(task, item.condition, item.repIndex, {
+			// Step 1: Build the prompt (stored for observability)
+			const prompt = buildPrompt(task.prompt, item.condition);
+
+			// Step 2: Run agent (workdir cleanup is deferred to after artifact storage)
+			agentResult = await runAgent(task, item.condition, item.repIndex, {
 				keepWorkdirs: config.keepWorkdirs,
 				timeout: config.timeout,
 				projectRoot: config.projectRoot,
@@ -649,20 +669,59 @@ export async function runBenchmark(config: CliConfig): Promise<void> {
 				);
 			}
 
-			// Evaluate result
+			// Step 3: Build tool call summary for the lean result JSON
+			const toolCallCount = agentResult.toolCalls.length;
+			const toolCallSummary: Record<string, number> = {};
+			for (const call of agentResult.toolCalls) {
+				toolCallSummary[call.tool] = (toolCallSummary[call.tool] ?? 0) + 1;
+			}
+
+			// Step 4: Evaluate result
 			const evalResult = await evaluateCode(
 				task,
 				agentResult.extractedFiles,
 				item.condition,
 				item.repIndex,
 				evaluatorConfig,
-				agentResult.toolCalls,
-				agentResult.error,
-				agentResult.attempts,
+				{
+					prompt,
+					durationMs: agentResult.durationMs,
+					toolCallCount,
+					toolCallSummary,
+					agentError: agentResult.error,
+					attempts: agentResult.attempts,
+				},
 			);
 
-			// Store result
+			// Step 5: Store evaluation result (lean scorecard JSON)
 			await storeResult(runDir, evalResult);
+
+			// Step 6: Store artifacts (transcript, tool calls, workdir snapshot)
+			if (!config.skipArtifacts) {
+				await Promise.all([
+					storeTranscript(
+						runDir,
+						item.taskId,
+						item.condition,
+						item.repIndex,
+						agentResult.rawOutput,
+					),
+					storeToolCalls(
+						runDir,
+						item.taskId,
+						item.condition,
+						item.repIndex,
+						agentResult.toolCalls,
+					),
+					copyWorkdir(
+						runDir,
+						item.taskId,
+						item.condition,
+						item.repIndex,
+						agentResult.workDir,
+					),
+				]);
+			}
 
 			const durationMs = Date.now() - startMs;
 			progress.log(item, durationMs);
@@ -672,6 +731,10 @@ export async function runBenchmark(config: CliConfig): Promise<void> {
 				`Error on ${item.taskId}/${item.condition}/rep${item.repIndex}: ${message}`,
 			);
 		} finally {
+			// Clean up temp dirs now that artifacts are stored
+			if (agentResult) {
+				await cleanupAgentDirs(agentResult, config.keepWorkdirs);
+			}
 			semaphore.release();
 		}
 	});

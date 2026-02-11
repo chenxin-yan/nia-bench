@@ -1,5 +1,13 @@
-import { mkdir, rename, writeFile } from "node:fs/promises";
+import {
+	copyFile,
+	mkdir,
+	readdir,
+	rename,
+	stat,
+	writeFile,
+} from "node:fs/promises";
 import { join } from "node:path";
+import type { ToolCall } from "./agent";
 import type { EvaluationResult } from "./evaluator";
 
 // --- Types ---
@@ -94,4 +102,130 @@ export async function writeRunMetadata(
 	const json = JSON.stringify(metadata, null, 2);
 	await writeFile(tempPath, json, "utf-8");
 	await rename(tempPath, filePath);
+}
+
+// --- Artifact Storage ---
+
+/**
+ * Stores the full agent transcript (raw NDJSON event stream) as a separate file.
+ *
+ * Path: {runDir}/{taskId}/{condition}/transcript-{index}.ndjson
+ *
+ * This contains the complete opencode output including all text responses,
+ * tool calls with inputs and outputs, step markers, and error events.
+ */
+export async function storeTranscript(
+	runDir: string,
+	taskId: string,
+	condition: string,
+	runIndex: number,
+	rawOutput: string,
+): Promise<string> {
+	const resultDir = join(runDir, taskId, condition);
+	await mkdir(resultDir, { recursive: true });
+
+	const filename = `transcript-${runIndex}.ndjson`;
+	const filePath = join(resultDir, filename);
+	const tempPath = `${filePath}.tmp`;
+
+	await writeFile(tempPath, rawOutput, "utf-8");
+	await rename(tempPath, filePath);
+
+	return filePath;
+}
+
+/**
+ * Stores the full tool call details (with inputs and outputs) as a separate file.
+ *
+ * Path: {runDir}/{taskId}/{condition}/tool-calls-{index}.json
+ *
+ * This is the structured, queryable version of tool usage — richer than the
+ * summary in run-{index}.json, which only stores counts.
+ */
+export async function storeToolCalls(
+	runDir: string,
+	taskId: string,
+	condition: string,
+	runIndex: number,
+	toolCalls: ToolCall[],
+): Promise<string> {
+	const resultDir = join(runDir, taskId, condition);
+	await mkdir(resultDir, { recursive: true });
+
+	const filename = `tool-calls-${runIndex}.json`;
+	const filePath = join(resultDir, filename);
+	const tempPath = `${filePath}.tmp`;
+
+	const json = JSON.stringify(toolCalls, null, 2);
+	await writeFile(tempPath, json, "utf-8");
+	await rename(tempPath, filePath);
+
+	return filePath;
+}
+
+/**
+ * Directories and files to exclude when copying the working directory snapshot.
+ * These are either too large, generated/cached, or not relevant for debugging.
+ */
+const WORKDIR_COPY_EXCLUDES = new Set([
+	"node_modules",
+	".opencode",
+	"bun.lock",
+	"package-lock.json",
+]);
+
+/**
+ * Copies the agent's working directory into the results directory as a snapshot.
+ *
+ * Path: {runDir}/{taskId}/{condition}/workdir-{index}/
+ *
+ * Contains the opencode config, task context files, and agent-written code files.
+ * Excludes node_modules, .opencode session data, and lock files.
+ */
+export async function copyWorkdir(
+	runDir: string,
+	taskId: string,
+	condition: string,
+	runIndex: number,
+	sourceWorkDir: string,
+): Promise<string> {
+	const resultDir = join(runDir, taskId, condition);
+	const destDir = join(resultDir, `workdir-${runIndex}`);
+	await mkdir(destDir, { recursive: true });
+
+	await copyDirFiltered(sourceWorkDir, destDir);
+
+	return destDir;
+}
+
+/**
+ * Recursively copies a directory, excluding entries in WORKDIR_COPY_EXCLUDES.
+ */
+async function copyDirFiltered(src: string, dest: string): Promise<void> {
+	let entries: string[];
+	try {
+		entries = await readdir(src);
+	} catch {
+		return;
+	}
+
+	for (const entry of entries) {
+		if (WORKDIR_COPY_EXCLUDES.has(entry)) continue;
+
+		const srcPath = join(src, entry);
+		const destPath = join(dest, entry);
+
+		try {
+			const entryStat = await stat(srcPath);
+
+			if (entryStat.isDirectory()) {
+				await mkdir(destPath, { recursive: true });
+				await copyDirFiltered(srcPath, destPath);
+			} else if (entryStat.isFile()) {
+				await copyFile(srcPath, destPath);
+			}
+		} catch {
+			// Skip unreadable entries
+		}
+	}
 }
