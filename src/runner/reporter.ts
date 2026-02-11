@@ -158,7 +158,7 @@ export async function loadResults(runDir: string): Promise<EvaluationResult[]> {
 			}
 
 			for (const runFile of runFiles) {
-				if (!runFile.endsWith(".json")) continue;
+				if (!runFile.startsWith("run-") || !runFile.endsWith(".json")) continue;
 
 				try {
 					const filePath = join(conditionPath, runFile);
