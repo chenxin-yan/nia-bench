@@ -3,11 +3,11 @@
 	"category": "version_locked_audit",
 	"library": "ai",
 	"target_version": "5.0.0",
-	"prompt": "This project is upgrading from **Vercel AI SDK v4 to v5**. Audit the following code and identify every pattern that is broken or removed in v5. For each issue, explain why it's invalid and provide the correct v5 replacement.\n\n```typescript\nimport { streamText, createDataStreamResponse, StreamData, formatDataStreamPart } from 'ai';\nimport type { Message } from 'ai';\nimport { getTextFromDataUrl } from '@ai-sdk/ui-utils';\nimport { openai } from '@ai-sdk/openai';\n\nexport async function POST(req: Request) {\n  const { messages } = await req.json();\n\n  const streamData = new StreamData();\n  streamData.append({ status: 'processing' });\n\n  return createDataStreamResponse({\n    execute: (dataStream) => {\n      dataStream.writeData('initialized call');\n      dataStream.write(formatDataStreamPart('text', 'Processing...'));\n\n      const result = streamText({\n        model: openai('gpt-4o'),\n        messages,\n      });\n\n      result.mergeIntoDataStream(dataStream);\n    },\n  });\n}\n\nexport async function GET(req: Request) {\n  const result = streamText({\n    model: openai('gpt-4o'),\n    messages: [],\n  });\n  return result.toDataStreamResponse();\n}\n\nexport async function processStream() {\n  const result = streamText({ model: openai('gpt-4o'), messages: [] });\n  for await (const chunk of result.fullStream) {\n    if (chunk.type === 'text-delta') {\n      process.stdout.write(chunk.textDelta);\n    }\n  }\n\n  const lastMessage: Message = {\n    id: '1',\n    role: 'assistant',\n    content: 'Hello!',\n  };\n}\n```",
+	"prompt": "This project is upgrading from **Vercel AI SDK v4 to v5**. Audit the following code and identify every pattern that is broken or removed in v5. For each issue, explain why it's invalid and provide the correct v5 replacement.\n\n```typescript\nimport { streamText, createDataStreamResponse, StreamData, formatDataStreamPart } from 'ai';\nimport type { Message } from 'ai';\nimport { openai } from '@ai-sdk/openai';\n\nexport async function POST(req: Request) {\n  const { messages } = await req.json();\n\n  const streamData = new StreamData();\n  streamData.append({ status: 'processing' });\n\n  return createDataStreamResponse({\n    execute: (dataStream) => {\n      dataStream.writeData('initialized call');\n      dataStream.write(formatDataStreamPart('text', 'Processing...'));\n\n      const result = streamText({\n        model: openai('gpt-4o'),\n        messages,\n      });\n\n      result.mergeIntoDataStream(dataStream);\n    },\n  });\n}\n\nexport async function GET(req: Request) {\n  const result = streamText({\n    model: openai('gpt-4o'),\n    messages: [],\n  });\n  return result.toDataStreamResponse();\n}\n\nexport async function processStream() {\n  const result = streamText({ model: openai('gpt-4o'), messages: [] });\n  for await (const chunk of result.fullStream) {\n    if (chunk.type === 'text-delta') {\n      process.stdout.write(chunk.textDelta);\n    }\n  }\n\n  const lastMessage: Message = {\n    id: '1',\n    role: 'assistant',\n    content: 'Hello!',\n  };\n}\n```",
 	"context": {
 		"package_json": "{\n  \"dependencies\": {\n    \"ai\": \"5.0.0\",\n    \"@ai-sdk/openai\": \"2.0.0\"\n  }\n}"
 	},
-	"reference_solution": "Issues identified:\n\n1. `StreamData` class — Completely removed in AI SDK v5. Use `createUIMessageStream()` with a `writer` to send custom data parts instead.\n2. `createDataStreamResponse({ execute })` — Renamed to `createUIMessageStreamResponse()` in v5. The stream is now created separately with `createUIMessageStream()` and passed to `createUIMessageStreamResponse({ stream })`.\n3. `dataStream.writeData()` and `formatDataStreamPart()` — Removed in v5. Use `writer.write({ type: 'data', value: [...] })` with structured data part objects instead.\n4. `result.mergeIntoDataStream(dataStream)` — Removed in v5. Use `writer.merge(result.toUIMessageStream())` to pipe streamText results into a UI message stream.\n5. `result.toDataStreamResponse()` — Renamed to `result.toUIMessageStreamResponse()` in v5. The entire DataStream protocol was replaced by UI Message Streams using Server-Sent Events.\n6. `import { getTextFromDataUrl } from '@ai-sdk/ui-utils'` — The `@ai-sdk/ui-utils` package was removed in v5. Import from the main `'ai'` package instead.\n7. `chunk.textDelta` property — Renamed in v5. Use `chunk.text` instead (the fullStream chunk structure changed to a start/delta/end pattern with `.text` property).\n8. `Message` type with `.content` property — Renamed to `UIMessage` in v5. The `.content` string property was replaced by a `.parts` array containing typed part objects (text parts, tool parts, etc.).",
+	"reference_solution": "Issues identified:\n\n1. `StreamData` class — Completely removed in AI SDK v5. Use `createUIMessageStream()` with a `writer` to send custom data parts instead.\n2. `createDataStreamResponse({ execute })` — Removed in v5. Use `createUIMessageStream()` to create the stream, then wrap it with `createUIMessageStreamResponse(stream)` as a separate call.\n3. `dataStream.writeData()` and `formatDataStreamPart()` — Removed in v5. Use `writer.write({ type: 'data', id, data, transient: true })` with structured data part objects instead.\n4. `result.mergeIntoDataStream(dataStream)` — Removed in v5. Use `writer.merge(result.toUIMessageStream())` to pipe streamText results into a UI message stream.\n5. `result.toDataStreamResponse()` — Removed in v5. Use `result.toUIMessageStreamResponse()` instead. The entire DataStream protocol was replaced by UI Message Streams using Server-Sent Events.\n6. `chunk.textDelta` property — Renamed in v5. Use `chunk.text` instead (the fullStream chunk structure changed).\n7. `Message` type with `.content` property — Renamed to `UIMessage` in v5. The `.content` string property was replaced by a `.parts` array containing typed part objects like `{ type: 'text', text: '...' }`.",
 	"test_spec": {
 		"ast_checks": []
 	},
@@ -21,17 +21,12 @@
 			{
 				"name": "identify_response_rename",
 				"weight": 0.15,
-				"description": "Identifies createDataStreamResponse renamed to createUIMessageStreamResponse and toDataStreamResponse renamed to toUIMessageStreamResponse"
+				"description": "Identifies createDataStreamResponse removed and toDataStreamResponse replaced by createUIMessageStreamResponse/toUIMessageStreamResponse"
 			},
 			{
 				"name": "identify_writer_api_change",
 				"weight": 0.15,
-				"description": "Identifies writeData/formatDataStreamPart removed, replaced by writer.write({ type, value }) and mergeIntoDataStream replaced by writer.merge()"
-			},
-			{
-				"name": "identify_package_removal",
-				"weight": 0.1,
-				"description": "Identifies @ai-sdk/ui-utils package removed, imports moved to main 'ai' package"
+				"description": "Identifies writeData/formatDataStreamPart removed, replaced by writer.write() and mergeIntoDataStream replaced by writer.merge()"
 			},
 			{
 				"name": "identify_chunk_property",
@@ -47,6 +42,11 @@
 				"name": "correct_replacements",
 				"weight": 0.2,
 				"description": "Provides correct AI SDK v5 code replacements for each identified issue"
+			},
+			{
+				"name": "no_hallucination",
+				"weight": 0.1,
+				"description": "Does not suggest non-existent APIs or mix v4/v5 patterns in replacements"
 			}
 		]
 	},
@@ -54,7 +54,6 @@
 		"Suggesting StreamData still exists but with a different API",
 		"Not recognizing the complete DataStream to UIMessageStream paradigm shift",
 		"Missing the mergeIntoDataStream -> writer.merge() change",
-		"Not identifying @ai-sdk/ui-utils package removal",
 		"Suggesting chunk.delta instead of the correct chunk.text property",
 		"Not recognizing Message -> UIMessage type rename with .content -> .parts structural change",
 		"Mixing v4 DataStream APIs with v5 UIMessageStream APIs in the same suggestion"

@@ -5,12 +5,20 @@
 		"ai": [
 			"streamText",
 			"generateText",
+			"generateObject",
+			"streamObject",
 			"createUIMessageStream",
 			"createUIMessageStreamResponse",
 			"generateId",
 			"CoreMessage",
-			"LanguageModelUsage"
+			"UIMessage",
+			"LanguageModelUsage",
+			"convertToCoreMessages",
+			"Experimental_Agent",
+			"stepCountIs",
+			"tool"
 		],
+		"ai/react": ["useChat", "useCompletion"],
 		"@ai-sdk/openai": ["openai", "createOpenAI"]
 	},
 	"unavailable_apis": [
@@ -20,18 +28,34 @@
 		"StreamingTextResponse (removed in v4)",
 		"toDataStreamResponse (replaced by createUIMessageStreamResponse)",
 		"createDataStreamResponse (replaced by createUIMessageStreamResponse)",
+		"StreamData class (removed in v5)",
+		"formatDataStreamPart (removed in v5)",
+		"dataStream.writeData (removed, use writer.write)",
+		"result.mergeIntoDataStream (removed, use writer.merge)",
 		"ExperimentalMessage (removed in v4, use CoreMessage)",
 		"TokenUsage (removed in v4, use LanguageModelUsage)",
-		"dataStream.writeData (v4 pattern, use writer.write)",
-		"StreamData class (v3/v4 pattern)"
+		"Message type (replaced by UIMessage with .parts array)",
+		"Output (v6+)",
+		"Output.object (v6+)",
+		"ToolLoopAgent (v6+, use Experimental_Agent)",
+		"ModelMessage (v6+, use CoreMessage)",
+		"convertToModelMessages (v6+, use convertToCoreMessages)"
 	],
-	"available_types": ["CoreMessage", "LanguageModelUsage"],
+	"available_types": [
+		"CoreMessage",
+		"UIMessage",
+		"LanguageModelUsage",
+		"ToolCallOptions"
+	],
 	"unavailable_types": [
 		"ExperimentalMessage (v3 only)",
-		"TokenUsage (v3 only)"
+		"TokenUsage (v3 only)",
+		"Message (replaced by UIMessage in v5)",
+		"ModelMessage (v6+, use CoreMessage)",
+		"ToolExecutionOptions (v6+, use ToolCallOptions)"
 	],
 	"sync_apis": ["streamText"],
-	"async_apis": ["generateText"],
+	"async_apis": ["generateText", "generateObject", "streamObject"],
 	"key_features": [
 		"createUIMessageStream for SSE-based streaming",
 		"createUIMessageStreamResponse for wrapping stream as Response",
@@ -42,14 +66,29 @@
 		"generateId helper function",
 		"originalMessages parameter in createUIMessageStream",
 		"streamText is still synchronous (no await)",
-		"Standard SSE protocol replaces proprietary DataStream"
+		"Standard SSE protocol replaces proprietary DataStream",
+		"UIMessage type with .parts array replaces Message with .content string",
+		"UIMessage parts: [{ type: 'text', text: '...' }, { type: 'tool-call', ... }]",
+		"CoreMessage type still available (not yet renamed to ModelMessage)",
+		"convertToCoreMessages is SYNCHRONOUS in v5",
+		"Experimental_Agent class for agentic workflows",
+		"Experimental_Agent uses 'system' parameter",
+		"Experimental_Agent requires explicit stopWhen parameter",
+		"chunk.text property in fullStream (not chunk.textDelta as in v4)",
+		"generateObject and streamObject still primary for structured data"
 	],
 	"breaking_changes": [
 		"createUIMessageStream/createUIMessageStreamResponse replace DataStream APIs",
-		"writer.merge() replaces direct stream piping",
+		"writer.merge() replaces result.mergeIntoDataStream()",
 		"writer.write() replaces dataStream.writeData()",
 		"Data parts now have type, id, data, and transient fields",
-		"toUIMessageStream() replaces toDataStream()"
+		"toUIMessageStream() replaces toDataStream()",
+		"toUIMessageStreamResponse() replaces toDataStreamResponse()",
+		"StreamData class removed entirely",
+		"formatDataStreamPart removed entirely",
+		"@ai-sdk/ui-utils package removed — imports moved to main 'ai' package",
+		"Message type renamed to UIMessage with .content replaced by .parts array",
+		"chunk.textDelta renamed to chunk.text in fullStream"
 	],
 	"notes": [
 		"createUIMessageStream({ originalMessages, generateId, execute: ({ writer }) => { ... } })",
@@ -59,6 +98,11 @@
 		"transient: true marks data parts as temporary (removed after stream ends)",
 		"Return createUIMessageStreamResponse(stream) from route handlers",
 		"Do NOT use toDataStreamResponse or toAIStreamResponse",
-		"streamText is still synchronous (no await needed)"
+		"streamText is still synchronous (no await needed)",
+		"UIMessage.parts is an array of typed objects — do NOT use .content string",
+		"CoreMessage is still the correct type name in v5 — NOT ModelMessage (that is v6+)",
+		"convertToCoreMessages is synchronous — do NOT await it in v5",
+		"Use generateObject/streamObject for structured data — NOT Output API (that is v6+)",
+		"Experimental_Agent({ model, system, tools, stopWhen }) — stopWhen is required in v5"
 	]
 }

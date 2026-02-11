@@ -188,30 +188,17 @@ const VERSION_TARGETS: Record<string, NiaIndexTarget[]> = {
 	],
 
 	// ─── Vercel AI SDK ───────────────────────────────────────────────────────
-	"ai:3": [
-		{
-			type: "repo",
-			identifier: "vercel/ai",
-			tag: "v3.4.33",
-			displayName: "Vercel AI SDK v3",
-		},
-		{
-			type: "docs",
-			identifier: "https://ai-sdk.dev/docs",
-			displayName: "Vercel AI SDK Docs",
-		},
-	],
 	"ai:4": [
 		{
 			type: "repo",
 			identifier: "vercel/ai",
-			tag: "v4.2.2",
+			tag: "ai@4.3.19",
 			displayName: "Vercel AI SDK v4",
 		},
 		{
 			type: "docs",
-			identifier: "https://ai-sdk.dev/docs",
-			displayName: "Vercel AI SDK Docs",
+			identifier: "https://v4.ai-sdk.dev/docs",
+			displayName: "Vercel AI SDK v4 Docs",
 		},
 	],
 	"ai:5": [
@@ -225,6 +212,23 @@ const VERSION_TARGETS: Record<string, NiaIndexTarget[]> = {
 			type: "docs",
 			identifier: "https://ai-sdk.dev/docs",
 			displayName: "Vercel AI SDK Docs",
+			focus:
+				"AI SDK v5 APIs including createUIMessageStream, UIMessage, writer API, and migration from v4",
+		},
+	],
+	"ai:6": [
+		{
+			type: "repo",
+			identifier: "vercel/ai",
+			tag: "ai@6.0.79",
+			displayName: "Vercel AI SDK v6",
+		},
+		{
+			type: "docs",
+			identifier: "https://ai-sdk.dev/docs",
+			displayName: "Vercel AI SDK Docs",
+			focus:
+				"AI SDK v6 APIs including Output specification, ToolLoopAgent, ModelMessage, and migration from v5",
 		},
 	],
 

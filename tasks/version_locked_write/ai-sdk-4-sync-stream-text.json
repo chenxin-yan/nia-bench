@@ -1,0 +1,91 @@
+{
+	"id": "ai-sdk-4-sync-stream-text",
+	"category": "version_locked_write",
+	"library": "ai",
+	"target_version": "4.2.0",
+	"prompt": "This project uses **Vercel AI SDK v4**. Create a Next.js Route Handler at `app/api/chat/route.ts` that streams a chat response. Use `streamText` (which is synchronous in v4) and return the result using `toDataStreamResponse()`. Use `openai('gpt-4o')` as the model. The handler should receive messages from the request body.",
+	"context": {
+		"package_json": "{\n  \"dependencies\": {\n    \"ai\": \"4.2.0\",\n    \"@ai-sdk/openai\": \"1.2.0\"\n  }\n}"
+	},
+	"reference_solution": "import { streamText } from 'ai';\nimport { openai } from '@ai-sdk/openai';\n\nexport async function POST(req: Request) {\n  const { messages } = await req.json();\n\n  const result = streamText({\n    model: openai('gpt-4o'),\n    messages,\n  });\n\n  return result.toDataStreamResponse();\n}",
+	"test_spec": {
+		"ast_checks": [
+			{
+				"type": "import_exists",
+				"name": "streamText",
+				"from": "ai"
+			},
+			{
+				"type": "import_absent",
+				"name": "experimental_streamText",
+				"from": "ai"
+			},
+			{
+				"type": "import_absent",
+				"name": "createUIMessageStream",
+				"from": "ai"
+			},
+			{
+				"type": "import_absent",
+				"name": "createUIMessageStreamResponse",
+				"from": "ai"
+			},
+			{
+				"type": "await_absent",
+				"call": "streamText"
+			},
+			{
+				"type": "call_exists",
+				"call": "result.toDataStreamResponse"
+			},
+			{
+				"type": "call_absent",
+				"call": "toAIStreamResponse"
+			},
+			{
+				"type": "call_absent",
+				"call": "toUIMessageStreamResponse"
+			},
+			{
+				"type": "call_absent",
+				"call": "createUIMessageStreamResponse"
+			}
+		]
+	},
+	"rubric": {
+		"criteria": [
+			{
+				"name": "sync_stream_text",
+				"weight": 0.3,
+				"description": "Calls `streamText()` WITHOUT await — it is synchronous in v4"
+			},
+			{
+				"name": "data_stream_response",
+				"weight": 0.25,
+				"description": "Uses `toDataStreamResponse()` to return the streaming response"
+			},
+			{
+				"name": "no_experimental_prefix",
+				"weight": 0.15,
+				"description": "Uses stable `streamText`, not `experimental_streamText`"
+			},
+			{
+				"name": "no_v5_v6_patterns",
+				"weight": 0.15,
+				"description": "Does NOT use `createUIMessageStream`, `createUIMessageStreamResponse`, or `toUIMessageStreamResponse` (v5+)"
+			},
+			{
+				"name": "no_hallucination",
+				"weight": 0.15,
+				"description": "No invented APIs or version-mismatched patterns"
+			}
+		]
+	},
+	"common_hallucinations": [
+		"Using `await streamText(...)` — streamText is synchronous in v4",
+		"Using `experimental_streamText` (v3 pattern)",
+		"Using `toAIStreamResponse()` (v3 pattern)",
+		"Using `createUIMessageStream` or `createUIMessageStreamResponse` (v5+ pattern)",
+		"Using `toUIMessageStreamResponse()` (v5+ pattern)"
+	]
+}

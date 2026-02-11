@@ -2,36 +2,73 @@
 	"library": "ai",
 	"version": "4",
 	"available_imports": {
-		"ai": ["streamText", "generateText", "CoreMessage", "LanguageModelUsage"],
+		"ai": [
+			"streamText",
+			"generateText",
+			"generateObject",
+			"streamObject",
+			"CoreMessage",
+			"LanguageModelUsage",
+			"StreamData",
+			"createDataStreamResponse",
+			"formatDataStreamPart",
+			"tool"
+		],
+		"ai/react": ["useChat", "useCompletion"],
 		"@ai-sdk/openai": ["openai", "createOpenAI"]
 	},
 	"unavailable_apis": [
-		"experimental_streamText (use streamText)",
-		"experimental_generateText (use generateText)",
-		"toAIStreamResponse (use toDataStreamResponse)",
-		"StreamingTextResponse (removed)",
-		"createUIMessageStream (v5 only)",
-		"createUIMessageStreamResponse (v5 only)",
-		"maxToolRoundtrips (use maxSteps)",
-		"ExperimentalMessage (use CoreMessage)",
-		"TokenUsage (use LanguageModelUsage)"
+		"experimental_streamText (v3, use streamText)",
+		"experimental_generateText (v3, use generateText)",
+		"toAIStreamResponse (v3, use toDataStreamResponse)",
+		"StreamingTextResponse (v3, removed)",
+		"ExperimentalMessage (v3, use CoreMessage)",
+		"TokenUsage (v3, use LanguageModelUsage)",
+		"maxToolRoundtrips (v3, use maxSteps)",
+		"createUIMessageStream (v5+)",
+		"createUIMessageStreamResponse (v5+)",
+		"toUIMessageStreamResponse (v5+)",
+		"UIMessage (v5+, use Message)",
+		"Output (v6+)",
+		"Output.object (v6+)",
+		"Output.array (v6+)",
+		"Output.choice (v6+)",
+		"ToolLoopAgent (v6+)",
+		"ModelMessage (v6+, use CoreMessage)",
+		"convertToModelMessages (v6+, use convertToCoreMessages)",
+		"Experimental_Agent (v5+)"
 	],
-	"available_types": ["CoreMessage", "LanguageModelUsage"],
+	"available_types": [
+		"CoreMessage",
+		"LanguageModelUsage",
+		"Message",
+		"ToolCallOptions"
+	],
 	"unavailable_types": [
 		"ExperimentalMessage (v3, use CoreMessage)",
-		"TokenUsage (v3, use LanguageModelUsage)"
+		"TokenUsage (v3, use LanguageModelUsage)",
+		"ModelMessage (v6+, use CoreMessage)",
+		"UIMessage (v5+, use Message)",
+		"ToolExecutionOptions (v6+, use ToolCallOptions)"
 	],
 	"sync_apis": ["streamText"],
-	"async_apis": ["generateText"],
+	"async_apis": ["generateText", "generateObject", "streamObject"],
 	"key_features": [
 		"No experimental_ prefix — streamText and generateText are stable",
 		"streamText is synchronous (NO await needed)",
 		"generateText still requires await",
+		"generateObject and streamObject for structured data generation",
 		"toDataStreamResponse() for streaming responses",
-		"CoreMessage type replaces ExperimentalMessage",
+		"createDataStreamResponse for manual DataStream control",
+		"StreamData class for appending custom data to streams",
+		"formatDataStreamPart for manual stream formatting",
+		"result.mergeIntoDataStream(dataStream) for composing streams",
+		"CoreMessage type for message objects",
+		"Message type for UI chat messages (has .content string property)",
 		"LanguageModelUsage type replaces TokenUsage",
 		"maxSteps replaces maxToolRoundtrips (value = roundtrips + 1)",
-		"createOpenAI() factory or openai() from @ai-sdk/openai"
+		"createOpenAI() factory or openai() from @ai-sdk/openai",
+		"chunk.textDelta property in fullStream chunks"
 	],
 	"breaking_changes": [
 		"experimental_ prefix removed from all functions",
@@ -47,9 +84,12 @@
 		"streamText is called WITHOUT await — it returns synchronously",
 		"Response method is toDataStreamResponse(), NOT toAIStreamResponse()",
 		"Do NOT use experimental_ prefix — functions are stable",
-		"Use CoreMessage, not ExperimentalMessage",
+		"Use CoreMessage, not ExperimentalMessage or ModelMessage",
 		"Use LanguageModelUsage, not TokenUsage",
 		"maxSteps replaces maxToolRoundtrips (maxSteps = maxToolRoundtrips + 1)",
-		"Use openai('gpt-4o') from @ai-sdk/openai, not new OpenAI()"
+		"Use openai('gpt-4o') from @ai-sdk/openai, not new OpenAI()",
+		"Message type has .content (string), NOT .parts (that is v5+)",
+		"Use generateObject/streamObject for structured data — NOT Output API (v6+)",
+		"chunk.textDelta in fullStream, NOT chunk.text (that is v5+)"
 	]
 }

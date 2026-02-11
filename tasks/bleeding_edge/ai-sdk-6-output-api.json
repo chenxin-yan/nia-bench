@@ -1,0 +1,79 @@
+{
+	"id": "ai-sdk-6-output-api",
+	"category": "bleeding_edge",
+	"library": "ai",
+	"target_version": "6.0.0",
+	"prompt": "Using Vercel AI SDK v6, create a function that generates a structured recipe object. Use the new `Output` specification API with `generateText` (instead of the deprecated `generateObject`). The recipe should have `name` (string), `ingredients` (array of strings), and `steps` (array of strings). Use `openai('gpt-4o')` as the model. Destructure the `output` property from the result.",
+	"reference_solution": "import { generateText, Output } from 'ai';\nimport { openai } from '@ai-sdk/openai';\nimport { z } from 'zod';\n\nconst recipeSchema = z.object({\n  name: z.string(),\n  ingredients: z.array(z.string()),\n  steps: z.array(z.string()),\n});\n\nexport async function generateRecipe(prompt: string) {\n  const { output } = await generateText({\n    model: openai('gpt-4o'),\n    output: Output.object({ schema: recipeSchema }),\n    prompt,\n  });\n\n  return output;\n}",
+	"test_spec": {
+		"ast_checks": [
+			{
+				"type": "import_exists",
+				"name": "Output",
+				"from": "ai"
+			},
+			{
+				"type": "import_exists",
+				"name": "generateText",
+				"from": "ai"
+			},
+			{
+				"type": "import_absent",
+				"name": "generateObject",
+				"from": "ai"
+			},
+			{
+				"type": "call_exists",
+				"call": "Output.object"
+			},
+			{
+				"type": "call_exists",
+				"call": "generateText"
+			},
+			{
+				"type": "call_absent",
+				"call": "generateObject"
+			},
+			{
+				"type": "await_present",
+				"call": "generateText"
+			}
+		]
+	},
+	"rubric": {
+		"criteria": [
+			{
+				"name": "output_api",
+				"weight": 0.3,
+				"description": "Uses `Output.object({ schema })` specification — the v6 way to generate structured data"
+			},
+			{
+				"name": "generate_text_not_object",
+				"weight": 0.25,
+				"description": "Uses `generateText` with `output` parameter — not the deprecated `generateObject`"
+			},
+			{
+				"name": "output_destructure",
+				"weight": 0.2,
+				"description": "Destructures `{ output }` from the result — not `{ object }` (v4/v5 pattern)"
+			},
+			{
+				"name": "schema_in_output",
+				"weight": 0.15,
+				"description": "Passes Zod schema inside `Output.object({ schema })` — not as a top-level parameter"
+			},
+			{
+				"name": "no_hallucination",
+				"weight": 0.1,
+				"description": "No deprecated or invented APIs"
+			}
+		]
+	},
+	"common_hallucinations": [
+		"Using `generateObject({ schema })` (deprecated in v6)",
+		"Destructuring `{ object }` instead of `{ output }` from the result",
+		"Using `experimental_output` instead of `output` parameter",
+		"Passing schema as a top-level parameter to generateText instead of wrapping in Output.object()",
+		"Not importing `Output` from 'ai'"
+	]
+}

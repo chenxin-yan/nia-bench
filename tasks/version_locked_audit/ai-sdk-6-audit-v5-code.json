@@ -1,0 +1,62 @@
+{
+	"id": "ai-sdk-6-audit-v5-code",
+	"category": "version_locked_audit",
+	"library": "ai",
+	"target_version": "6.0.0",
+	"prompt": "This project is upgrading from **Vercel AI SDK v5 to v6**. Audit the following code and identify every pattern that is broken, removed, or deprecated in v6. For each issue, explain why it's invalid and provide the correct v6 replacement.\n\n```typescript\nimport {\n  generateObject,\n  Experimental_Agent,\n  stepCountIs,\n  convertToCoreMessages,\n} from 'ai';\nimport type { CoreMessage, ToolCallOptions } from 'ai';\nimport { openai } from '@ai-sdk/openai';\nimport { z } from 'zod';\n\nconst recipeSchema = z.object({\n  name: z.string(),\n  ingredients: z.array(z.string()),\n  steps: z.array(z.string()),\n});\n\nexport async function generateRecipe(prompt: string) {\n  const { object } = await generateObject({\n    model: openai('gpt-4o'),\n    schema: recipeSchema,\n    prompt,\n  });\n  return object;\n}\n\nexport async function runAgent(rawMessages: unknown[]) {\n  const messages: CoreMessage[] = convertToCoreMessages(rawMessages);\n\n  const agent = new Experimental_Agent({\n    model: openai('gpt-4o'),\n    system: 'You are a helpful assistant.',\n    tools: {},\n    stopWhen: stepCountIs(20),\n  });\n\n  const result = await agent.generate({ prompt: 'Analyze this data.' });\n  return result.text;\n}\n```",
+	"context": {
+		"package_json": "{\n  \"dependencies\": {\n    \"ai\": \"6.0.0\",\n    \"@ai-sdk/openai\": \"2.1.0\",\n    \"zod\": \"3.23.0\"\n  }\n}"
+	},
+	"reference_solution": "Issues identified:\n\n1. `generateObject({ schema })` — Deprecated in AI SDK v6. Use `generateText({ output: Output.object({ schema: recipeSchema }) })` instead. Destructure `{ output }` from the result instead of `{ object }`.\n2. `Experimental_Agent` — Removed in v6. Use `ToolLoopAgent` instead.\n3. `system` parameter in agent — Renamed to `instructions` in v6's `ToolLoopAgent`.\n4. `stopWhen: stepCountIs(20)` — No longer required in v6. `ToolLoopAgent` defaults `stopWhen` to `stepCountIs(20)`, so this line can be removed.\n5. `CoreMessage` type — Removed in v6. Use `ModelMessage` instead.\n6. `convertToCoreMessages(rawMessages)` — Removed in v6 and NOT awaited. Use `await convertToModelMessages(rawMessages)` instead — it is now async in v6.\n7. `ToolCallOptions` type — Renamed to `ToolExecutionOptions` in v6.",
+	"test_spec": {
+		"ast_checks": []
+	},
+	"rubric": {
+		"criteria": [
+			{
+				"name": "identify_generate_object_deprecation",
+				"weight": 0.15,
+				"description": "Identifies generateObject is deprecated in v6, replaced by generateText with Output.object()"
+			},
+			{
+				"name": "identify_agent_rename",
+				"weight": 0.15,
+				"description": "Identifies Experimental_Agent removed, replaced by ToolLoopAgent"
+			},
+			{
+				"name": "identify_system_to_instructions",
+				"weight": 0.1,
+				"description": "Identifies 'system' parameter renamed to 'instructions' in ToolLoopAgent"
+			},
+			{
+				"name": "identify_core_message_removal",
+				"weight": 0.15,
+				"description": "Identifies CoreMessage type removed in v6, replaced by ModelMessage"
+			},
+			{
+				"name": "identify_convert_async_change",
+				"weight": 0.15,
+				"description": "Identifies convertToCoreMessages removed, convertToModelMessages is now async (requires await)"
+			},
+			{
+				"name": "identify_type_renames",
+				"weight": 0.1,
+				"description": "Identifies ToolCallOptions renamed to ToolExecutionOptions"
+			},
+			{
+				"name": "correct_replacements",
+				"weight": 0.2,
+				"description": "Provides correct AI SDK v6 code replacements including Output API, ToolLoopAgent, ModelMessage, and async convertToModelMessages"
+			}
+		]
+	},
+	"common_hallucinations": [
+		"Suggesting generateObject still works normally in v6 (it's deprecated)",
+		"Not recognizing CoreMessage -> ModelMessage rename",
+		"Missing the critical async change: convertToModelMessages now requires await",
+		"Using 'system' instead of 'instructions' in ToolLoopAgent replacement code",
+		"Not identifying ToolCallOptions -> ToolExecutionOptions rename",
+		"Suggesting Experimental_Agent was just renamed (it was replaced by ToolLoopAgent with different API)",
+		"Not mentioning that stopWhen defaults to stepCountIs(20) in v6"
+	]
+}

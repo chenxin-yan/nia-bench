@@ -284,17 +284,10 @@ describe("Cross-Version Consistency Checks", () => {
 		}
 	});
 
-	it("AI SDK v3: should have experimental_ prefix, v4/v5: should not", async () => {
+	it("AI SDK v4/v5/v6: should have stable streamText (no experimental_ prefix)", async () => {
 		const files = await loadAllReferenceFiles();
 
-		const v3 = files.find(
-			(f) => f.parsed?.library === "ai" && f.parsed?.version === "3",
-		)?.parsed;
-		expect(v3?.async_apis).toContain("experimental_streamText");
-		const v3Imports = v3?.available_imports.ai ?? [];
-		expect(v3Imports).toContain("experimental_streamText");
-
-		for (const ver of ["4", "5"]) {
+		for (const ver of ["4", "5", "6"]) {
 			const ref = files.find(
 				(f) => f.parsed?.library === "ai" && f.parsed?.version === ver,
 			)?.parsed;
@@ -304,44 +297,41 @@ describe("Cross-Version Consistency Checks", () => {
 		}
 	});
 
-	it("AI SDK v4: streamText should be sync, v3: should be async", async () => {
+	it("AI SDK v4/v5/v6: streamText should be sync", async () => {
 		const files = await loadAllReferenceFiles();
 
-		const v3 = files.find(
-			(f) => f.parsed?.library === "ai" && f.parsed?.version === "3",
-		)?.parsed;
-		expect(v3?.async_apis).toContain("experimental_streamText");
+		for (const ver of ["4", "5", "6"]) {
+			const ref = files.find(
+				(f) => f.parsed?.library === "ai" && f.parsed?.version === ver,
+			)?.parsed;
+			expect(ref?.sync_apis).toContain("streamText");
+			expect(ref?.async_apis).not.toContain("streamText");
+		}
+	});
+
+	it("AI SDK v5/v6: should have createUIMessageStream, v4: should not", async () => {
+		const files = await loadAllReferenceFiles();
+
+		for (const ver of ["5", "6"]) {
+			const ref = files.find(
+				(f) => f.parsed?.library === "ai" && f.parsed?.version === ver,
+			)?.parsed;
+			const imports = ref?.available_imports.ai ?? [];
+			expect(imports).toContain("createUIMessageStream");
+			expect(imports).toContain("createUIMessageStreamResponse");
+		}
 
 		const v4 = files.find(
 			(f) => f.parsed?.library === "ai" && f.parsed?.version === "4",
 		)?.parsed;
-		expect(v4?.sync_apis).toContain("streamText");
-		expect(v4?.async_apis).not.toContain("streamText");
-	});
-
-	it("AI SDK v5: should have createUIMessageStream, v3/v4: should not", async () => {
-		const files = await loadAllReferenceFiles();
-
-		const v5 = files.find(
-			(f) => f.parsed?.library === "ai" && f.parsed?.version === "5",
-		)?.parsed;
-		const v5Imports = v5?.available_imports.ai ?? [];
-		expect(v5Imports).toContain("createUIMessageStream");
-		expect(v5Imports).toContain("createUIMessageStreamResponse");
-
-		for (const ver of ["3", "4"]) {
-			const ref = files.find(
-				(f) => f.parsed?.library === "ai" && f.parsed?.version === ver,
-			)?.parsed;
-			const unavailable = ref?.unavailable_apis ?? [];
-			const hasUnavailable = unavailable.some((api) =>
-				api.includes("createUIMessageStream"),
-			);
-			expect(
-				hasUnavailable,
-				`AI SDK v${ver} should list createUIMessageStream as unavailable`,
-			).toBe(true);
-		}
+		const v4Unavailable = v4?.unavailable_apis ?? [];
+		const hasUnavailable = v4Unavailable.some((api) =>
+			api.includes("createUIMessageStream"),
+		);
+		expect(
+			hasUnavailable,
+			"AI SDK v4 should list createUIMessageStream as unavailable",
+		).toBe(true);
 	});
 
 	it("tRPC v10: createTRPCProxyClient, v11: createTRPCClient", async () => {

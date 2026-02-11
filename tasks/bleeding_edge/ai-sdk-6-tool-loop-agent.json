@@ -1,0 +1,70 @@
+{
+	"id": "ai-sdk-6-tool-loop-agent",
+	"category": "bleeding_edge",
+	"library": "ai",
+	"target_version": "6.0.0",
+	"prompt": "Using Vercel AI SDK v6, create a `ToolLoopAgent` that can search the web and summarize findings. Configure it with:\n1. `instructions` (not `system`) set to \"You are a research assistant.\"\n2. A `search` tool and a `summarize` tool (define them as stubs using the `tool()` helper).\n3. A `prepareStep` callback that limits `search` to the first 3 steps, then switches to `summarize` only.\n\nExport a function that calls `agent.generate()` with a given prompt. Use `openai('gpt-4o')` as the model.",
+	"reference_solution": "import { ToolLoopAgent, tool } from 'ai';\nimport { openai } from '@ai-sdk/openai';\nimport { z } from 'zod';\n\nconst search = tool({\n  description: 'Search the web for information',\n  parameters: z.object({ query: z.string() }),\n  execute: async ({ query }) => {\n    return `Results for: ${query}`;\n  },\n});\n\nconst summarize = tool({\n  description: 'Summarize the collected information',\n  parameters: z.object({ content: z.string() }),\n  execute: async ({ content }) => {\n    return `Summary of: ${content}`;\n  },\n});\n\nconst agent = new ToolLoopAgent({\n  model: openai('gpt-4o'),\n  instructions: 'You are a research assistant.',\n  tools: { search, summarize },\n  prepareStep: async ({ stepNumber }) => {\n    if (stepNumber <= 3) {\n      return { activeTools: ['search'] };\n    }\n    return { activeTools: ['summarize'] };\n  },\n});\n\nexport async function research(prompt: string) {\n  const result = await agent.generate({ prompt });\n  return result.text;\n}",
+	"test_spec": {
+		"ast_checks": [
+			{
+				"type": "import_exists",
+				"name": "ToolLoopAgent",
+				"from": "ai"
+			},
+			{
+				"type": "import_absent",
+				"name": "Experimental_Agent",
+				"from": "ai"
+			},
+			{
+				"type": "call_absent",
+				"call": "Experimental_Agent"
+			},
+			{
+				"type": "call_exists",
+				"call": "agent.generate"
+			},
+			{
+				"type": "await_present",
+				"call": "agent.generate"
+			}
+		]
+	},
+	"rubric": {
+		"criteria": [
+			{
+				"name": "tool_loop_agent",
+				"weight": 0.25,
+				"description": "Uses `ToolLoopAgent` — not `Experimental_Agent` (v5)"
+			},
+			{
+				"name": "instructions_param",
+				"weight": 0.2,
+				"description": "Uses `instructions` parameter — not `system` (v5 naming)"
+			},
+			{
+				"name": "prepare_step",
+				"weight": 0.25,
+				"description": "Implements `prepareStep` callback that controls tool availability per step"
+			},
+			{
+				"name": "active_tools_logic",
+				"weight": 0.15,
+				"description": "Returns `activeTools` array from `prepareStep` to limit available tools"
+			},
+			{
+				"name": "no_hallucination",
+				"weight": 0.15,
+				"description": "No v5 agent patterns or invented APIs"
+			}
+		]
+	},
+	"common_hallucinations": [
+		"Using `Experimental_Agent` (v5 class name, removed in v6)",
+		"Using `system` parameter instead of `instructions` (v5 naming)",
+		"Requiring explicit `stopWhen` — it defaults to `stepCountIs(20)` in v6",
+		"Not implementing `prepareStep` callback for per-step tool control",
+		"Using `agent.run()` instead of `agent.generate()` (invented method)"
+	]
+}

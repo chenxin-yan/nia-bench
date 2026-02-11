@@ -1,0 +1,73 @@
+{
+	"id": "ai-sdk-4-generate-object",
+	"category": "version_locked_write",
+	"library": "ai",
+	"target_version": "4.2.0",
+	"prompt": "This project uses **Vercel AI SDK v4**. Create a function that generates a structured recipe object using the v4 `generateObject` API with a Zod schema. The recipe should have `name` (string), `ingredients` (array of strings), and `steps` (array of strings). Use `openai('gpt-4o')` as the model.",
+	"context": {
+		"package_json": "{\n  \"dependencies\": {\n    \"ai\": \"4.2.0\",\n    \"@ai-sdk/openai\": \"1.2.0\",\n    \"zod\": \"3.23.0\"\n  }\n}"
+	},
+	"reference_solution": "import { generateObject } from 'ai';\nimport { openai } from '@ai-sdk/openai';\nimport { z } from 'zod';\n\nconst recipeSchema = z.object({\n  name: z.string(),\n  ingredients: z.array(z.string()),\n  steps: z.array(z.string()),\n});\n\nexport async function generateRecipe(prompt: string) {\n  const { object } = await generateObject({\n    model: openai('gpt-4o'),\n    schema: recipeSchema,\n    prompt,\n  });\n\n  return object;\n}",
+	"test_spec": {
+		"ast_checks": [
+			{
+				"type": "import_exists",
+				"name": "generateObject",
+				"from": "ai"
+			},
+			{
+				"type": "import_absent",
+				"name": "Output",
+				"from": "ai"
+			},
+			{
+				"type": "await_present",
+				"call": "generateObject"
+			},
+			{
+				"type": "call_exists",
+				"call": "generateObject"
+			},
+			{
+				"type": "call_absent",
+				"call": "Output.object"
+			}
+		]
+	},
+	"rubric": {
+		"criteria": [
+			{
+				"name": "generate_object_api",
+				"weight": 0.3,
+				"description": "Uses the v4 `generateObject` function — not the v6 `Output` API"
+			},
+			{
+				"name": "await_required",
+				"weight": 0.2,
+				"description": "Correctly awaits `generateObject()` which is async"
+			},
+			{
+				"name": "schema_parameter",
+				"weight": 0.2,
+				"description": "Passes a Zod schema directly to `generateObject({ schema })` — not wrapped in Output.object()"
+			},
+			{
+				"name": "object_destructure",
+				"weight": 0.15,
+				"description": "Destructures `{ object }` from the result — not `{ output }` (v6 pattern)"
+			},
+			{
+				"name": "no_hallucination",
+				"weight": 0.15,
+				"description": "No v6 Output API, no invented parameters"
+			}
+		]
+	},
+	"common_hallucinations": [
+		"Using `Output.object({ schema })` with `generateText` (v6 pattern)",
+		"Importing `Output` from 'ai' (v6 only)",
+		"Destructuring `{ output }` instead of `{ object }` from the result",
+		"Using `generateText({ output: ... })` instead of `generateObject({ schema: ... })`",
+		"Not awaiting `generateObject()` which is async"
+	]
+}

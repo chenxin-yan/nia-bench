@@ -1,0 +1,84 @@
+{
+	"id": "ai-sdk-4-type-names",
+	"category": "version_locked_write",
+	"library": "ai",
+	"target_version": "4.2.0",
+	"prompt": "This project uses **Vercel AI SDK v4**. Create a chat utility module that:\n1. Defines a typed message array using the v4 `CoreMessage` type.\n2. Creates a `generateText` call that uses `maxSteps: 5` for multi-step tool use.\n3. Tracks token usage with the `LanguageModelUsage` type.\n\nUse `openai('gpt-4o')` as the model.",
+	"context": {
+		"package_json": "{\n  \"dependencies\": {\n    \"ai\": \"4.2.0\",\n    \"@ai-sdk/openai\": \"1.2.0\"\n  }\n}"
+	},
+	"reference_solution": "import { generateText } from 'ai';\nimport type { CoreMessage, LanguageModelUsage } from 'ai';\nimport { openai } from '@ai-sdk/openai';\n\nexport async function chat(messages: CoreMessage[]): Promise<{\n  text: string;\n  usage: LanguageModelUsage;\n}> {\n  const result = await generateText({\n    model: openai('gpt-4o'),\n    messages,\n    maxSteps: 5,\n  });\n\n  return {\n    text: result.text,\n    usage: result.usage,\n  };\n}",
+	"test_spec": {
+		"ast_checks": [
+			{
+				"type": "import_exists",
+				"name": "CoreMessage",
+				"from": "ai"
+			},
+			{
+				"type": "import_exists",
+				"name": "LanguageModelUsage",
+				"from": "ai"
+			},
+			{
+				"type": "import_absent",
+				"name": "ExperimentalMessage",
+				"from": "ai"
+			},
+			{
+				"type": "import_absent",
+				"name": "TokenUsage",
+				"from": "ai"
+			},
+			{
+				"type": "import_absent",
+				"name": "ModelMessage",
+				"from": "ai"
+			},
+			{
+				"type": "await_present",
+				"call": "generateText"
+			},
+			{
+				"type": "property_absent",
+				"property": "maxToolRoundtrips"
+			}
+		]
+	},
+	"rubric": {
+		"criteria": [
+			{
+				"name": "core_message_type",
+				"weight": 0.25,
+				"description": "Uses `CoreMessage` type for messages — not ExperimentalMessage (v3) or ModelMessage (v6)"
+			},
+			{
+				"name": "language_model_usage",
+				"weight": 0.2,
+				"description": "Uses `LanguageModelUsage` type — not TokenUsage (v3)"
+			},
+			{
+				"name": "max_steps",
+				"weight": 0.2,
+				"description": "Uses `maxSteps` parameter — not maxToolRoundtrips (v3)"
+			},
+			{
+				"name": "await_generate_text",
+				"weight": 0.2,
+				"description": "Correctly awaits `generateText()` which is async"
+			},
+			{
+				"name": "no_hallucination",
+				"weight": 0.15,
+				"description": "No invented types or version-mismatched type names"
+			}
+		]
+	},
+	"common_hallucinations": [
+		"Using `ExperimentalMessage` (v3 type name)",
+		"Using `TokenUsage` (v3 type name)",
+		"Using `ModelMessage` (v6 type name, not available in v4)",
+		"Using `maxToolRoundtrips` instead of `maxSteps` (v3 parameter)",
+		"Not awaiting `generateText()` which is async"
+	]
+}
