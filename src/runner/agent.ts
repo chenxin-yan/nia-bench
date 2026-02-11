@@ -159,7 +159,7 @@ const PROMPT_SUFFIX: Record<Condition, string> = {
 		"\n\nEnsure your code uses the correct APIs for the specified library version.",
 	context7:
 		"\n\nIMPORTANT — Before writing any code you MUST look up the library documentation using the context7 MCP tools that are available to you:\n1. Call the `resolve-library-id` tool with the library name to get its Context7 library ID.\n2. Call the `query-docs` tool with that library ID and a query describing the specific APIs you need.\n3. Only after reviewing the returned documentation should you write code.\nDo NOT skip this step or use web-fetch as a substitute.",
-	nia: '\n\nIMPORTANT — Before writing any code you MUST look up the library documentation using Nia:\n1. Load the "nia" skill by calling the skill tool with name "nia".\n2. Use the Nia scripts (e.g. search.sh universal, sources.sh, repos.sh) to look up the correct APIs for the specified library version.\n3. Only after reviewing the returned documentation should you write code.\nDo NOT skip this step or rely on your training knowledge alone.',
+	nia: '\n\nIMPORTANT — Before writing any code you MUST look up the library documentation using Nia:\n1. Load the "Nia" skill by calling the skill tool with name "Nia".\n2. Identify the correct indexed source for the library: run `sources.sh list` and/or `repos.sh list` to see what documentation and repositories are already indexed. Find the one that matches the library and version you need.\n3. Query that specific source for the APIs you need: use `search.sh query` with the source ID/name and a query describing the specific APIs, or use `sources.sh read`/`repos.sh grep` to look up exact usage patterns.\n4. Only after reviewing the returned documentation should you write code.\nDo NOT skip these steps or rely on your training knowledge alone.',
 };
 
 // --- Utility Functions ---
@@ -534,7 +534,7 @@ export function extractToolCalls(rawOutput: string): ToolCall[] {
  *
  * - Baseline: neutral reminder about version correctness
  * - Context7: soft hint to use available documentation tools
- * - Nia: soft hint to use available research tools
+ * - Nia: structured workflow to identify indexed sources first, then query them
  */
 export function buildPrompt(taskPrompt: string, condition: Condition): string {
 	return taskPrompt + PROMPT_SUFFIX[condition];
