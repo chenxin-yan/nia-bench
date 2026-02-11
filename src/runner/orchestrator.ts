@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
 import { loadTasks } from "@/loader";
+import type { Task } from "@/types/task";
 import type { Condition } from "./agent";
 import {
 	checkOpencodeBinary,
@@ -74,6 +75,8 @@ export interface CliConfig {
 	model?: string;
 	/** Skip Nia setup phase that indexes required docs/repos (default: false) */
 	skipNiaSetup: boolean;
+	/** Maximum number of tasks to run, stratified proportionally by category (optional) */
+	limit?: number;
 }
 
 // --- Seeded Random ---
@@ -103,6 +106,75 @@ export function shuffleArray<T>(arr: T[], rng: () => number): T[] {
 		result[i] = result[j] as T;
 		result[j] = temp;
 	}
+	return result;
+}
+
+// --- Stratified Sampling ---
+
+/**
+ * Selects a stratified sample of tasks proportional to category distribution.
+ *
+ * Uses the largest-remainder method (Hamilton method) for fair rounding:
+ *   1. Compute each category's ideal (fractional) share of the limit.
+ *   2. Give each category floor(share) tasks.
+ *   3. Distribute remaining slots to categories with the largest fractional remainders.
+ *
+ * Within each category, tasks are shuffled with the provided seeded RNG before selection,
+ * so the same seed always produces the same subset.
+ *
+ * @param tasks  - Full list of tasks (already filtered by --category/--library/--task)
+ * @param limit  - Maximum total tasks to return
+ * @param rng    - Seeded random number generator for reproducible selection
+ * @returns Subset of tasks with proportional category representation
+ */
+export function stratifiedSample(
+	tasks: Task[],
+	limit: number,
+	rng: () => number,
+): Task[] {
+	if (limit >= tasks.length) return tasks;
+
+	// Group tasks by category
+	const groups = new Map<string, Task[]>();
+	for (const task of tasks) {
+		const existing = groups.get(task.category) ?? [];
+		existing.push(task);
+		groups.set(task.category, existing);
+	}
+
+	// Compute proportional allocation using largest-remainder method
+	const categories = [...groups.keys()];
+	const total = tasks.length;
+
+	// Step 1: Compute ideal shares and floor allocations
+	const allocations: { category: string; floor: number; remainder: number }[] =
+		categories.map((cat) => {
+			const groupSize = groups.get(cat)?.length ?? 0;
+			const ideal = (groupSize / total) * limit;
+			const floor = Math.floor(ideal);
+			return { category: cat, floor, remainder: ideal - floor };
+		});
+
+	// Step 2: Distribute remaining slots by largest remainder
+	const allocated = allocations.reduce((sum, a) => sum + a.floor, 0);
+	let remaining = limit - allocated;
+
+	// Sort by remainder descending to assign extras fairly
+	const sorted = [...allocations].sort((a, b) => b.remainder - a.remainder);
+	for (const entry of sorted) {
+		if (remaining <= 0) break;
+		entry.floor++;
+		remaining--;
+	}
+
+	// Step 3: Shuffle each group and take the allocated count
+	const result: Task[] = [];
+	for (const alloc of allocations) {
+		const group = groups.get(alloc.category) ?? [];
+		const shuffled = shuffleArray(group, rng);
+		result.push(...shuffled.slice(0, alloc.floor));
+	}
+
 	return result;
 }
 
@@ -325,6 +397,9 @@ export function parseCliArgs(argv: string[]): CliConfig {
 			case "--skip-nia-setup":
 				config.skipNiaSetup = true;
 				break;
+			case "--limit":
+				config.limit = Number.parseInt(args[++i] ?? "0", 10);
+				break;
 		}
 	}
 
@@ -375,8 +450,27 @@ export async function runBenchmark(config: CliConfig): Promise<void> {
 
 	console.log(`Loaded ${tasks.length} task(s)`);
 
+	// Apply stratified limit if requested
+	let selectedTasks = tasks;
+	if (config.limit != null && config.limit > 0 && config.limit < tasks.length) {
+		const sampleRng = createSeededRandom(config.seed);
+		selectedTasks = stratifiedSample(tasks, config.limit, sampleRng);
+
+		// Log the category breakdown
+		const breakdown = new Map<string, number>();
+		for (const t of selectedTasks) {
+			breakdown.set(t.category, (breakdown.get(t.category) ?? 0) + 1);
+		}
+		const breakdownStr = [...breakdown.entries()]
+			.map(([cat, count]) => `${cat}=${count}`)
+			.join(", ");
+		console.log(
+			`Stratified sample: ${selectedTasks.length} task(s) selected (${breakdownStr})`,
+		);
+	}
+
 	// Build task lookup map
-	const taskMap = new Map(tasks.map((t) => [t.id, t]));
+	const taskMap = new Map(selectedTasks.map((t) => [t.id, t]));
 
 	// Determine conditions
 	const conditions: Condition[] = config.condition
@@ -384,7 +478,7 @@ export async function runBenchmark(config: CliConfig): Promise<void> {
 		: ["baseline", "context7", "nia"];
 
 	// Generate work queue
-	const taskIds = tasks.map((t) => t.id);
+	const taskIds = selectedTasks.map((t) => t.id);
 	const rawQueue = generateWorkQueue(taskIds, conditions, config.reps);
 
 	// Shuffle with seeded random
@@ -392,7 +486,7 @@ export async function runBenchmark(config: CliConfig): Promise<void> {
 	const workQueue = shuffleArray(rawQueue, rng);
 
 	console.log(
-		`Work queue: ${workQueue.length} items (${tasks.length} tasks x ${conditions.length} conditions x ${config.reps} reps)`,
+		`Work queue: ${workQueue.length} items (${selectedTasks.length} tasks x ${conditions.length} conditions x ${config.reps} reps)`,
 	);
 	const resolvedModel = config.model ?? DEFAULT_MODEL;
 	console.log(
@@ -409,7 +503,7 @@ export async function runBenchmark(config: CliConfig): Promise<void> {
 		console.log("\n=== Nia Setup Phase ===");
 		console.log("Checking required documentation and repository sources...");
 		try {
-			await ensureNiaSetup(tasks, {
+			await ensureNiaSetup(selectedTasks, {
 				maxWaitTime: 600_000,
 				parallel: 3,
 			});
@@ -469,7 +563,7 @@ export async function runBenchmark(config: CliConfig): Promise<void> {
 	const metadata: RunMetadata = {
 		startTime: new Date().toISOString(),
 		endTime: "",
-		totalTasks: tasks.length,
+		totalTasks: selectedTasks.length,
 		conditions,
 		reps: config.reps,
 		parallel: config.parallel,

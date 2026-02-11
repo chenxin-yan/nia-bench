@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { mkdir, readdir, readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
+import type { Task } from "@/types/task";
 import type { EvaluationResult } from "../evaluator";
 import {
 	AsyncSemaphore,
@@ -10,6 +11,7 @@ import {
 	ProgressLogger,
 	parseCliArgs,
 	shuffleArray,
+	stratifiedSample,
 } from "../orchestrator";
 import type { RunMetadata } from "../result-store";
 import { createRunDir, storeResult, writeRunMetadata } from "../result-store";
@@ -346,6 +348,214 @@ describe("ProgressLogger", () => {
 		expect(logger.getCompleted()).toBe(2);
 
 		console.log = originalLog;
+	});
+});
+
+// --- Stratified Sampling ---
+
+/**
+ * Helper to create a minimal Task object for testing stratifiedSample.
+ */
+function makeTask(id: string, category: string): Task {
+	return {
+		id,
+		category,
+		library: "next",
+		target_version: "16",
+		prompt: "test prompt",
+		reference_solution: "const x = 1;",
+		test_spec: { ast_checks: [], type_check: false },
+		rubric: { criteria: [] },
+		common_hallucinations: [],
+	} as Task;
+}
+
+describe("stratifiedSample", () => {
+	test("returns all tasks when limit >= total count", () => {
+		const tasks = [
+			makeTask("a", "bleeding_edge"),
+			makeTask("b", "version_locked_write"),
+		];
+		const rng = createSeededRandom(42);
+		const result = stratifiedSample(tasks, 5, rng);
+		expect(result.length).toBe(2);
+	});
+
+	test("returns exact limit count when limit < total", () => {
+		const tasks = [
+			...Array.from({ length: 14 }, (_, i) =>
+				makeTask(`be-${i}`, "bleeding_edge"),
+			),
+			...Array.from({ length: 14 }, (_, i) =>
+				makeTask(`vw-${i}`, "version_locked_write"),
+			),
+			...Array.from({ length: 12 }, (_, i) =>
+				makeTask(`va-${i}`, "version_locked_audit"),
+			),
+		];
+		const rng = createSeededRandom(42);
+		const result = stratifiedSample(tasks, 10, rng);
+		expect(result.length).toBe(10);
+	});
+
+	test("distributes proportionally across categories (40 tasks, limit 10)", () => {
+		const tasks = [
+			...Array.from({ length: 14 }, (_, i) =>
+				makeTask(`be-${i}`, "bleeding_edge"),
+			),
+			...Array.from({ length: 14 }, (_, i) =>
+				makeTask(`vw-${i}`, "version_locked_write"),
+			),
+			...Array.from({ length: 12 }, (_, i) =>
+				makeTask(`va-${i}`, "version_locked_audit"),
+			),
+		];
+
+		const rng = createSeededRandom(42);
+		const result = stratifiedSample(tasks, 10, rng);
+
+		// Count per category
+		const counts = new Map<string, number>();
+		for (const t of result) {
+			counts.set(t.category, (counts.get(t.category) ?? 0) + 1);
+		}
+
+		// 14/40*10=3.5, 14/40*10=3.5, 12/40*10=3.0
+		// With largest-remainder: two categories get 4 (from 3.5), one gets 3 (from 3.0), but one 3.5 rounds down
+		// The exact split depends on tie-breaking, but total must be 10
+		// and each category should get at least 3
+		expect(counts.get("bleeding_edge") ?? 0).toBeGreaterThanOrEqual(3);
+		expect(counts.get("version_locked_write") ?? 0).toBeGreaterThanOrEqual(3);
+		expect(counts.get("version_locked_audit") ?? 0).toBeGreaterThanOrEqual(3);
+
+		const total = [...counts.values()].reduce((a, b) => a + b, 0);
+		expect(total).toBe(10);
+	});
+
+	test("same seed produces same sample", () => {
+		const tasks = [
+			...Array.from({ length: 14 }, (_, i) =>
+				makeTask(`be-${i}`, "bleeding_edge"),
+			),
+			...Array.from({ length: 14 }, (_, i) =>
+				makeTask(`vw-${i}`, "version_locked_write"),
+			),
+			...Array.from({ length: 12 }, (_, i) =>
+				makeTask(`va-${i}`, "version_locked_audit"),
+			),
+		];
+
+		const rng1 = createSeededRandom(42);
+		const rng2 = createSeededRandom(42);
+
+		const result1 = stratifiedSample(tasks, 10, rng1);
+		const result2 = stratifiedSample(tasks, 10, rng2);
+
+		const ids1 = result1.map((t) => t.id);
+		const ids2 = result2.map((t) => t.id);
+		expect(ids1).toEqual(ids2);
+	});
+
+	test("different seeds produce different samples", () => {
+		const tasks = [
+			...Array.from({ length: 14 }, (_, i) =>
+				makeTask(`be-${i}`, "bleeding_edge"),
+			),
+			...Array.from({ length: 14 }, (_, i) =>
+				makeTask(`vw-${i}`, "version_locked_write"),
+			),
+			...Array.from({ length: 12 }, (_, i) =>
+				makeTask(`va-${i}`, "version_locked_audit"),
+			),
+		];
+
+		const rng1 = createSeededRandom(42);
+		const rng2 = createSeededRandom(99);
+
+		const result1 = stratifiedSample(tasks, 10, rng1);
+		const result2 = stratifiedSample(tasks, 10, rng2);
+
+		const ids1 = result1.map((t) => t.id).sort();
+		const ids2 = result2.map((t) => t.id).sort();
+		expect(ids1).not.toEqual(ids2);
+	});
+
+	test("handles single category correctly", () => {
+		const tasks = Array.from({ length: 10 }, (_, i) =>
+			makeTask(`be-${i}`, "bleeding_edge"),
+		);
+		const rng = createSeededRandom(42);
+		const result = stratifiedSample(tasks, 5, rng);
+
+		expect(result.length).toBe(5);
+		for (const t of result) {
+			expect(t.category).toBe("bleeding_edge");
+		}
+	});
+
+	test("handles limit of 1 — selects exactly one task", () => {
+		const tasks = [
+			...Array.from({ length: 5 }, (_, i) =>
+				makeTask(`be-${i}`, "bleeding_edge"),
+			),
+			...Array.from({ length: 5 }, (_, i) =>
+				makeTask(`vw-${i}`, "version_locked_write"),
+			),
+		];
+		const rng = createSeededRandom(42);
+		const result = stratifiedSample(tasks, 1, rng);
+
+		expect(result.length).toBe(1);
+	});
+
+	test("no duplicate tasks in result", () => {
+		const tasks = [
+			...Array.from({ length: 14 }, (_, i) =>
+				makeTask(`be-${i}`, "bleeding_edge"),
+			),
+			...Array.from({ length: 14 }, (_, i) =>
+				makeTask(`vw-${i}`, "version_locked_write"),
+			),
+			...Array.from({ length: 12 }, (_, i) =>
+				makeTask(`va-${i}`, "version_locked_audit"),
+			),
+		];
+		const rng = createSeededRandom(42);
+		const result = stratifiedSample(tasks, 10, rng);
+
+		const ids = result.map((t) => t.id);
+		const uniqueIds = new Set(ids);
+		expect(uniqueIds.size).toBe(ids.length);
+	});
+});
+
+// --- CLI --limit Parsing ---
+
+describe("parseCliArgs --limit", () => {
+	test("parses --limit flag", () => {
+		const config = parseCliArgs(["bun", "src/index.ts", "--limit", "10"]);
+		expect(config.limit).toBe(10);
+	});
+
+	test("limit is undefined when not provided", () => {
+		const config = parseCliArgs(["bun", "src/index.ts"]);
+		expect(config.limit).toBeUndefined();
+	});
+
+	test("--limit combines with other filters", () => {
+		const config = parseCliArgs([
+			"bun",
+			"src/index.ts",
+			"--library",
+			"next",
+			"--limit",
+			"5",
+			"--condition",
+			"baseline",
+		]);
+		expect(config.limit).toBe(5);
+		expect(config.library).toBe("next");
+		expect(config.condition).toBe("baseline");
 	});
 });
 
