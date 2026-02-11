@@ -22,8 +22,7 @@
 				"type": "call_exists",
 				"call": "config.matcher"
 			}
-		],
-		"type_check": false
+		]
 	},
 	"rubric": {
 		"criteria": [

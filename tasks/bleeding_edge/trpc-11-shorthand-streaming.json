@@ -17,8 +17,7 @@
 				"type": "call_exists",
 				"call": "t.router"
 			}
-		],
-		"type_check": false
+		]
 	},
 	"rubric": {
 		"criteria": [

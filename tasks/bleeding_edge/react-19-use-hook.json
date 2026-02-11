@@ -28,8 +28,7 @@
 				"type": "import_absent",
 				"name": "useState"
 			}
-		],
-		"type_check": false
+		]
 	},
 	"rubric": {
 		"criteria": [

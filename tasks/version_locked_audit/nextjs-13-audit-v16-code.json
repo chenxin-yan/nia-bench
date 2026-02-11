@@ -9,8 +9,7 @@
 	},
 	"reference_solution": "Issues identified:\n\n1. `proxy.ts` / `export function proxy()` — Next.js 13 uses `middleware.ts` / `export function middleware()`. The `proxy.ts` naming is a v16-only feature.\n2. `'use cache'` directive — Does not exist in Next.js 13. This is a v16-only feature for cache components.\n3. `await params` with `params: Promise<{ id: string }>` — In Next.js 13, params are direct objects (not Promises). Access directly as `params.id` with type `{ id: string }`.\n4. `await cookies()` — In Next.js 13, `cookies()` is synchronous. Call it without `await`.\n5. `after()` — Does not exist in Next.js 13. This was introduced in v15+.\n6. `cacheTag()`, `cacheLife()`, `updateTag()` from `next/cache` — Do not exist in Next.js 13. These are v16-only cache APIs.\n7. `params: Promise<{ id: string }>` — Wrong type for v13. Should be `{ params: { id: string } }` (direct object, not Promise).",
 	"test_spec": {
-		"ast_checks": [],
-		"type_check": false
+		"ast_checks": []
 	},
 	"rubric": {
 		"criteria": [

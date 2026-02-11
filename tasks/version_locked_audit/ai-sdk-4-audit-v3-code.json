@@ -9,8 +9,7 @@
 	},
 	"reference_solution": "Issues identified:\n\n1. `experimental_streamText` — Renamed to `streamText` (no `experimental_` prefix) in AI SDK v4. Import as `import { streamText } from 'ai';`.\n2. `experimental_generateText` — Renamed to `generateText` (no prefix) in v4. Import as `import { generateText } from 'ai';`.\n3. `await experimental_streamText(...)` — `streamText()` is synchronous in v4, do NOT use `await`. Call as `const result = streamText({...});`.\n4. `new OpenAI({ apiKey: ... })` — Provider initialization changed in v4. Use `createOpenAI()` factory from `@ai-sdk/openai`: `import { createOpenAI } from '@ai-sdk/openai'; const openai = createOpenAI({ apiKey: ... }); model: openai('gpt-4o')`.\n5. `maxToolRoundtrips: 2` — Renamed to `maxSteps` in v4. Note: `maxSteps = maxToolRoundtrips + 1`, so use `maxSteps: 3`.\n6. `toAIStreamResponse()` — Renamed to `toDataStreamResponse()` in v4.",
 	"test_spec": {
-		"ast_checks": [],
-		"type_check": false
+		"ast_checks": []
 	},
 	"rubric": {
 		"criteria": [

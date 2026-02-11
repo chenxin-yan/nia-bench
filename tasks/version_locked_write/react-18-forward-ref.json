@@ -19,8 +19,7 @@
 				"type": "call_exists",
 				"call": "forwardRef"
 			}
-		],
-		"type_check": false
+		]
 	},
 	"rubric": {
 		"criteria": [

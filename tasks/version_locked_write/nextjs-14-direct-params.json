@@ -18,8 +18,7 @@
 				"type": "await_absent",
 				"call": "searchParams"
 			}
-		],
-		"type_check": false
+		]
 	},
 	"rubric": {
 		"criteria": [

@@ -9,8 +9,7 @@
 	},
 	"reference_solution": "Issues identified:\n\n1. `middleware.ts` / `export function middleware()` — Renamed to `proxy.ts` / `export function proxy()` in Next.js 16.\n2. `experimental.turbopack` — Moved to top-level `turbopack` configuration in v16 (no longer experimental).\n3. `experimental.dynamicIO` — Renamed to `cacheComponents` in v16.\n4. `experimental.ppr` — Removed in v16, use `cacheComponents: true` instead.\n5. `eslint` config in `next.config.js` — Removed in v16 (`next lint` command was removed).\n6. `serverRuntimeConfig` — Removed in v16, use environment variables directly instead.\n7. `next lint` script — Command removed in v16, use `eslint` CLI directly.",
 	"test_spec": {
-		"ast_checks": [],
-		"type_check": false
+		"ast_checks": []
 	},
 	"rubric": {
 		"criteria": [

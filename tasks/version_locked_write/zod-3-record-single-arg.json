@@ -18,8 +18,7 @@
 				"type": "call_exists",
 				"call": "z.enum"
 			}
-		],
-		"type_check": false
+		]
 	},
 	"rubric": {
 		"criteria": [

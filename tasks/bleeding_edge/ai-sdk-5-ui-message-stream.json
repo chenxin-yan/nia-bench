@@ -38,8 +38,7 @@
 				"type": "call_exists",
 				"call": "result.toUIMessageStream"
 			}
-		],
-		"type_check": false
+		]
 	},
 	"rubric": {
 		"criteria": [

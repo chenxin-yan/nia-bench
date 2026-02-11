@@ -134,7 +134,6 @@ export const RubricCriterionSchema = z.object({
 
 export const TestSpecSchema = z.object({
 	ast_checks: z.array(AstCheckSchema),
-	type_check: z.boolean().optional(),
 });
 
 // --- Rubric Schema ---

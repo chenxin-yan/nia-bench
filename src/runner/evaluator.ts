@@ -1,7 +1,7 @@
 import type { HallucinationResult, JudgeResult, ScorerConfig } from "@/judge";
 import { classifyHallucinations, scoreWithRubric } from "@/judge";
-import type { AstCheckResult, TypeCheckResult } from "@/tests";
-import { runAstChecks, runTypeCheck, runTypeCheckMultiFile } from "@/tests";
+import type { AstCheckResult } from "@/tests";
+import { runAstChecks } from "@/tests";
 import type { AstCheck, Task } from "@/types/task";
 import type { AgentError } from "./agent";
 
@@ -15,8 +15,6 @@ export interface EvaluatorConfig {
 	skipJudge?: boolean;
 	/** Configuration for the LLM judge scorer */
 	scorerConfig?: ScorerConfig;
-	/** Base directory for typecheck environments */
-	typecheckEnvsDir?: string;
 }
 
 /**
@@ -40,7 +38,7 @@ export interface EvaluationResult {
 	library: string;
 	/** Target version from the task definition */
 	targetVersion: string;
-	/** Automated test score (AST checks + optional type check) as 0.0-1.0 */
+	/** Automated test score (AST checks) as 0.0-1.0 */
 	testScore: number;
 	/** LLM judge score as 0.0-1.0 */
 	judgeScore: number;
@@ -48,8 +46,6 @@ export interface EvaluationResult {
 	finalScore: number;
 	/** Individual AST check results */
 	astResults: AstCheckResult[];
-	/** Type check result (null if type_check is false or not applicable) */
-	typeCheckResult: TypeCheckResult | null;
 	/** LLM judge evaluation result (null if judge was skipped) */
 	judgeResult: JudgeResult | null;
 	/** Hallucination classification */
@@ -158,10 +154,6 @@ function concatenateFilesForJudge(
  *   - Runs checks on appropriate files (respecting the `file` field on each check)
  *   - Computes testScore = passedChecks / totalChecks
  *
- * Layer 1b: Type checking (optional, if task.test_spec.type_check is true)
- *   - Runs tsc --noEmit against the version-specific environment
- *   - Adds one more pass/fail assertion to the test score
- *
  * Layer 2: LLM judge (rubric evaluation via OpenRouter)
  *   - Scores generated code against the task's rubric criteria
  *   - Returns judgeScore (0.0-1.0)
@@ -235,50 +227,9 @@ export async function evaluateCode(
 		}
 	}
 
-	// --- Layer 1b: Type Checking ---
-	let typeCheckResult: TypeCheckResult | null = null;
-
-	if (task.test_spec.type_check) {
-		const libraryVersion = {
-			library: task.library,
-			version: task.target_version,
-		};
-
-		const filenames = Object.keys(extractedFiles);
-
-		if (filenames.length === 0) {
-			typeCheckResult = {
-				passed: false,
-				errors: [noCodeMessage],
-			};
-		} else if (filenames.length === 1) {
-			const key = filenames[0];
-			const code = key ? (extractedFiles[key] ?? "") : "";
-			typeCheckResult = await runTypeCheck(code, libraryVersion, {
-				typecheckEnvsDir: config.typecheckEnvsDir,
-			});
-		} else {
-			typeCheckResult = await runTypeCheckMultiFile(
-				extractedFiles,
-				libraryVersion,
-				{
-					typecheckEnvsDir: config.typecheckEnvsDir,
-				},
-			);
-		}
-	}
-
 	// --- Compute test score ---
-	let totalAssertions = allAstResults.length;
-	let passedAssertions = allAstResults.filter((r) => r.passed).length;
-
-	// Include type check as an additional assertion if it was run
-	if (typeCheckResult !== null) {
-		totalAssertions += 1;
-		if (typeCheckResult.passed) {
-			passedAssertions += 1;
-		}
-	}
+	const totalAssertions = allAstResults.length;
+	const passedAssertions = allAstResults.filter((r) => r.passed).length;
 
 	const testScore =
 		totalAssertions > 0 ? passedAssertions / totalAssertions : 0;
@@ -299,7 +250,7 @@ export async function evaluateCode(
 	}
 
 	// --- Compute combined score ---
-	const hasAstChecks = astChecks.length > 0 || task.test_spec.type_check;
+	const hasAstChecks = astChecks.length > 0;
 	let finalScore: number;
 
 	if (!hasAstChecks) {
@@ -340,7 +291,6 @@ export async function evaluateCode(
 		judgeScore,
 		finalScore,
 		astResults: allAstResults,
-		typeCheckResult,
 		judgeResult,
 		hallucinations,
 		extractedFiles,

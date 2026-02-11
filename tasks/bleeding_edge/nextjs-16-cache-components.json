@@ -50,8 +50,7 @@
 				"call": "unstable_cacheTag",
 				"file": "page.tsx"
 			}
-		],
-		"type_check": false
+		]
 	},
 	"rubric": {
 		"criteria": [

@@ -23,8 +23,7 @@
 				"type": "property_absent",
 				"property": "errorMap"
 			}
-		],
-		"type_check": false
+		]
 	},
 	"rubric": {
 		"criteria": [

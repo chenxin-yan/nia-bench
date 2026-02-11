@@ -21,7 +21,6 @@ function createValidTask(
 				{ type: "function_exported", name: "proxy" },
 				{ type: "import_exists", name: "NextResponse", from: "next/server" },
 			],
-			type_check: true,
 		},
 		rubric: {
 			criteria: [

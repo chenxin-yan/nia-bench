@@ -27,8 +27,7 @@
 			{
 				"type": "yield_present"
 			}
-		],
-		"type_check": false
+		]
 	},
 	"rubric": {
 		"criteria": [

@@ -18,8 +18,7 @@
 				"type": "call_absent",
 				"call": "getRawInput"
 			}
-		],
-		"type_check": false
+		]
 	},
 	"rubric": {
 		"criteria": [

@@ -28,8 +28,7 @@
 				"name": "headers",
 				"from": "next/headers"
 			}
-		],
-		"type_check": false
+		]
 	},
 	"rubric": {
 		"criteria": [

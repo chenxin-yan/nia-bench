@@ -37,8 +37,7 @@
 				"type": "async_function",
 				"file": "page.tsx"
 			}
-		],
-		"type_check": false
+		]
 	},
 	"rubric": {
 		"criteria": [

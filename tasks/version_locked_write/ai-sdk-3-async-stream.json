@@ -32,8 +32,7 @@
 				"type": "call_absent",
 				"call": "result.toDataStreamResponse"
 			}
-		],
-		"type_check": false
+		]
 	},
 	"rubric": {
 		"criteria": [

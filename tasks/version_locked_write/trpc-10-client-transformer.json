@@ -28,8 +28,7 @@
 				"property": "transformer",
 				"insideCall": "createTRPCProxyClient"
 			}
-		],
-		"type_check": false
+		]
 	},
 	"rubric": {
 		"criteria": [

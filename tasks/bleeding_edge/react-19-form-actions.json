@@ -29,8 +29,7 @@
 				"type": "call_exists",
 				"call": "useFormStatus"
 			}
-		],
-		"type_check": false
+		]
 	},
 	"rubric": {
 		"criteria": [

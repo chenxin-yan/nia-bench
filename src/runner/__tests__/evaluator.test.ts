@@ -5,7 +5,7 @@ import { evaluateCode } from "../evaluator";
 // --- Test Data: Pilot Tasks ---
 
 /**
- * Next.js 16 proxy.ts task (bleeding_edge) with 4 AST checks, no type_check.
+ * Next.js 16 proxy.ts task (bleeding_edge) with 4 AST checks.
  */
 const proxyTask: Task = {
 	id: "nextjs-16-proxy-ts",
@@ -21,7 +21,6 @@ const proxyTask: Task = {
 			{ type: "call_exists", call: "config.matcher" },
 			{ type: "property_absent", property: "runtime", inObject: "config" },
 		],
-		type_check: false,
 	},
 	rubric: {
 		criteria: [
@@ -112,7 +111,6 @@ const auditTask: Task = {
 	reference_solution: "Issues identified: ...",
 	test_spec: {
 		ast_checks: [],
-		type_check: false,
 	},
 	rubric: {
 		criteria: [
@@ -169,7 +167,6 @@ const syncApisTask: Task = {
 			{ type: "import_exists", name: "cookies", from: "next/headers" },
 			{ type: "import_exists", name: "headers", from: "next/headers" },
 		],
-		type_check: false,
 	},
 	rubric: {
 		criteria: [
@@ -271,9 +268,6 @@ describe("evaluateCode", () => {
 			// No hallucinations when all checks pass
 			expect(result.hallucinations.types).toHaveLength(0);
 			expect(result.hallucinations.details).toHaveLength(0);
-
-			// Type check not requested
-			expect(result.typeCheckResult).toBeNull();
 
 			// Extracted files should be preserved
 			expect(result.extractedFiles).toEqual({ "proxy.ts": proxyReferenceCode });
@@ -381,9 +375,6 @@ describe("evaluateCode", () => {
 			// Audit task with no AST checks and judge skipped: finalScore = judgeScore = 0
 			expect(result.finalScore).toBe(0);
 
-			// No type check
-			expect(result.typeCheckResult).toBeNull();
-
 			// No hallucinations detected (no AST checks, no judge)
 			expect(result.hallucinations.types).toHaveLength(0);
 		});
@@ -460,7 +451,6 @@ describe("evaluateCode", () => {
 						{ type: "function_exported", name: "default", file: "page.tsx" },
 						{ type: "function_exported", name: "default", file: "default.tsx" },
 					],
-					type_check: false,
 				},
 				rubric: {
 					criteria: [
@@ -511,7 +501,6 @@ describe("evaluateCode", () => {
 						{ type: "function_exported", name: "default", file: "page.tsx" },
 						{ type: "function_exported", name: "default", file: "missing.tsx" },
 					],
-					type_check: false,
 				},
 				rubric: {
 					criteria: [
@@ -598,7 +587,6 @@ describe("evaluateCode", () => {
 			expect(typeof result.judgeScore).toBe("number");
 			expect(typeof result.finalScore).toBe("number");
 			expect(Array.isArray(result.astResults)).toBe(true);
-			expect(result.typeCheckResult).toBeNull();
 			expect(result.judgeResult).toBeNull(); // skipped
 			expect(result.hallucinations).toBeDefined();
 			expect(result.hallucinations.types).toBeDefined();

@@ -9,8 +9,7 @@
 	},
 	"reference_solution": "Issues identified:\n\n1. `@sidebar/` is missing a `default.tsx` file — Required in Next.js 16 for all parallel route slots. Without it, the slot has no fallback when the URL doesn't match the slot's routes.\n2. `@modal/` is missing a `default.tsx` file — Required in Next.js 16 for all parallel route slots. Without it, navigating to routes that don't match the modal slot causes build errors.\n3. Each slot needs an explicit `default.tsx` that returns `null` (for invisible default) or calls `notFound()`. Example:\n   ```tsx\n   // app/@sidebar/default.tsx\n   export default function Default() { return null; }\n   // app/@modal/default.tsx\n   export default function Default() { return null; }\n   ```\n4. This is a v16 requirement — in v15, missing `default.tsx` was tolerated in some cases, but v16 enforces it strictly for all parallel route slots.",
 	"test_spec": {
-		"ast_checks": [],
-		"type_check": false
+		"ast_checks": []
 	},
 	"rubric": {
 		"criteria": [

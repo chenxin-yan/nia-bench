@@ -2252,7 +2252,7 @@ For each task T:
 
 - **Same prompt** across all conditions (no mention of Nia/Context7 by name)
 - **Same model and temperature** (Claude Sonnet, temp=0.0)
-- **Version-pinned environments** (`package.json` with exact versions for type checking)
+- **Version-pinned task definitions** (exact target versions per task)
 - **Randomized execution order** (don't always run baseline first)
 - **No caching** between runs
 

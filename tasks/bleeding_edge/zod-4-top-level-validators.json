@@ -27,8 +27,7 @@
 				"type": "call_absent",
 				"call": "z.string().ip"
 			}
-		],
-		"type_check": false
+		]
 	},
 	"rubric": {
 		"criteria": [

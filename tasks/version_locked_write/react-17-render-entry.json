@@ -22,8 +22,7 @@
 				"type": "import_absent",
 				"name": "createRoot"
 			}
-		],
-		"type_check": false
+		]
 	},
 	"rubric": {
 		"criteria": [

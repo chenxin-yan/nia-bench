@@ -36,5 +36,4 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 # Benchmark results (large, regenerated)
 results/*/
 
-# Type-check environment node_modules
-typecheck-envs/*/node_modules
+

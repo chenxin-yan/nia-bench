@@ -24,8 +24,7 @@
 				"property": "runtime",
 				"inObject": "config"
 			}
-		],
-		"type_check": false
+		]
 	},
 	"rubric": {
 		"criteria": [

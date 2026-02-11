@@ -9,8 +9,7 @@
 	},
 	"reference_solution": "Issues identified:\n\n1. `observable((emit) => { emit.next(data); return () => cleanup; })` — The Observable pattern from `@trpc/server/observable` is deprecated in tRPC v11. Use async generators instead: `async function* (opts) { ... yield data; }`. Cleanup is handled via `opts.signal` (AbortSignal) rather than a returned teardown function.\n2. `return () => { ee.off('userUpdate', handler); }` — Teardown-via-return is the v10 Observable pattern. In v11 with async generators, listen for the AbortSignal: `opts.signal.addEventListener('abort', () => ee.off('userUpdate', handler))` or use the `on()` helper from `node:events` with `{ signal: opts.signal }`.\n3. `wsLink({ client: wsClient })` for subscriptions — While wsLink still works, tRPC v11 introduces `httpSubscriptionLink` as the recommended subscription transport using Server-Sent Events (SSE). Replace with `httpSubscriptionLink({ url: 'http://localhost:3000/trpc' })`. This eliminates the need for a separate WebSocket server.\n4. `createWSClient({ url: 'ws://localhost:3001' })` — No longer needed when using httpSubscriptionLink. The SSE-based approach works over standard HTTP, simplifying infrastructure.\n5. `createTRPCProxyClient` — Renamed to `createTRPCClient` in tRPC v11. Import and use `createTRPCClient` from `@trpc/client`.\n6. `import { observable } from '@trpc/server/observable'` — This import is deprecated. The `@trpc/server/observable` module is no longer the recommended approach. Remove this import when migrating to async generators.",
 	"test_spec": {
-		"ast_checks": [],
-		"type_check": false
+		"ast_checks": []
 	},
 	"rubric": {
 		"criteria": [

@@ -20,13 +20,6 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Install typecheck environment dependencies
-        run: |
-          for dir in typecheck-envs/*/; do
-            echo "Installing dependencies in $dir"
-            (cd "$dir" && bun install)
-          done
-
       - name: Biome check (lint & format)
         run: bun run check
 

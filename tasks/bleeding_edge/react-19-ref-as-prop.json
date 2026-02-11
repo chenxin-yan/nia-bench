@@ -25,8 +25,7 @@
 				"type": "call_exists",
 				"call": "useRef"
 			}
-		],
-		"type_check": false
+		]
 	},
 	"rubric": {
 		"criteria": [

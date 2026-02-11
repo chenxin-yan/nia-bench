@@ -9,8 +9,7 @@
 	},
 	"reference_solution": "Issues identified:\n\n1. `use` hook - React 19 only. In React 17, use `useEffect` + `useState` for data fetching.\n2. `useId` - React 18+ only. In React 17, generate IDs manually or use a library.\n3. `useActionState` - React 19 only. In React 17, use `useState` + event handlers for form state.\n4. `useFormStatus` - React 19 only. In React 17, manage form pending state manually with `useState`.\n5. `createRoot` from `react-dom/client` - React 18+ only. In React 17, use `ReactDOM.render()` from `react-dom`.\n6. `ref` as prop on `<MyInput>` - Passing ref as a regular prop only works in React 19. In React 17, use `React.forwardRef()` to pass refs.\n7. `action` prop on `<form>` - Form actions are a React 19 Server Actions feature. In React 17, use `onSubmit` event handler.",
 	"test_spec": {
-		"ast_checks": [],
-		"type_check": false
+		"ast_checks": []
 	},
 	"rubric": {
 		"criteria": [

@@ -24,8 +24,7 @@
 				"name": "StreamData",
 				"from": "ai"
 			}
-		],
-		"type_check": false
+		]
 	},
 	"rubric": {
 		"criteria": [

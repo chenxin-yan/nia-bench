@@ -25,8 +25,7 @@
 				"name": "createTRPCClient",
 				"from": "@trpc/client"
 			}
-		],
-		"type_check": false
+		]
 	},
 	"rubric": {
 		"criteria": [

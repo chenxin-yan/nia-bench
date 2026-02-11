@@ -42,8 +42,7 @@
 				"type": "call_absent",
 				"call": "Suspense"
 			}
-		],
-		"type_check": false
+		]
 	},
 	"rubric": {
 		"criteria": [

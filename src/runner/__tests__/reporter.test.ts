@@ -46,7 +46,6 @@ function mockResult(
 				message: "Function middleware is not exported",
 			},
 		],
-		typeCheckResult: null,
 		judgeResult: null,
 		hallucinations: { types: [], details: [] },
 		extractedFiles: { "proxy.ts": "export function proxy() {}" },

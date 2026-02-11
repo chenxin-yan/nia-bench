@@ -27,8 +27,7 @@
 				"type": "call_absent",
 				"call": "createSSGHelpers"
 			}
-		],
-		"type_check": false
+		]
 	},
 	"rubric": {
 		"criteria": [

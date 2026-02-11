@@ -30,8 +30,7 @@
 				"name": "LanguageModelUsage",
 				"from": "ai"
 			}
-		],
-		"type_check": false
+		]
 	},
 	"rubric": {
 		"criteria": [

@@ -8,7 +8,6 @@ This document provides essential information for automated coding agents operati
 
 The codebase evaluates generated code through:
 - AST checks (using ts-morph)
-- Type checking (tsc in version-specific environments)
 - Hallucination classification (invented APIs, deprecated patterns, version mismatches)
 - LLM-based rubric scoring (OpenRouter API)
 
@@ -187,7 +186,6 @@ src/
       task-loader.test.ts
   tests/
     ast-checker.ts
-    type-checker.ts
     __tests__/
       ast-checker.test.ts
 ```
@@ -197,7 +195,7 @@ src/
 - **tsconfig.json** — TypeScript compiler options (strict, ES2022 target, path aliases)
 - **biome.json** — Code formatter & linter (tabs, double quotes, organizeImports)
 - **package.json** — Scripts, dependencies (openai, ts-morph, zod), dev tools
-- **.gitignore** — Excludes `node_modules/`, `results/*/`, `typecheck-envs/*/node_modules`, `.env`
+- **.gitignore** — Excludes `node_modules/`, `results/*/`, `.env`
 
 ## Key Dependencies
 

@@ -18,8 +18,7 @@
 				"type": "property_absent",
 				"property": "error"
 			}
-		],
-		"type_check": false
+		]
 	},
 	"rubric": {
 		"criteria": [

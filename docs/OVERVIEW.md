@@ -206,13 +206,7 @@ For each work item:
   │      async/await, directives, etc.         │
   │    - Result: AstCheckResult[] with pass/fail
   │                                             │
-  │ 2. TYPE CHECK PHASE (optional)             │
-  │    - Use appropriate typecheck-env version │
-  │    - Run tsc --noEmit on extracted code    │
-  │    - Detect version-specific type errors   │
-  │    - Result: TypeCheckResult (pass/fail)   │
-  │                                             │
-  │ 3. HALLUCINATION CLASSIFICATION            │
+  │ 2. HALLUCINATION CLASSIFICATION            │
   │    - Map AST failures to hallucination type│
   │    - Types: invented_method, wrong_param,  │
   │      outdated_api, future_api, etc.        │
@@ -230,17 +224,17 @@ For each work item:
   │    - Result: JudgeResult with criterion    │
   │      scores and explanations               │
   │                                             │
-  │ 5. FINAL SCORE CALCULATION                 │
+  │ 4. FINAL SCORE CALCULATION                 │
   │    finalScore = 0.6 × testScore            │
   │               + 0.4 × judgeScore           │
   │    where testScore = % of AST checks passed
   │                                             │
-  │ 6. Return EvaluationResult {                │
+  │ 5. Return EvaluationResult {                │
   │      taskId, condition, runIndex,          │
   │      category, library, targetVersion,     │
   │      testScore, judgeScore, finalScore,    │
-  │      astResults[], typeCheckResult,        │
-  │      judgeResult, hallucinations,          │
+  │      astResults[], judgeResult,            │
+  │      hallucinations,                       │
   │      extractedFiles, prompt, durationMs,   │
   │      agentError, attempts,                 │
   │      toolCallCount, toolCallSummary        │

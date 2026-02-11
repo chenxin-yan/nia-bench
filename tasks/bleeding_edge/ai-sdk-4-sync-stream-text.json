@@ -24,8 +24,7 @@
 				"name": "streamText",
 				"from": "ai"
 			}
-		],
-		"type_check": false
+		]
 	},
 	"rubric": {
 		"criteria": [

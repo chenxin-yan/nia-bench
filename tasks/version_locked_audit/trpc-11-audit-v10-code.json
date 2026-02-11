@@ -9,8 +9,7 @@
 	},
 	"reference_solution": "Issues identified:\n\n1. `createTRPCProxyClient` — Renamed to `createTRPCClient` in tRPC v11. Import and use `createTRPCClient` from `@trpc/client`.\n2. `createProxySSGHelpers` from `@trpc/react-query/ssg` — Renamed to `createSSGHelpers` in tRPC v11. The `Proxy` prefix was removed.\n3. `transformer: superjson` at client level — In tRPC v11, the transformer must be moved to the link configuration. Use `httpBatchLink({ url: '/api/trpc', transformer: superjson })` instead of setting it on the client.\n4. `rawInput` in middleware — Renamed to `getRawInput()` function in tRPC v11. It's now an async function call: `const input = await getRawInput();` instead of a direct property access.",
 	"test_spec": {
-		"ast_checks": [],
-		"type_check": false
+		"ast_checks": []
 	},
 	"rubric": {
 		"criteria": [
