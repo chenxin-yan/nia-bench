@@ -1112,8 +1112,8 @@ describe("prompt suffixes by condition", () => {
 	test("nia prompt mentions skill and Nia but NOT context7 or MCP", () => {
 		const prompt = buildPrompt(taskPrompt, "nia");
 		expect(prompt).toContain("skill");
-		expect(prompt).toContain("nia");
-		expect(prompt).toContain("Nia scripts");
+		expect(prompt).toContain("Nia");
+		expect(prompt).toContain("sources.sh");
 		expect(prompt).not.toContain("context7");
 		expect(prompt).not.toContain("MCP");
 	});

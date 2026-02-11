@@ -1182,9 +1182,9 @@ describe("buildPrompt", () => {
 	test("appends nia suffix with skill instructions", () => {
 		const prompt = buildPrompt(taskPrompt, "nia");
 		expect(prompt).toContain(taskPrompt);
-		expect(prompt).toContain("nia");
+		expect(prompt).toContain("Nia");
 		expect(prompt).toContain("skill");
-		expect(prompt).toContain("Nia scripts");
+		expect(prompt).toContain("sources.sh");
 	});
 
 	test("all conditions produce different prompts", () => {
