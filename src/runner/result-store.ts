@@ -20,6 +20,8 @@ export interface RunMetadata {
 	reps: number;
 	/** Parallel worker count */
 	parallel: number;
+	/** Maximum retries per agent execution on non-zero exit */
+	maxRetries: number;
 	/** Random seed for execution order */
 	seed: number;
 	/** Resolved model ID used for agent runs (provider/model format) */

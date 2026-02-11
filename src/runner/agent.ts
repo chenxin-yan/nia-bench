@@ -60,6 +60,8 @@ export interface AgentResult {
 	toolCalls: ToolCall[];
 	/** Error information if the agent failed (null on success) */
 	error: AgentError | null;
+	/** Number of attempts used (1 = succeeded first try, >1 = required retries) */
+	attempts: number;
 }
 
 export interface AgentRunnerConfig {
@@ -79,6 +81,12 @@ export interface AgentRunnerConfig {
 	 * Example: "anthropic/claude-sonnet-4-20250514"
 	 */
 	model?: string;
+	/**
+	 * Maximum number of attempts per agent execution (default: MAX_RETRIES).
+	 * When opencode exits with a non-zero exit code, the agent will be retried
+	 * up to this many times with a fresh sandbox and working directory.
+	 */
+	maxRetries?: number;
 }
 
 /**
@@ -117,6 +125,7 @@ export interface OpenCodeEvent {
 
 const DEFAULT_TIMEOUT = 900000; // 15 minutes
 const DEFAULT_TEMP_BASE = "/tmp/nia-bench";
+const MAX_RETRIES = 3;
 const CODE_FILE_EXTENSIONS = [".ts", ".tsx", ".js", ".jsx"];
 const CONFIG_FILE_MAP: Record<Condition, string> = {
 	baseline: "baseline.opencode.json",
@@ -687,7 +696,11 @@ export async function getOpencodeVersion(): Promise<string | null> {
 /**
  * Runs the opencode agent for a single task/condition/rep combination.
  *
- * Steps:
+ * Retries up to `config.maxRetries` times (default: MAX_RETRIES) when opencode
+ * exits with a non-zero exit code. Each attempt uses a fresh sandboxed HOME
+ * and working directory to avoid leftover state from previous failures.
+ *
+ * Steps (per attempt):
  * 1. Create sandboxed HOME and unique temp working directory
  * 2. Copy condition-specific .opencode.json config
  * 3. Inject task context files (package.json, code files)
@@ -708,148 +721,171 @@ export async function runAgent(
 ): Promise<AgentResult> {
 	const timeout = config?.timeout ?? DEFAULT_TIMEOUT;
 	const tempBaseDir = config?.tempBaseDir ?? DEFAULT_TEMP_BASE;
+	const maxRetries = config?.maxRetries ?? MAX_RETRIES;
 
-	// Step 1a: Create sandboxed HOME to isolate from user's global opencode config.
-	// This prevents global agents, skills, plugins, and MCP servers from leaking
-	// into benchmark conditions. Skills from mcp_configs/skills/ are copied into
-	// the sandbox and made discoverable via `skills.paths` in the CWD opencode.json.
-	const sandbox = await createSandboxedHome(config, tempBaseDir);
+	// Last result is tracked across attempts so we can return it if all retries fail
+	let lastResult: AgentResult | null = null;
 
-	// Step 1b: Create unique temp directory
-	const workDir = await createWorkDir(
-		task.id,
-		condition,
-		runIndex,
-		tempBaseDir,
-	);
+	for (let attempt = 1; attempt <= maxRetries; attempt++) {
+		// Step 1a: Create sandboxed HOME to isolate from user's global opencode config.
+		// This prevents global agents, skills, plugins, and MCP servers from leaking
+		// into benchmark conditions. Skills from mcp_configs/skills/ are copied into
+		// the sandbox and made discoverable via `skills.paths` in the CWD opencode.json.
+		const sandbox = await createSandboxedHome(config, tempBaseDir);
 
-	try {
-		// Step 2: Inject condition-specific config (with $SKILLS_DIR substitution)
-		await injectConfig(workDir, condition, config, sandbox);
-
-		// Step 3: Inject task context files
-		await injectContext(workDir, task);
-
-		// Step 4: Invoke opencode CLI
-		// opencode v1.1.53 uses: `opencode run --format json "message"`
-		// CWD is set via Bun.spawn's cwd option (opencode loads opencode.json from CWD)
-		// HOME is sandboxed to prevent global agent/skill/plugin leakage
-		// Skills are discovered via `skills.paths` in the CWD opencode.json
-		const startTime = Date.now();
-		let rawOutput = "";
-		let exitCode = 1;
-
-		try {
-			// Build command args
-			// Always pass --model to override env-based provider resolution.
-			// Without this, opencode may pick a different provider/model based on
-			// which API keys are set in the environment (e.g., GROQ_API_KEY).
-			const model = config?.model ?? DEFAULT_MODEL;
-			const args = ["opencode", "run", "--format", "json", "--model", model];
-			args.push(buildPrompt(task.prompt, condition));
-
-			const proc = Bun.spawn(args, {
-				stdout: "pipe",
-				stderr: "pipe",
-				cwd: workDir,
-				env: {
-					...process.env,
-					// Sandboxed HOME prevents opencode from discovering user's global
-					// agents, skills, plugins, and MCP servers. The sandbox contains:
-					// - Condition-specific opencode.json (permissions, skill allowlists)
-					// - Condition-specific skills (e.g., nia skill for the nia condition)
-					// - A copy of auth.json for API authentication
-					//
-					// NOTE: We do NOT set OPENCODE_CONFIG_DIR — it breaks skill
-					// discovery by redirecting config resolution away from HOME.
-					// Skills are instead discovered via `skills.paths` in the
-					// CWD opencode.json, pointing to $SANDBOX_HOME/skills/.
-					HOME: sandbox.home,
-				},
-			});
-
-			// Set up timeout
-			const timeoutId = setTimeout(() => {
-				try {
-					proc.kill();
-				} catch {
-					// Process may have already exited
-				}
-			}, timeout);
-
-			try {
-				// Read both stdout and stderr concurrently.
-				// opencode may split NDJSON events across both streams.
-				const [stdoutText, stderrText] = await Promise.all([
-					new Response(proc.stdout).text(),
-					new Response(proc.stderr).text(),
-				]);
-				exitCode = await proc.exited;
-
-				// Combine both streams — opencode may write events to either or both
-				rawOutput = [stdoutText, stderrText].filter(Boolean).join("\n");
-			} finally {
-				clearTimeout(timeoutId);
-			}
-		} catch (err) {
-			const message = err instanceof Error ? err.message : String(err);
-			rawOutput = `Error running opencode: ${message}`;
-			exitCode = 1;
-		}
-
-		const durationMs = Date.now() - startTime;
-
-		// Step 5: Extract errors from agent output (NDJSON error events),
-		// or synthesize one from a process-level failure (e.g., spawn error).
-		let error = extractErrors(rawOutput);
-		if (!error && exitCode !== 0) {
-			error = {
-				name: "ProcessError",
-				message: `opencode exited with code ${exitCode}`,
-			};
-		}
-
-		// Step 6: Extract code from both sources and merge
-		const diskFiles = await extractCodeFromDisk(workDir);
-		const responseFiles = extractCodeFromResponse(rawOutput);
-
-		// Merge both sources: disk files take precedence per-filename, but
-		// response-extracted files fill in any gaps. This prevents the case where
-		// the agent writes some helper files to disk but puts the primary solution
-		// in a markdown code block, which would otherwise be silently dropped.
-		const extractedFiles: Record<string, string> = {
-			...responseFiles,
-			...diskFiles,
-		};
-
-		// Step 6b: Extract tool calls for usage tracking
-		const toolCalls = extractToolCalls(rawOutput);
-
-		return {
-			taskId: task.id,
+		// Step 1b: Create unique temp directory
+		const workDir = await createWorkDir(
+			task.id,
 			condition,
 			runIndex,
-			rawOutput,
-			extractedFiles,
-			exitCode,
-			durationMs,
-			workDir,
-			toolCalls,
-			error,
-		};
-	} finally {
-		// Cleanup (unless keepWorkdirs is true)
-		if (!config?.keepWorkdirs) {
+			tempBaseDir,
+		);
+
+		try {
+			// Step 2: Inject condition-specific config (with $SKILLS_DIR substitution)
+			await injectConfig(workDir, condition, config, sandbox);
+
+			// Step 3: Inject task context files
+			await injectContext(workDir, task);
+
+			// Step 4: Invoke opencode CLI
+			// opencode v1.1.53 uses: `opencode run --format json "message"`
+			// CWD is set via Bun.spawn's cwd option (opencode loads opencode.json from CWD)
+			// HOME is sandboxed to prevent global agent/skill/plugin leakage
+			// Skills are discovered via `skills.paths` in the CWD opencode.json
+			const startTime = Date.now();
+			let rawOutput = "";
+			let exitCode = 1;
+
 			try {
-				await rm(workDir, { recursive: true, force: true });
-			} catch {
-				// Cleanup failure is non-fatal
+				// Build command args
+				// Always pass --model to override env-based provider resolution.
+				// Without this, opencode may pick a different provider/model based on
+				// which API keys are set in the environment (e.g., GROQ_API_KEY).
+				const model = config?.model ?? DEFAULT_MODEL;
+				const args = ["opencode", "run", "--format", "json", "--model", model];
+				args.push(buildPrompt(task.prompt, condition));
+
+				const proc = Bun.spawn(args, {
+					stdout: "pipe",
+					stderr: "pipe",
+					cwd: workDir,
+					env: {
+						...process.env,
+						// Sandboxed HOME prevents opencode from discovering user's global
+						// agents, skills, plugins, and MCP servers. The sandbox contains:
+						// - Condition-specific opencode.json (permissions, skill allowlists)
+						// - Condition-specific skills (e.g., nia skill for the nia condition)
+						// - A copy of auth.json for API authentication
+						//
+						// NOTE: We do NOT set OPENCODE_CONFIG_DIR — it breaks skill
+						// discovery by redirecting config resolution away from HOME.
+						// Skills are instead discovered via `skills.paths` in the
+						// CWD opencode.json, pointing to $SANDBOX_HOME/skills/.
+						HOME: sandbox.home,
+					},
+				});
+
+				// Set up timeout
+				const timeoutId = setTimeout(() => {
+					try {
+						proc.kill();
+					} catch {
+						// Process may have already exited
+					}
+				}, timeout);
+
+				try {
+					// Read both stdout and stderr concurrently.
+					// opencode may split NDJSON events across both streams.
+					const [stdoutText, stderrText] = await Promise.all([
+						new Response(proc.stdout).text(),
+						new Response(proc.stderr).text(),
+					]);
+					exitCode = await proc.exited;
+
+					// Combine both streams — opencode may write events to either or both
+					rawOutput = [stdoutText, stderrText].filter(Boolean).join("\n");
+				} finally {
+					clearTimeout(timeoutId);
+				}
+			} catch (err) {
+				const message = err instanceof Error ? err.message : String(err);
+				rawOutput = `Error running opencode: ${message}`;
+				exitCode = 1;
 			}
-			try {
-				await rm(sandbox.home, { recursive: true, force: true });
-			} catch {
-				// Cleanup failure is non-fatal
+
+			const durationMs = Date.now() - startTime;
+
+			// Step 5: Extract errors from agent output (NDJSON error events),
+			// or synthesize one from a process-level failure (e.g., spawn error).
+			let error = extractErrors(rawOutput);
+			if (!error && exitCode !== 0) {
+				error = {
+					name: "ProcessError",
+					message: `opencode exited with code ${exitCode}`,
+				};
+			}
+
+			// Step 6: Extract code from both sources and merge
+			const diskFiles = await extractCodeFromDisk(workDir);
+			const responseFiles = extractCodeFromResponse(rawOutput);
+
+			// Merge both sources: disk files take precedence per-filename, but
+			// response-extracted files fill in any gaps. This prevents the case where
+			// the agent writes some helper files to disk but puts the primary solution
+			// in a markdown code block, which would otherwise be silently dropped.
+			const extractedFiles: Record<string, string> = {
+				...responseFiles,
+				...diskFiles,
+			};
+
+			// Step 6b: Extract tool calls for usage tracking
+			const toolCalls = extractToolCalls(rawOutput);
+
+			lastResult = {
+				taskId: task.id,
+				condition,
+				runIndex,
+				rawOutput,
+				extractedFiles,
+				exitCode,
+				durationMs,
+				workDir,
+				toolCalls,
+				error,
+				attempts: attempt,
+			};
+
+			// Success — return immediately
+			if (exitCode === 0) {
+				return lastResult;
+			}
+
+			// Non-zero exit code and retries remain — log and retry
+			if (attempt < maxRetries) {
+				console.warn(
+					`  ↻ Retry ${attempt}/${maxRetries} [${task.id}/${condition}/rep${runIndex}]: opencode exited with code ${exitCode}`,
+				);
+			}
+		} finally {
+			// Cleanup (unless keepWorkdirs is true)
+			if (!config?.keepWorkdirs) {
+				try {
+					await rm(workDir, { recursive: true, force: true });
+				} catch {
+					// Cleanup failure is non-fatal
+				}
+				try {
+					await rm(sandbox.home, { recursive: true, force: true });
+				} catch {
+					// Cleanup failure is non-fatal
+				}
 			}
 		}
 	}
+
+	// All retries exhausted — return the last failed result
+	// This is guaranteed to be non-null since the loop runs at least once
+	return lastResult as AgentResult;
 }

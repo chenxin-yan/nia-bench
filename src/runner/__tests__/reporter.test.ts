@@ -52,6 +52,7 @@ function mockResult(
 		extractedFiles: { "proxy.ts": "export function proxy() {}" },
 		toolCalls: [],
 		agentError: null,
+		attempts: 1,
 		...overrides,
 	};
 }

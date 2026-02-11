@@ -390,6 +390,7 @@ describe("result-store", () => {
 			extractedFiles: { "file.ts": "const x = 1;" },
 			toolCalls: [],
 			agentError: null,
+			attempts: 1,
 		};
 
 		const filePath = await storeResult(runDir, result);
@@ -422,6 +423,7 @@ describe("result-store", () => {
 			extractedFiles: {},
 			toolCalls: [],
 			agentError: null,
+			attempts: 1,
 		};
 
 		const result1: EvaluationResult = {
@@ -449,6 +451,7 @@ describe("result-store", () => {
 			conditions: ["baseline", "context7", "nia"],
 			reps: 3,
 			parallel: 2,
+			maxRetries: 3,
 			seed: 42,
 			model: "anthropic/claude-sonnet-4-20250514",
 			opencodeVersion: "1.1.53",
@@ -479,6 +482,7 @@ describe("result-store", () => {
 			conditions: ["baseline"],
 			reps: 1,
 			parallel: 1,
+			maxRetries: 3,
 			seed: 42,
 			model: "anthropic/claude-sonnet-4-20250514",
 			opencodeVersion: "1.1.53",

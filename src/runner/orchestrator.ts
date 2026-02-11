@@ -51,6 +51,8 @@ export interface CliConfig {
 	outputDir: string;
 	/** Timeout per agent execution in ms (default: 300000) */
 	timeout: number;
+	/** Maximum retries per agent execution on non-zero exit (default: 3) */
+	maxRetries: number;
 	/** Random seed for execution order (default: random) */
 	seed: number;
 	/** Dry run — print execution plan without running */
@@ -252,6 +254,7 @@ export function parseCliArgs(argv: string[]): CliConfig {
 		keepWorkdirs: false,
 		outputDir: "results",
 		timeout: 300_000,
+		maxRetries: 3,
 		seed: Math.floor(Math.random() * 2147483647),
 		dryRun: false,
 		evalOnly: false,
@@ -293,6 +296,9 @@ export function parseCliArgs(argv: string[]): CliConfig {
 				break;
 			case "--timeout":
 				config.timeout = Number.parseInt(args[++i] ?? "300000", 10);
+				break;
+			case "--max-retries":
+				config.maxRetries = Number.parseInt(args[++i] ?? "3", 10);
 				break;
 			case "--seed":
 				config.seed = Number.parseInt(args[++i] ?? "0", 10);
@@ -383,7 +389,7 @@ export async function runBenchmark(config: CliConfig): Promise<void> {
 	);
 	const resolvedModel = config.model ?? DEFAULT_MODEL;
 	console.log(
-		`Seed: ${config.seed} | Parallel: ${config.parallel} | Model: ${resolvedModel}`,
+		`Seed: ${config.seed} | Parallel: ${config.parallel} | Max retries: ${config.maxRetries} | Model: ${resolvedModel}`,
 	);
 
 	// Dry run: print execution plan and exit
@@ -436,6 +442,7 @@ export async function runBenchmark(config: CliConfig): Promise<void> {
 		conditions,
 		reps: config.reps,
 		parallel: config.parallel,
+		maxRetries: config.maxRetries,
 		seed: config.seed,
 		model: resolvedModel,
 		opencodeVersion: opencodeVersion ?? "unknown",
@@ -500,6 +507,7 @@ export async function runBenchmark(config: CliConfig): Promise<void> {
 				timeout: config.timeout,
 				projectRoot: config.projectRoot,
 				model: config.model,
+				maxRetries: config.maxRetries,
 			});
 
 			// Log warnings for agent failures
@@ -525,6 +533,7 @@ export async function runBenchmark(config: CliConfig): Promise<void> {
 				evaluatorConfig,
 				agentResult.toolCalls,
 				agentResult.error,
+				agentResult.attempts,
 			);
 
 			// Store result

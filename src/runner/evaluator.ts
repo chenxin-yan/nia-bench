@@ -55,6 +55,8 @@ export interface EvaluationResult {
 	toolCalls: ToolCall[];
 	/** Agent error if the agent failed to execute (null on success) */
 	agentError: AgentError | null;
+	/** Number of agent execution attempts (1 = succeeded first try, >1 = required retries) */
+	attempts: number;
 }
 
 // --- Helper Functions ---
@@ -165,6 +167,7 @@ function concatenateFilesForJudge(
  * @param config - Evaluator configuration
  * @param toolCalls - Tool calls made by the agent (for tracking, not scoring)
  * @param agentError - Error from the agent execution, if any
+ * @param attempts - Number of agent execution attempts (1 = first try, >1 = retried)
  * @returns Full evaluation result
  */
 export async function evaluateCode(
@@ -175,6 +178,7 @@ export async function evaluateCode(
 	config: EvaluatorConfig = {},
 	toolCalls: ToolCall[] = [],
 	agentError: AgentError | null = null,
+	attempts = 1,
 ): Promise<EvaluationResult> {
 	// --- Layer 1: AST Checks ---
 	const astChecks = task.test_spec.ast_checks;
@@ -321,5 +325,6 @@ export async function evaluateCode(
 		extractedFiles,
 		toolCalls,
 		agentError,
+		attempts,
 	};
 }
