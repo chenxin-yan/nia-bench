@@ -390,6 +390,65 @@ root.render(
 	});
 
 	// --------------------------------------------------------
+	// Regression tests: agent-generated code that was previously misscored
+	// --------------------------------------------------------
+	describe("Regression: destructured import equivalents", () => {
+		test("react-17-render-entry: destructured render() passes all checks", () => {
+			const code = `
+import React from 'react';
+import { render } from 'react-dom';
+import App from './App';
+
+render(<App />, document.getElementById('root'));
+`;
+			const results = runAstChecks(code, REACT_17_RENDER_CHECKS);
+
+			expect(results).toHaveLength(REACT_17_RENDER_CHECKS.length);
+			for (const result of results) {
+				expect(result.passed).toBe(true);
+			}
+		});
+
+		test("react-17-render-entry: createRoot code still fails all expected checks", () => {
+			const badCode = `
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import App from './App';
+
+const root = createRoot(document.getElementById('root'));
+root.render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
+`;
+			const results = runAstChecks(badCode, REACT_17_RENDER_CHECKS);
+
+			// call_exists 'ReactDOM.render' should FAIL — root.render is not a named import call
+			const renderCall = results.find(
+				(r) =>
+					r.check.type === "call_exists" && r.check.call === "ReactDOM.render",
+			);
+			expect(renderCall?.passed).toBe(false);
+
+			// module_import_absent 'react-dom/client' should FAIL
+			const moduleAbsent = results.find(
+				(r) =>
+					r.check.type === "module_import_absent" &&
+					r.check.module === "react-dom/client",
+			);
+			expect(moduleAbsent?.passed).toBe(false);
+
+			// import_absent 'createRoot' should FAIL
+			const createRootAbsent = results.find(
+				(r) =>
+					r.check.type === "import_absent" && r.check.name === "createRoot",
+			);
+			expect(createRootAbsent?.passed).toBe(false);
+		});
+	});
+
+	// --------------------------------------------------------
 	// Edge cases
 	// --------------------------------------------------------
 	describe("Edge cases", () => {
@@ -639,6 +698,48 @@ export function myFunc() { return x; }
 					{ type: "call_exists", call: "ReactDOM.render" },
 				]);
 				expect(results[0]?.passed).toBe(true);
+			});
+
+			test("finds destructured import call for dotted pattern (ReactDOM.render → import { render })", () => {
+				const code = `
+import { render } from 'react-dom';
+import App from './App';
+
+render(<App />, document.getElementById('root'));
+`;
+				const results = runAstChecks(code, [
+					{ type: "call_exists", call: "ReactDOM.render" },
+				]);
+				expect(results[0]?.passed).toBe(true);
+				expect(results[0]?.message).toContain("destructured equivalent");
+			});
+
+			test("finds destructured import call for dotted pattern (t.router → import { router })", () => {
+				const code = `
+import { router, publicProcedure } from '@trpc/server';
+
+export const appRouter = router({
+  hello: publicProcedure.query(() => 'world'),
+});
+`;
+				const results = runAstChecks(code, [
+					{ type: "call_exists", call: "t.router" },
+				]);
+				expect(results[0]?.passed).toBe(true);
+				expect(results[0]?.message).toContain("destructured equivalent");
+			});
+
+			test("does NOT match local variable method call as destructured import", () => {
+				// result.render() is a method call on a local variable, not a named import.
+				// The check for "ReactDOM.render" should NOT match this.
+				const code = `
+const result = createRoot(document.getElementById('root'));
+result.render(<App />);
+`;
+				const results = runAstChecks(code, [
+					{ type: "call_exists", call: "ReactDOM.render" },
+				]);
+				expect(results[0]?.passed).toBe(false);
 			});
 
 			test("finds JSX element (Suspense)", () => {

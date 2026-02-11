@@ -401,6 +401,18 @@ function checkCallExists(
 					message: `Found call to ${callPattern}()`,
 				};
 			}
+
+			// Fallback for destructured imports: the agent may write
+			//   `import { render } from 'react-dom'; render(...)`
+			// instead of `ReactDOM.render(...)`. Accept standalone calls to the method
+			// name when it was brought in via a named import.
+			if (findNamedImportCall(sourceFile, methodName)) {
+				return {
+					check,
+					passed: true,
+					message: `Found call to imported '${methodName}()' (destructured equivalent of ${callPattern})`,
+				};
+			}
 		}
 	}
 
@@ -921,6 +933,56 @@ function findPropertyAccessCall(
 			if (obj === objectName && prop === methodName) {
 				return true;
 			}
+		}
+	}
+	return false;
+}
+
+/**
+ * Checks whether a function name was imported as a named import and then called
+ * as a standalone function. This handles the "destructured import" pattern where
+ * an agent writes:
+ *
+ *   import { render } from 'react-dom';
+ *   render(<App />, root);
+ *
+ * instead of the namespace form:
+ *
+ *   import ReactDOM from 'react-dom';
+ *   ReactDOM.render(<App />, root);
+ *
+ * Only returns true when BOTH conditions are met — the name is a named import
+ * AND it is invoked as a call expression — to avoid false positives on local
+ * variable method calls like `result.toDataStreamResponse()`.
+ */
+function findNamedImportCall(
+	sourceFile: SourceFile,
+	funcName: string,
+): boolean {
+	// Step 1: verify the name is brought in via a named import
+	const imports = sourceFile.getImportDeclarations();
+	let isNamedImport = false;
+	for (const imp of imports) {
+		for (const named of imp.getNamedImports()) {
+			if (named.getName() === funcName) {
+				isNamedImport = true;
+				break;
+			}
+		}
+		if (isNamedImport) break;
+	}
+	if (!isNamedImport) return false;
+
+	// Step 2: verify the name is called as a standalone function
+	const callExpressions = sourceFile.getDescendantsOfKind(
+		SyntaxKind.CallExpression,
+	);
+	for (const callExpr of callExpressions) {
+		const expression = callExpr.getExpression();
+		// Only match plain identifier calls (e.g., `render(...)`) — not property
+		// access calls (e.g., `obj.render(...)`) which are a different pattern.
+		if (Node.isIdentifier(expression) && expression.getText() === funcName) {
+			return true;
 		}
 	}
 	return false;
