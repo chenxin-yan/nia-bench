@@ -305,7 +305,7 @@ const VERSION_TARGETS: Record<string, NiaIndexTarget[]> = {
 		{
 			type: "docs",
 			identifier: "https://v3.zod.dev",
-			displayName: "Zod Docs",
+			displayName: "Zod 3 Docs",
 		},
 	],
 	"zod:4": [
@@ -318,7 +318,7 @@ const VERSION_TARGETS: Record<string, NiaIndexTarget[]> = {
 		{
 			type: "docs",
 			identifier: "https://zod.dev",
-			displayName: "Zod Docs",
+			displayName: "Zod 4 Docs",
 		},
 	],
 };
