@@ -48,8 +48,8 @@ export interface CliConfig {
 	library?: string;
 	/** Filter by specific task ID */
 	task?: string;
-	/** Filter by condition */
-	condition?: Condition;
+	/** Filter by condition(s) — can specify multiple */
+	conditions?: Condition[];
 	/** Number of repetitions per task/condition (default: 3) */
 	reps: number;
 	/** Max parallel workers (default: 1) */
@@ -364,9 +364,12 @@ export function parseCliArgs(argv: string[]): CliConfig {
 			case "--task":
 				config.task = args[++i];
 				break;
-			case "--condition":
-				config.condition = args[++i] as Condition;
+			case "--condition": {
+				const val = args[++i] as Condition;
+				if (!config.conditions) config.conditions = [];
+				if (!config.conditions.includes(val)) config.conditions.push(val);
 				break;
+			}
 			case "--reps":
 				config.reps = Number.parseInt(args[++i] ?? "3", 10);
 				break;
@@ -488,9 +491,10 @@ export async function runBenchmark(config: CliConfig): Promise<void> {
 	const taskMap = new Map(selectedTasks.map((t) => [t.id, t]));
 
 	// Determine conditions
-	const conditions: Condition[] = config.condition
-		? [config.condition]
-		: ["baseline", "context7", "nia"];
+	const conditions: Condition[] =
+		config.conditions && config.conditions.length > 0
+			? config.conditions
+			: ["baseline", "context7", "nia"];
 
 	// Generate work queue
 	const taskIds = selectedTasks.map((t) => t.id);

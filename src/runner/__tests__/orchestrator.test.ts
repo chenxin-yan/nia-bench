@@ -218,7 +218,7 @@ describe("parseCliArgs", () => {
 		expect(config.category).toBe("bleeding_edge");
 		expect(config.library).toBe("next");
 		expect(config.task).toBe("my-task");
-		expect(config.condition).toBe("nia");
+		expect(config.conditions).toEqual(["nia"]);
 		expect(config.reps).toBe(5);
 		expect(config.parallel).toBe(3);
 		expect(config.skipJudge).toBe(true);
@@ -235,7 +235,7 @@ describe("parseCliArgs", () => {
 		expect(config.category).toBeUndefined();
 		expect(config.library).toBeUndefined();
 		expect(config.task).toBeUndefined();
-		expect(config.condition).toBeUndefined();
+		expect(config.conditions).toBeUndefined();
 		expect(config.reps).toBe(3);
 		expect(config.parallel).toBe(1);
 		expect(config.skipJudge).toBe(false);
@@ -555,7 +555,7 @@ describe("parseCliArgs --limit", () => {
 		]);
 		expect(config.limit).toBe(5);
 		expect(config.library).toBe("next");
-		expect(config.condition).toBe("baseline");
+		expect(config.conditions).toEqual(["baseline"]);
 	});
 });
 
