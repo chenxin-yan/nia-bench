@@ -1,24 +1,25 @@
 #!/usr/bin/env bash
-# Nia Repositories — repository management
+# Nia Repositories — repository management (benchmark mode: read-only)
 # Usage: repos.sh <command> [args...]
 set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "$SCRIPT_DIR/lib.sh"
 
-# ─── index — index a GitHub repo so its code becomes searchable
+# ─── DISABLED: indexing is handled by the benchmark harness ───────────────────
 cmd_index() {
-  if [ -z "$1" ]; then
-    echo "Usage: repos.sh index <owner/repo> [branch_or_ref] [display_name]"
-    echo "  ADD_GLOBAL=false to keep private"
-    return 1
-  fi
-  DATA=$(jq -n \
-    --arg r "$1" --arg ref "${2:-}" --arg dn "${3:-${DISPLAY_NAME:-}}" --arg ag "${ADD_GLOBAL:-}" \
-    '{type: "repository", repository: $r}
-    + (if $ref != "" then {ref: $ref} else {} end)
-    + (if $dn != "" then {display_name: $dn} else {} end)
-    + (if $ag != "" then {add_as_global_source: ($ag == "true")} else {} end)')
-  nia_post "$BASE_URL/sources" "$DATA"
+  echo "Error: Indexing is disabled. All repositories are already pre-indexed."
+  echo "Run 'repos.sh list' to see available repositories."
+  return 1
+}
+
+cmd_delete() {
+  echo "Error: Deleting repositories is disabled in benchmark mode."
+  return 1
+}
+
+cmd_rename() {
+  echo "Error: Renaming repositories is disabled in benchmark mode."
+  return 1
 }
 
 # ─── list — list all indexed repositories
@@ -77,21 +78,6 @@ cmd_tree() {
   nia_get_raw "$url" | jq '.formatted_tree // .'
 }
 
-# ─── delete — remove an indexed repo and all its data
-cmd_delete() {
-  if [ -z "$1" ]; then echo "Usage: repos.sh delete <owner/repo>"; return 1; fi
-  local rid=$(echo "$1" | sed 's/\//%2F/g')
-  nia_delete "$BASE_URL/repositories/${rid}"
-}
-
-# ─── rename — change the display name of an indexed repo
-cmd_rename() {
-  if [ -z "$1" ] || [ -z "$2" ]; then echo "Usage: repos.sh rename <owner/repo> <new_name>"; return 1; fi
-  local rid=$(echo "$1" | sed 's/\//%2F/g')
-  DATA=$(jq -n --arg name "$2" '{new_name: $name}')
-  nia_patch "$BASE_URL/repositories/${rid}/rename" "$DATA"
-}
-
 # ─── dispatch ─────────────────────────────────────────────────────────────────
 case "${1:-}" in
   index)   shift; cmd_index "$@" ;;
@@ -105,15 +91,12 @@ case "${1:-}" in
   *)
     echo "Usage: $(basename "$0") <command> [args...]"
     echo ""
-    echo "Commands:"
-    echo "  index    Index a GitHub repository"
+    echo "Commands (read-only — all repositories are pre-indexed):"
     echo "  list     List indexed repositories"
     echo "  status   Get repository indexing status"
     echo "  read     Read a file from repository"
     echo "  grep     Search repository code with regex"
     echo "  tree     Get repository file tree"
-    echo "  delete   Delete indexed repository"
-    echo "  rename   Rename repository display name"
     exit 1
     ;;
 esac

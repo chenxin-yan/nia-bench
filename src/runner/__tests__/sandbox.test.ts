@@ -185,12 +185,12 @@ describe("createSandboxedHome", () => {
 		expect(await pathExists(scriptsDir)).toBe(true);
 
 		const scripts = await readdir(scriptsDir);
-		// Should have the core scripts: search.sh, sources.sh, repos.sh, etc.
-		expect(scripts.length).toBeGreaterThanOrEqual(10);
+		// Should have the core scripts: lib.sh, search.sh, sources.sh, repos.sh, packages.sh
+		expect(scripts.length).toBeGreaterThanOrEqual(5);
 		expect(scripts).toContain("search.sh");
 		expect(scripts).toContain("sources.sh");
 		expect(scripts).toContain("repos.sh");
-		expect(scripts).toContain("oracle.sh");
+		expect(scripts).toContain("lib.sh");
 		expect(scripts).toContain("packages.sh");
 	});
 
@@ -789,21 +789,16 @@ describe("skill definition integrity", () => {
 		}
 	});
 
-	test("required skill scripts exist: search, sources, repos, oracle, packages", async () => {
+	test("required skill scripts exist: lib, search, sources, repos, packages", async () => {
 		const scriptsDir = join(getMcpConfigDir(), "skills", "nia", "scripts");
 		const scripts = await readdir(scriptsDir);
 
 		const requiredScripts = [
+			"lib.sh",
 			"search.sh",
 			"sources.sh",
 			"repos.sh",
-			"oracle.sh",
 			"packages.sh",
-			"tracer.sh",
-			"deps.sh",
-			"folders.sh",
-			"categories.sh",
-			"contexts.sh",
 		];
 
 		for (const required of requiredScripts) {

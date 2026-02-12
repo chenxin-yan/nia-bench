@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Nia Search — query, web, deep, universal
+# Nia Search — query, universal (benchmark mode: no web/deep)
 # Usage: search.sh <command> [args...]
 set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -38,36 +38,17 @@ cmd_query() {
   nia_post "$BASE_URL/search" "$DATA"
 }
 
-# ─── web — search the public web, filterable by category and recency
+# ─── DISABLED: web search and deep research are not needed ────────────────────
 cmd_web() {
-  if [ -z "$1" ]; then
-    echo "Usage: search.sh web <query> [num_results]"
-    echo "  Env: CATEGORY (github|company|research|news|tweet|pdf|blog), DAYS_BACK, FIND_SIMILAR_TO"
-    return 1
-  fi
-  DATA=$(jq -n \
-    --arg q "$1" --argjson n "${2:-5}" \
-    --arg cat "${CATEGORY:-}" --arg days "${DAYS_BACK:-}" --arg sim "${FIND_SIMILAR_TO:-}" \
-    '{mode: "web", query: $q, num_results: $n}
-    + (if $cat != "" then {category: $cat} else {} end)
-    + (if $days != "" then {days_back: ($days | tonumber)} else {} end)
-    + (if $sim != "" then {find_similar_to: $sim} else {} end)')
-  nia_post "$BASE_URL/search" "$DATA"
+  echo "Error: Web search is disabled. All sources are already pre-indexed."
+  echo "Use 'search.sh query' or 'search.sh universal' to search indexed sources."
+  return 1
 }
 
-# ─── deep — deep AI research that synthesizes multiple web sources (Pro)
 cmd_deep() {
-  if [ -z "$1" ]; then
-    echo "Usage: search.sh deep <query> [output_format]"
-    echo "  Env: VERBOSE=true for trace output"
-    return 1
-  fi
-  DATA=$(jq -n \
-    --arg q "$1" --arg fmt "${2:-}" --arg verbose "${VERBOSE:-}" \
-    '{mode: "deep", query: $q}
-    + (if $fmt != "" then {output_format: $fmt} else {} end)
-    + (if $verbose == "true" then {verbose: true} else {} end)')
-  nia_post "$BASE_URL/search" "$DATA"
+  echo "Error: Deep research is disabled. All sources are already pre-indexed."
+  echo "Use 'search.sh query' or 'search.sh universal' to search indexed sources."
+  return 1
 }
 
 # ─── universal — hybrid semantic+keyword search across all your indexed sources
@@ -107,11 +88,9 @@ case "${1:-}" in
   *)
     echo "Usage: $(basename "$0") <command> [args...]"
     echo ""
-    echo "Commands:"
+    echo "Commands (all sources are pre-indexed):"
     echo "  query      Query specific repos/sources with AI"
-    echo "  web        Web search"
-    echo "  deep       Deep research (Pro only)"
-    echo "  universal  Search across all public indexed sources"
+    echo "  universal  Search across all indexed sources"
     exit 1
     ;;
 esac
