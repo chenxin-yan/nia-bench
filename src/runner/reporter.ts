@@ -198,6 +198,7 @@ export function computeMetrics(results: EvaluationResult[]): MetricsGroup {
 	let passedTasks = 0;
 	let hallucinatedTasks = 0;
 	let compliantTasks = 0;
+	let tasksWithAstChecks = 0;
 	let totalScore = 0;
 
 	for (const taskResults of taskGroups.values()) {
@@ -212,31 +213,39 @@ export function computeMetrics(results: EvaluationResult[]): MetricsGroup {
 			passedTasks++;
 		}
 
-		// Task has hallucinations if a MAJORITY of reps have >= 1 hallucination.
-		// Using majority instead of "any" prevents a single noisy rep from
-		// inflating the hallucination rate, especially when judge disagreements
-		// cause spurious hallucination classifications.
+		// Task has hallucinations if a strict majority (> 50%) of reps have >= 1
+		// hallucination. Using strict majority instead of "any" prevents a single
+		// noisy rep from inflating the hallucination rate, especially when judge
+		// disagreements cause spurious hallucination classifications.
 		const repsWithHallucination = taskResults.filter(
 			(r) => r.hallucinations.types.length > 0,
 		).length;
-		const majorityThreshold = Math.ceil(taskResults.length / 2);
-		if (repsWithHallucination >= majorityThreshold) {
+		const strictMajority = Math.floor(taskResults.length / 2) + 1;
+		if (repsWithHallucination >= strictMajority) {
 			hallucinatedTasks++;
 		}
 
-		// Task is version-compliant if ALL reps have ALL AST checks passing
-		const isCompliant = taskResults.every((r) =>
-			r.astResults.every((check) => check.passed),
-		);
-		if (isCompliant) {
-			compliantTasks++;
+		// Task is version-compliant if ALL reps have ALL AST checks passing.
+		// Tasks with no AST checks (e.g. audit tasks) are excluded from the
+		// compliance denominator entirely — they cannot be "compliant" or
+		// "non-compliant" because there is nothing objective to check.
+		const hasAnyAstCheck = taskResults.some((r) => r.astResults.length > 0);
+		if (hasAnyAstCheck) {
+			tasksWithAstChecks++;
+			const isCompliant = taskResults.every((r) =>
+				r.astResults.every((check) => check.passed),
+			);
+			if (isCompliant) {
+				compliantTasks++;
+			}
 		}
 	}
 
 	return {
 		taskPassRate: taskCount > 0 ? passedTasks / taskCount : 0,
 		hallucinationRate: taskCount > 0 ? hallucinatedTasks / taskCount : 0,
-		versionComplianceRate: taskCount > 0 ? compliantTasks / taskCount : 0,
+		versionComplianceRate:
+			tasksWithAstChecks > 0 ? compliantTasks / tasksWithAstChecks : 0,
 		meanCombinedScore: taskCount > 0 ? totalScore / taskCount : 0,
 		count: results.length,
 	};
@@ -275,12 +284,48 @@ function groupBy(
 }
 
 /**
+ * Known context-augmentation tool prefixes per condition.
+ * Tools whose name starts with one of these prefixes are considered
+ * "context tools" for that condition. The baseline condition has no
+ * context tools, so it will always return false.
+ */
+const CONTEXT_TOOL_PREFIXES: Record<string, string[]> = {
+	context7: ["context7"],
+	nia: ["skill"],
+};
+
+/**
+ * Returns true if the given result used at least one context-augmentation
+ * tool for the specified condition. For the baseline condition (or any
+ * condition without an entry in CONTEXT_TOOL_PREFIXES) this always returns
+ * false, because generic tools (bash, write, read, etc.) are not context tools.
+ */
+function hasContextToolCalls(
+	result: EvaluationResult,
+	condition: string,
+): boolean {
+	const prefixes = CONTEXT_TOOL_PREFIXES[condition];
+	if (!prefixes || prefixes.length === 0) return false;
+
+	const summary = result.toolCallSummary ?? {};
+	return Object.keys(summary).some((toolName) =>
+		prefixes.some(
+			(prefix) => toolName.startsWith(prefix) && (summary[toolName] ?? 0) > 0,
+		),
+	);
+}
+
+/**
  * Computes hallucination type distribution for a set of results.
+ *
+ * Counts the number of **unique tasks** that exhibit each hallucination type
+ * (deduplicated across reps within the same task). This is consistent with
+ * the task-level hallucinationRate metric and avoids inflating counts when
+ * multiple reps for the same task report the same hallucination type.
  */
 export function computeHallucinationDistribution(
 	results: EvaluationResult[],
 ): HallucinationDistribution[] {
-	const typeCounts = new Map<HallucinationType, number>();
 	const allTypes: HallucinationType[] = [
 		"invented_method",
 		"wrong_parameter",
@@ -290,17 +335,26 @@ export function computeHallucinationDistribution(
 		"version_mismatch",
 	];
 
-	// Initialize all types with 0
+	const typeCounts = new Map<HallucinationType, number>();
 	for (const type of allTypes) {
 		typeCounts.set(type, 0);
 	}
 
-	// Count occurrences across all results
+	// Group by task and collect the union of hallucination types per task
+	const taskGroups = groupByTask(results);
 	let totalHallucinations = 0;
-	for (const result of results) {
-		for (const type of result.hallucinations.types) {
-			const current = typeCounts.get(type) ?? 0;
-			typeCounts.set(type, current + 1);
+
+	for (const taskResults of taskGroups.values()) {
+		// Collect all hallucination types across reps for this task (deduplicated)
+		const taskTypes = new Set<HallucinationType>();
+		for (const r of taskResults) {
+			for (const t of r.hallucinations.types) {
+				taskTypes.add(t);
+			}
+		}
+
+		for (const type of taskTypes) {
+			typeCounts.set(type, (typeCounts.get(type) ?? 0) + 1);
 			totalHallucinations++;
 		}
 	}
@@ -539,8 +593,8 @@ export function buildTaskDetails(results: EvaluationResult[]): TaskDetail[] {
 				(sum, r) => sum + (r.toolCallCount ?? 0),
 				0,
 			);
-			const usedContextTool = condResults.some(
-				(r) => (r.toolCallCount ?? 0) > 0,
+			const usedContextTool = condResults.some((r) =>
+				hasContextToolCalls(r, condition),
 			);
 
 			conditions[condition] = {
@@ -1086,15 +1140,31 @@ export function formatReportText(report: Report): string {
 		lines.push(dashSeparator);
 
 		for (const detail of report.taskDetails) {
+			// Score row
 			let line = padRight(` ${detail.taskId}`, taskColWidth);
-
 			for (const cond of conditions) {
 				const condData = detail.conditions[cond];
 				const value = condData ? formatScore(condData.avgFinalScore) : "N/A";
 				line += padLeft(value, colWidth);
 			}
-
 			lines.push(line);
+
+			// Hallucination sub-row: show only if at least one condition has hallucinations
+			const anyHallucinations = conditions.some((cond) => {
+				const condData = detail.conditions[cond];
+				return condData && condData.hallucinationTypes.length > 0;
+			});
+			if (anyHallucinations) {
+				let halLine = padRight("   hallucinations", taskColWidth);
+				for (const cond of conditions) {
+					const condData = detail.conditions[cond];
+					const count = condData?.hallucinationTypes.length ?? 0;
+					const value =
+						count > 0 ? `${count} type${count > 1 ? "s" : ""}` : "-";
+					halLine += padLeft(value, colWidth);
+				}
+				lines.push(halLine);
+			}
 		}
 
 		lines.push(separator);

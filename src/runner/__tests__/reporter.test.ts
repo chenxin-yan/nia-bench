@@ -196,7 +196,42 @@ describe("computeMetrics", () => {
 		expect(metrics.count).toBe(3);
 	});
 
-	test("detects hallucinations from any rep", () => {
+	test("detects hallucinations when strict majority of reps have them", () => {
+		// 2 of 3 reps have hallucinations — strict majority (> 50%)
+		const results = [
+			mockResult({
+				taskId: "task-a",
+				runIndex: 0,
+				hallucinations: { types: [], details: [] },
+			}),
+			mockResult({
+				taskId: "task-a",
+				runIndex: 1,
+				hallucinations: {
+					types: ["future_api"],
+					details: [
+						{ type: "future_api", evidence: "test", description: "test" },
+					],
+				},
+			}),
+			mockResult({
+				taskId: "task-a",
+				runIndex: 2,
+				hallucinations: {
+					types: ["future_api"],
+					details: [
+						{ type: "future_api", evidence: "test", description: "test" },
+					],
+				},
+			}),
+		];
+
+		const metrics = computeMetrics(results);
+		expect(metrics.hallucinationRate).toBe(1.0); // 2/3 reps = strict majority
+	});
+
+	test("does not count hallucinations when exactly half of reps have them", () => {
+		// 1 of 2 reps has hallucination — not a strict majority (= 50%, not > 50%)
 		const results = [
 			mockResult({
 				taskId: "task-a",
@@ -216,7 +251,7 @@ describe("computeMetrics", () => {
 		];
 
 		const metrics = computeMetrics(results);
-		expect(metrics.hallucinationRate).toBe(1.0); // 1/1 tasks has hallucination
+		expect(metrics.hallucinationRate).toBe(0); // 1/2 reps = not strict majority
 	});
 
 	test("version compliance requires all checks passing across all reps", () => {
@@ -277,18 +312,22 @@ describe("computeMetrics", () => {
 // --- computeHallucinationDistribution tests ---
 
 describe("computeHallucinationDistribution", () => {
-	test("counts hallucination types correctly", () => {
+	test("counts hallucination types per unique task", () => {
+		// 3 different tasks — each contributes independently to counts
 		const results = [
 			mockResult({
+				taskId: "task-a",
 				hallucinations: {
 					types: ["future_api", "wrong_import_path"],
 					details: [],
 				},
 			}),
 			mockResult({
+				taskId: "task-b",
 				hallucinations: { types: ["future_api"], details: [] },
 			}),
 			mockResult({
+				taskId: "task-c",
 				hallucinations: { types: ["outdated_api"], details: [] },
 			}),
 		];
@@ -296,16 +335,43 @@ describe("computeHallucinationDistribution", () => {
 		const dist = computeHallucinationDistribution(results);
 
 		const futureApi = dist.find((d) => d.type === "future_api");
-		expect(futureApi?.count).toBe(2);
+		expect(futureApi?.count).toBe(2); // task-a + task-b
 
 		const wrongImport = dist.find((d) => d.type === "wrong_import_path");
-		expect(wrongImport?.count).toBe(1);
+		expect(wrongImport?.count).toBe(1); // task-a only
 
 		const outdated = dist.find((d) => d.type === "outdated_api");
-		expect(outdated?.count).toBe(1);
+		expect(outdated?.count).toBe(1); // task-c only
 
 		const invented = dist.find((d) => d.type === "invented_method");
 		expect(invented?.count).toBe(0);
+	});
+
+	test("deduplicates hallucination types across reps of same task", () => {
+		// Same task, 2 reps — both report future_api, so it should count as 1 task
+		const results = [
+			mockResult({
+				taskId: "task-a",
+				runIndex: 0,
+				hallucinations: { types: ["future_api"], details: [] },
+			}),
+			mockResult({
+				taskId: "task-a",
+				runIndex: 1,
+				hallucinations: {
+					types: ["future_api", "wrong_import_path"],
+					details: [],
+				},
+			}),
+		];
+
+		const dist = computeHallucinationDistribution(results);
+
+		const futureApi = dist.find((d) => d.type === "future_api");
+		expect(futureApi?.count).toBe(1); // deduplicated: 1 task, not 2 reps
+
+		const wrongImport = dist.find((d) => d.type === "wrong_import_path");
+		expect(wrongImport?.count).toBe(1);
 	});
 
 	test("returns all types even when no hallucinations", () => {
