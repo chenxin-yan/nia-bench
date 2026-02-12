@@ -128,107 +128,107 @@ interface IndexResult {
 const VERSION_TARGETS: Record<string, NiaIndexTarget[]> = {
 	// ─── React ───────────────────────────────────────────────────────────────
 	"react:17": [
-		{
-			type: "repo",
-			identifier: "facebook/react",
-			tag: "17.0.2",
-			displayName: "React v17",
-		},
+		// {
+		// 	type: "repo",
+		// 	identifier: "facebook/react",
+		// 	tag: "17.0.2",
+		// 	displayName: "React v17",
+		// },
 		{
 			type: "docs",
-			identifier: "https://legacy.reactjs.org",
-			displayName: "React Legacy Docs",
+			identifier: "https://17.react.dev",
+			displayName: "React 17 Docs",
 		},
 	],
 	"react:18": [
-		{
-			type: "repo",
-			identifier: "facebook/react",
-			tag: "18.3.1",
-			displayName: "React v18",
-		},
+		// {
+		// 	type: "repo",
+		// 	identifier: "facebook/react",
+		// 	tag: "18.3.1",
+		// 	displayName: "React v18",
+		// },
 		{
 			type: "docs",
-			identifier: "https://legacy.reactjs.org",
-			displayName: "React Legacy Docs",
+			identifier: "https://18.react.dev",
+			displayName: "React 18 Docs",
 		},
 	],
 	"react:19": [
-		{
-			type: "repo",
-			identifier: "facebook/react",
-			tag: "v19.2.4",
-			displayName: "React v19",
-		},
+		// {
+		// 	type: "repo",
+		// 	identifier: "facebook/react",
+		// 	tag: "v19.2.4",
+		// 	displayName: "React v19",
+		// },
 		{
 			type: "docs",
 			identifier: "https://react.dev",
-			displayName: "React Docs",
+			displayName: "React 19 Docs",
 		},
 	],
 
 	// ─── Next.js ─────────────────────────────────────────────────────────────
 	"next:13": [
-		{
-			type: "repo",
-			identifier: "vercel/next.js",
-			tag: "v13.5.7",
-			displayName: "Next.js v13",
-		},
+		// {
+		// 	type: "repo",
+		// 	identifier: "vercel/next.js",
+		// 	tag: "v13.5.7",
+		// 	displayName: "Next.js v13",
+		// },
 		{
 			type: "docs",
-			identifier: "https://nextjs.org/docs",
-			displayName: "Next.js Docs",
+			identifier: "https://nextjs.org/docs/13",
+			displayName: "Next.js 13 Docs",
 		},
 	],
 	"next:14": [
-		{
-			type: "repo",
-			identifier: "vercel/next.js",
-			tag: "v14.2.28",
-			displayName: "Next.js v14",
-		},
+		// {
+		// 	type: "repo",
+		// 	identifier: "vercel/next.js",
+		// 	tag: "v14.2.28",
+		// 	displayName: "Next.js v14",
+		// },
 		{
 			type: "docs",
-			identifier: "https://nextjs.org/docs",
-			displayName: "Next.js Docs",
+			identifier: "https://nextjs.org/docs/14",
+			displayName: "Next.js 14 Docs",
 		},
 	],
 	"next:15": [
-		{
-			type: "repo",
-			identifier: "vercel/next.js",
-			tag: "v15.3.3",
-			displayName: "Next.js v15",
-		},
+		// {
+		// 	type: "repo",
+		// 	identifier: "vercel/next.js",
+		// 	tag: "v15.3.3",
+		// 	displayName: "Next.js v15",
+		// },
 		{
 			type: "docs",
-			identifier: "https://nextjs.org/docs",
-			displayName: "Next.js Docs",
+			identifier: "https://nextjs.org/docs/15",
+			displayName: "Next.js 15 Docs",
 		},
 	],
 	"next:16": [
-		{
-			type: "repo",
-			identifier: "vercel/next.js",
-			tag: "v16.1.6",
-			displayName: "Next.js v16",
-		},
+		// {
+		// 	type: "repo",
+		// 	identifier: "vercel/next.js",
+		// 	tag: "v16.1.6",
+		// 	displayName: "Next.js v16",
+		// },
 		{
 			type: "docs",
 			identifier: "https://nextjs.org/docs",
-			displayName: "Next.js Docs",
+			displayName: "Next.js 16 Docs",
 		},
 	],
 
 	// ─── Vercel AI SDK ───────────────────────────────────────────────────────
 	"ai:4": [
-		{
-			type: "repo",
-			identifier: "vercel/ai",
-			tag: "ai@4.3.19",
-			displayName: "Vercel AI SDK v4",
-		},
+		// {
+		// 	type: "repo",
+		// 	identifier: "vercel/ai",
+		// 	tag: "ai@4.3.19",
+		// 	displayName: "Vercel AI SDK v4",
+		// },
 		{
 			type: "docs",
 			identifier: "https://v4.ai-sdk.dev/docs",
@@ -236,31 +236,31 @@ const VERSION_TARGETS: Record<string, NiaIndexTarget[]> = {
 		},
 	],
 	"ai:5": [
-		{
-			type: "repo",
-			identifier: "vercel/ai",
-			tag: "ai@5.0.129",
-			displayName: "Vercel AI SDK v5",
-		},
+		// {
+		// 	type: "repo",
+		// 	identifier: "vercel/ai",
+		// 	tag: "ai@5.0.129",
+		// 	displayName: "Vercel AI SDK v5",
+		// },
 		{
 			type: "docs",
-			identifier: "https://ai-sdk.dev/docs",
-			displayName: "Vercel AI SDK Docs",
+			identifier: "https://v5.ai-sdk.dev/docs",
+			displayName: "Vercel AI SDK v5 Docs",
 			focus:
 				"AI SDK v5 APIs including createUIMessageStream, UIMessage, writer API, and migration from v4",
 		},
 	],
 	"ai:6": [
-		{
-			type: "repo",
-			identifier: "vercel/ai",
-			tag: "ai@6.0.79",
-			displayName: "Vercel AI SDK v6",
-		},
+		// {
+		// 	type: "repo",
+		// 	identifier: "vercel/ai",
+		// 	tag: "ai@6.0.79",
+		// 	displayName: "Vercel AI SDK v6",
+		// },
 		{
 			type: "docs",
 			identifier: "https://ai-sdk.dev/docs",
-			displayName: "Vercel AI SDK Docs",
+			displayName: "Vercel AI SDK v6 Docs",
 			focus:
 				"AI SDK v6 APIs including Output specification, ToolLoopAgent, ModelMessage, and migration from v5",
 		},
@@ -268,53 +268,53 @@ const VERSION_TARGETS: Record<string, NiaIndexTarget[]> = {
 
 	// ─── tRPC ────────────────────────────────────────────────────────────────
 	"trpc:10": [
-		{
-			type: "repo",
-			identifier: "trpc/trpc",
-			tag: "v10.45.4",
-			displayName: "tRPC v10",
-		},
+		// {
+		// 	type: "repo",
+		// 	identifier: "trpc/trpc",
+		// 	tag: "v10.45.4",
+		// 	displayName: "tRPC v10",
+		// },
 		{
 			type: "docs",
-			identifier: "https://trpc.io/docs",
-			displayName: "tRPC Docs",
+			identifier: "https://trpc.io/docs/v10",
+			displayName: "tRPC v10 Docs",
 		},
 	],
 	"trpc:11": [
-		{
-			type: "repo",
-			identifier: "trpc/trpc",
-			tag: "v11.10.0",
-			displayName: "tRPC v11",
-		},
+		// {
+		// 	type: "repo",
+		// 	identifier: "trpc/trpc",
+		// 	tag: "v11.10.0",
+		// 	displayName: "tRPC v11",
+		// },
 		{
 			type: "docs",
 			identifier: "https://trpc.io/docs",
-			displayName: "tRPC Docs",
+			displayName: "tRPC v11 Docs",
 		},
 	],
 
 	// ─── Zod ─────────────────────────────────────────────────────────────────
 	"zod:3": [
-		{
-			type: "repo",
-			identifier: "colinhacks/zod",
-			tag: "v3.24.4",
-			displayName: "Zod v3",
-		},
+		// {
+		// 	type: "repo",
+		// 	identifier: "colinhacks/zod",
+		// 	tag: "v3.24.4",
+		// 	displayName: "Zod v3",
+		// },
 		{
 			type: "docs",
-			identifier: "https://zod.dev",
+			identifier: "https://v3.zod.dev",
 			displayName: "Zod Docs",
 		},
 	],
 	"zod:4": [
-		{
-			type: "repo",
-			identifier: "colinhacks/zod",
-			tag: "v4.3.6",
-			displayName: "Zod v4",
-		},
+		// {
+		// 	type: "repo",
+		// 	identifier: "colinhacks/zod",
+		// 	tag: "v4.3.6",
+		// 	displayName: "Zod v4",
+		// },
 		{
 			type: "docs",
 			identifier: "https://zod.dev",
@@ -380,7 +380,7 @@ export function getTargetsForTasks(tasks: Task[]): NiaIndexTarget[] {
 		if (targets) {
 			all.push(...targets);
 		} else {
-			console.warn(`  ⚠ No Nia targets defined for ${key}`);
+			console.warn(`  ! No Nia targets defined for ${key}`);
 		}
 	}
 
@@ -753,7 +753,7 @@ export async function ensureNiaSetup(
 				return { target, sourceId: id, status, global };
 			} catch (err) {
 				const msg = err instanceof Error ? err.message : String(err);
-				console.warn(`  ⚠ Failed to submit ${target.displayName}: ${msg}`);
+				console.warn(`  ! Failed to submit ${target.displayName}: ${msg}`);
 				return null;
 			} finally {
 				semaphore.release();
@@ -818,7 +818,7 @@ export async function ensureNiaSetup(
 			console.log(`  ✓ ${result.target.displayName} ready`);
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : String(err);
-			console.warn(`  ⚠ ${msg}`);
+			console.warn(`  ! ${msg}`);
 		}
 	});
 	await Promise.allSettled(pollPromises);
