@@ -68,7 +68,8 @@
 		"LanguageModelUsage type replaces TokenUsage",
 		"maxSteps replaces maxToolRoundtrips (value = roundtrips + 1)",
 		"createOpenAI() factory or openai() from @ai-sdk/openai",
-		"chunk.textDelta property in fullStream chunks"
+		"chunk.textDelta property in fullStream chunks",
+		"generateObject/generateText/streamText/streamObject accept common parameters: model, system, prompt, messages, maxTokens, temperature, etc."
 	],
 	"breaking_changes": [
 		"experimental_ prefix removed from all functions",
@@ -90,6 +91,7 @@
 		"Use openai('gpt-4o') from @ai-sdk/openai, not new OpenAI()",
 		"Message type has .content (string), NOT .parts (that is v5+)",
 		"Use generateObject/streamObject for structured data — NOT Output API (v6+)",
-		"chunk.textDelta in fullStream, NOT chunk.text (that is v5+)"
+		"chunk.textDelta in fullStream, NOT chunk.text (that is v5+)",
+		"system parameter is valid for generateObject, generateText, streamText, and streamObject — it sets the system message for the LLM"
 	]
 }

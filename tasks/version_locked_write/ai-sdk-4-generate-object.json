@@ -54,12 +54,12 @@
 			{
 				"name": "object_destructure",
 				"weight": 0.15,
-				"description": "Destructures `{ object }` from the result — not `{ output }` (v6 pattern)"
+				"description": "Accesses .object from the result (via destructuring or property access) — not .output (v6 pattern)"
 			},
 			{
 				"name": "no_hallucination",
 				"weight": 0.15,
-				"description": "No v6 Output API, no invented parameters"
+				"description": "No v6 Output API, no invented function calls or imports"
 			}
 		]
 	},

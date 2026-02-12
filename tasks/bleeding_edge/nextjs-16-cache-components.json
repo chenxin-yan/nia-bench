@@ -15,24 +15,20 @@
 			{
 				"type": "import_exists",
 				"name": "cacheLife",
-				"from": "next/cache",
-				"file": "page.tsx"
+				"from": "next/cache"
 			},
 			{
 				"type": "import_exists",
 				"name": "cacheTag",
-				"from": "next/cache",
-				"file": "page.tsx"
+				"from": "next/cache"
 			},
 			{
 				"type": "call_exists",
-				"call": "cacheLife",
-				"file": "page.tsx"
+				"call": "cacheLife"
 			},
 			{
 				"type": "call_exists",
-				"call": "cacheTag",
-				"file": "page.tsx"
+				"call": "cacheTag"
 			},
 			{
 				"type": "import_exists",
@@ -42,13 +38,11 @@
 			},
 			{
 				"type": "call_absent",
-				"call": "unstable_cacheLife",
-				"file": "page.tsx"
+				"call": "unstable_cacheLife"
 			},
 			{
 				"type": "call_absent",
-				"call": "unstable_cacheTag",
-				"file": "page.tsx"
+				"call": "unstable_cacheTag"
 			}
 		]
 	},
