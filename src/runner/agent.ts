@@ -71,7 +71,7 @@ export interface AgentResult {
 export interface AgentRunnerConfig {
 	/** Whether to keep working directories after execution (for debugging) */
 	keepWorkdirs?: boolean;
-	/** Timeout in milliseconds per agent execution (default: 300_000 = 5 min) */
+	/** Timeout in milliseconds per agent execution (default: 900000) */
 	timeout?: number;
 	/** Base directory for temp working dirs (default: /tmp/nia-bench) */
 	tempBaseDir?: string;

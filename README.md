@@ -135,7 +135,7 @@ bun run bench -- --report-only --output-dir results/<timestamp>
 --skip-nia-setup        Skip the Nia pre-indexing setup phase
 --skip-artifacts        Skip storing transcript, tool calls, and workdir snapshots
 --keep-workdirs         Keep temp working directories for debugging
---timeout <ms>          Per-agent timeout (default: 300000)
+--timeout <ms>          Per-agent timeout (default: 900000)
 --seed <n>              Random seed for reproducible execution order
 --dry-run               Print execution plan without running
 --report-only           Generate report from existing results
@@ -153,7 +153,7 @@ The setup phase:
 1. Derives required sources from the task list (maps each `library:majorVersion` to specific repo tags and doc sites)
 2. Checks which sources are already indexed via the Nia API
 3. Starts indexing any missing sources (with configurable concurrency)
-4. Polls until all indexing completes (default timeout: 10 minutes)
+4. Polls until all indexing completes
 
 Use `--skip-nia-setup` to bypass this phase if sources are already indexed.
 

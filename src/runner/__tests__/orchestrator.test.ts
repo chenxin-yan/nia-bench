@@ -241,7 +241,7 @@ describe("parseCliArgs", () => {
 		expect(config.skipJudge).toBe(false);
 		expect(config.keepWorkdirs).toBe(false);
 		expect(config.outputDir).toBe("results");
-		expect(config.timeout).toBe(300_000);
+		expect(config.timeout).toBe(900000);
 		expect(config.dryRun).toBe(false);
 		expect(config.evalOnly).toBe(false);
 		expect(config.reportOnly).toBe(false);

@@ -339,7 +339,7 @@ export function parseCliArgs(argv: string[]): CliConfig {
 		skipJudge: false,
 		keepWorkdirs: false,
 		outputDir: "results",
-		timeout: 300_000,
+		timeout: 900_000,
 		maxRetries: 3,
 		seed: Math.floor(Math.random() * 2147483647),
 		dryRun: false,
@@ -383,7 +383,7 @@ export function parseCliArgs(argv: string[]): CliConfig {
 				config.outputDir = args[++i] ?? "results";
 				break;
 			case "--timeout":
-				config.timeout = Number.parseInt(args[++i] ?? "300000", 10);
+				config.timeout = Number.parseInt(args[++i] ?? "900000", 10);
 				break;
 			case "--max-retries":
 				config.maxRetries = Number.parseInt(args[++i] ?? "3", 10);
