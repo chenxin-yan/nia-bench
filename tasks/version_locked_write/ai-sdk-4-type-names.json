@@ -3,7 +3,7 @@
 	"category": "version_locked_write",
 	"library": "ai",
 	"target_version": "4.2.0",
-	"prompt": "This project uses **Vercel AI SDK v4**. Create a chat utility module that:\n1. Defines a typed message array using the v4 `CoreMessage` type.\n2. Creates a `generateText` call that uses `maxSteps: 5` for multi-step tool use.\n3. Tracks token usage with the `LanguageModelUsage` type.\n\nUse `openai('gpt-4o')` as the model.",
+	"prompt": "This project uses **Vercel AI SDK v4**. Create a chat utility module that:\n1. Defines a typed message array using the v4 `CoreMessage` type.\n2. Creates a `generateText` call that uses `maxSteps: 5` for multi-step tool use.\n3. Tracks token usage with the `LanguageModelUsage` type.\n\nUse `openai('gpt-4o')` as the model.\n\nIMPORTANT: Import and use the **existing** `LanguageModelUsage` type exported from the `ai` package — do NOT create a custom type or interface for token tracking.",
 	"context": {
 		"package_json": "{\n  \"dependencies\": {\n    \"ai\": \"4.2.0\",\n    \"@ai-sdk/openai\": \"1.2.0\"\n  }\n}"
 	},
@@ -79,6 +79,8 @@
 		"Using `TokenUsage` (v3 type name)",
 		"Using `ModelMessage` (v6 type name, not available in v4)",
 		"Using `maxToolRoundtrips` instead of `maxSteps` (v3 parameter)",
-		"Not awaiting `generateText()` which is async"
+		"Not awaiting `generateText()` which is async",
+		"Defining a custom TokenUsage/CompletionTokenUsage interface instead of importing `LanguageModelUsage` from 'ai'",
+		"Using `stepCountIs()` or `stopWhen` (v6 patterns, not available in v4)"
 	]
 }

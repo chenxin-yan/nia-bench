@@ -4,6 +4,16 @@
 	"available_imports": {
 		"zod": ["z", "ZodError", "ZodSchema", "ZodType"]
 	},
+	"available_types": [
+		"z.infer",
+		"z.input",
+		"z.output",
+		"ZodError",
+		"ZodIssue",
+		"ZodSchema",
+		"ZodType",
+		"ZodFormattedError"
+	],
 	"unavailable_apis": [
 		"z.email() (v4 top-level, use z.string().email())",
 		"z.url() (v4 top-level, use z.string().url())",
@@ -17,18 +27,31 @@
 		"z.treeifyError() (v4 only)",
 		"error parameter (v4 only, use message)"
 	],
+	"unavailable_types": ["z.uuidv4 (does not exist in any version)"],
 	"key_features": [
 		"Chained string validators: z.string().email(), z.string().url(), z.string().uuid()",
 		"z.string().ip() for IP validation (both v4 and v6)",
 		"z.string().ip({ version: 'v4' }) for specific IP version",
-		"required_error and invalid_type_error in schema options",
+		"required_error and invalid_type_error in schema options: z.string({ required_error: '...', invalid_type_error: '...' })",
 		"message parameter in refinement/check options (e.g., .min(3, { message: '...' }))",
 		"z.record(valueSchema) with single argument (keys default to string)",
 		"z.record(keySchema, valueSchema) with two arguments",
 		".deepPartial() for deeply nested optional fields",
 		".format() for error formatting",
 		".flatten() for flat error structure",
-		"errorMap callback for custom error maps"
+		"errorMap callback for custom error maps",
+		"z.string(), z.number(), z.boolean(), z.bigint(), z.date() base types",
+		"z.object(), z.array(), z.tuple(), z.union(), z.intersection() composite types",
+		"z.enum(), z.nativeEnum() for enumerations",
+		"z.discriminatedUnion() for tagged unions",
+		".parse(), .safeParse(), .parseAsync(), .safeParseAsync() for validation",
+		".transform() for value transformation",
+		".refine(), .superRefine() for custom validation",
+		"z.coerce.string(), z.coerce.number(), z.coerce.boolean() for coercion",
+		".optional(), .nullable(), .nullish() for optional/nullable wrappers",
+		".default() for default values",
+		".catch() for fallback values on parse failure",
+		"z.preprocess() for input preprocessing"
 	],
 	"breaking_changes": [],
 	"notes": [
@@ -39,6 +62,7 @@
 		"z.record(z.string()) with single arg is valid — keys default to string",
 		".deepPartial() is available for making nested objects deeply optional",
 		"Error formatting uses .format() and .flatten() methods",
-		"errorMap is available for custom error mapping"
+		"errorMap is available for custom error mapping",
+		"z.uuidv4() does NOT exist — use z.string().uuid() in v3"
 	]
 }

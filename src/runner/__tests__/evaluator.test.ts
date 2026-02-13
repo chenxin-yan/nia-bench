@@ -554,18 +554,84 @@ describe("evaluateCode", () => {
 	});
 
 	describe("edge cases", () => {
-		test("empty extracted files with AST checks — all checks fail", async () => {
+		test("empty extracted files with AST checks — absence checks pass, existence checks fail", async () => {
 			const result = await evaluateCode(proxyTask, {}, "baseline", 0, {
 				skipJudge: true,
 			});
 
 			expect(result.astResults).toHaveLength(4);
-			for (const r of result.astResults) {
+
+			// Existence checks should fail (nothing to find)
+			const existenceResults = result.astResults.filter(
+				(r) =>
+					r.check.type === "function_exported" ||
+					r.check.type === "call_exists",
+			);
+			for (const r of existenceResults) {
 				expect(r.passed).toBe(false);
 				expect(r.message).toContain("No code files extracted");
 			}
+
+			// Absence checks should pass (nothing present = trivially absent)
+			const absenceResults = result.astResults.filter(
+				(r) =>
+					r.check.type === "function_absent" ||
+					r.check.type === "property_absent",
+			);
+			for (const r of absenceResults) {
+				expect(r.passed).toBe(true);
+				expect(r.message).toContain("Trivially passed");
+			}
+
+			// 2 existence checks fail + 2 absence checks pass = 0.5
+			expect(result.testScore).toBe(0.5);
+			expect(result.finalScore).toBe(0.5); // skipJudge mode, 100% test weight
+		});
+
+		test("agent crash with no code — clean zero without phantom hallucinations", async () => {
+			const result = await evaluateCode(
+				proxyTask,
+				{}, // no extracted files
+				"nia",
+				2,
+				{
+					skipJudge: true,
+				},
+				{
+					prompt: "test prompt",
+					durationMs: 900000,
+					toolCallCount: 0,
+					toolCallSummary: {},
+					agentError: {
+						name: "ProcessError",
+						message: "opencode exited with code 143",
+					},
+					attempts: 3,
+				},
+			);
+
+			// Should get clean zero scores
 			expect(result.testScore).toBe(0);
+			expect(result.judgeScore).toBe(0);
 			expect(result.finalScore).toBe(0);
+
+			// All AST checks should fail with crash message
+			expect(result.astResults).toHaveLength(4);
+			for (const r of result.astResults) {
+				expect(r.passed).toBe(false);
+				expect(r.message).toContain("Agent crashed");
+			}
+
+			// NO phantom hallucinations — this is the key fix
+			expect(result.hallucinations.types).toHaveLength(0);
+			expect(result.hallucinations.details).toHaveLength(0);
+
+			// Judge should be skipped entirely on crash
+			expect(result.judgeResult).toBeNull();
+
+			// Error metadata preserved
+			expect(result.agentError).not.toBeNull();
+			expect(result.agentError?.name).toBe("ProcessError");
 		});
 
 		test("result contains all expected metadata fields", async () => {

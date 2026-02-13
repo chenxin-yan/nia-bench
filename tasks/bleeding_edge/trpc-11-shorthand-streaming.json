@@ -23,22 +23,22 @@
 		"criteria": [
 			{
 				"name": "shorthand_router",
-				"weight": 0.3,
+				"weight": 0.32,
 				"description": "Nested routes use plain object, not `t.router()`"
 			},
 			{
 				"name": "async_generator_query",
-				"weight": 0.3,
+				"weight": 0.32,
 				"description": "Query uses `async function*`"
 			},
 			{
 				"name": "yield_keyword",
-				"weight": 0.2,
+				"weight": 0.21,
 				"description": "Uses `yield` to stream results"
 			},
 			{
 				"name": "no_hallucination",
-				"weight": 0.2,
+				"weight": 0.15,
 				"description": "No invented patterns"
 			}
 		]

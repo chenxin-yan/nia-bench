@@ -24,22 +24,22 @@
 		"criteria": [
 			{
 				"name": "required_error",
-				"weight": 0.25,
+				"weight": 0.29,
 				"description": "Uses `required_error` (removed in v4)"
 			},
 			{
 				"name": "invalid_type_error",
-				"weight": 0.25,
+				"weight": 0.28,
 				"description": "Uses `invalid_type_error` (removed in v4)"
 			},
 			{
 				"name": "message_param",
-				"weight": 0.25,
+				"weight": 0.28,
 				"description": "Uses `message`, not `error`"
 			},
 			{
 				"name": "no_hallucination",
-				"weight": 0.25,
+				"weight": 0.15,
 				"description": "No v4 patterns"
 			}
 		]

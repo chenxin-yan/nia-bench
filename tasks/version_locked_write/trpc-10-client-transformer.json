@@ -34,22 +34,22 @@
 		"criteria": [
 			{
 				"name": "transformer_at_client",
-				"weight": 0.35,
+				"weight": 0.37,
 				"description": "`transformer` at client config level"
 			},
 			{
 				"name": "correct_client_fn",
-				"weight": 0.3,
+				"weight": 0.32,
 				"description": "Uses `createTRPCProxyClient`"
 			},
 			{
 				"name": "correct_import",
-				"weight": 0.15,
+				"weight": 0.16,
 				"description": "Imports from `@trpc/client`"
 			},
 			{
 				"name": "no_hallucination",
-				"weight": 0.2,
+				"weight": 0.15,
 				"description": "No v11 patterns"
 			}
 		]

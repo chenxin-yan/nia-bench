@@ -31,22 +31,22 @@
 		"criteria": [
 			{
 				"name": "ref_as_prop",
-				"weight": 0.3,
+				"weight": 0.32,
 				"description": "`ref` is in the component's regular props"
 			},
 			{
 				"name": "no_forward_ref",
-				"weight": 0.3,
+				"weight": 0.32,
 				"description": "Does not use `forwardRef`"
 			},
 			{
 				"name": "correct_typing",
-				"weight": 0.2,
+				"weight": 0.21,
 				"description": "`ref` is typed as `React.Ref<HTMLInputElement>` or similar"
 			},
 			{
 				"name": "no_hallucination",
-				"weight": 0.2,
+				"weight": 0.15,
 				"description": "No invented patterns"
 			}
 		]

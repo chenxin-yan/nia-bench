@@ -35,32 +35,32 @@
 		"criteria": [
 			{
 				"name": "useActionState_import",
-				"weight": 0.2,
+				"weight": 0.21,
 				"description": "Imports `useActionState` from `react`"
 			},
 			{
 				"name": "useFormStatus_import",
-				"weight": 0.15,
+				"weight": 0.16,
 				"description": "Imports `useFormStatus` from `react-dom`"
 			},
 			{
 				"name": "not_useFormState",
-				"weight": 0.15,
+				"weight": 0.16,
 				"description": "Does NOT use the deprecated `useFormState` name"
 			},
 			{
 				"name": "three_return_values",
-				"weight": 0.15,
+				"weight": 0.16,
 				"description": "Destructures `[state, formAction, isPending]`"
 			},
 			{
 				"name": "child_component",
-				"weight": 0.15,
+				"weight": 0.16,
 				"description": "`useFormStatus` is in a child component of the form"
 			},
 			{
 				"name": "no_hallucination",
-				"weight": 0.2,
+				"weight": 0.15,
 				"description": "No invented patterns"
 			}
 		]

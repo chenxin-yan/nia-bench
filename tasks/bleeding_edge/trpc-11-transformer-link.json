@@ -3,7 +3,7 @@
 	"category": "bleeding_edge",
 	"library": "trpc",
 	"target_version": "11.0.0",
-	"prompt": "Using tRPC v11 with Next.js App Router, set up the tRPC client configuration. Use `superjson` as the data transformer and `httpBatchLink` as the link. The tRPC API endpoint is at `/api/trpc`.",
+	"prompt": "Using tRPC v11, set up a **standalone** tRPC client (NOT the React Query integration). Use `createTRPCClient` from `@trpc/client` directly. Configure `superjson` as the data transformer and `httpBatchLink` as the link. The tRPC API endpoint is at `/api/trpc`.\n\nIMPORTANT: In tRPC v11, the `transformer` option goes INSIDE `httpBatchLink({})`, not at the client config level. The client factory is `createTRPCClient` (not `createTRPCProxyClient` which was the v10 name).",
 	"reference_solution": "import { createTRPCClient, httpBatchLink } from '@trpc/client';\nimport superjson from 'superjson';\nimport type { AppRouter } from '@/server/routers/_app';\n\nexport const trpc = createTRPCClient<AppRouter>({\n  links: [\n    httpBatchLink({\n      url: '/api/trpc',\n      transformer: superjson,\n    }),\n  ],\n});",
 	"test_spec": {
 		"ast_checks": [
@@ -31,22 +31,22 @@
 		"criteria": [
 			{
 				"name": "transformer_in_link",
-				"weight": 0.35,
+				"weight": 0.37,
 				"description": "`transformer` is inside `httpBatchLink()` config"
 			},
 			{
 				"name": "correct_client_fn",
-				"weight": 0.25,
+				"weight": 0.27,
 				"description": "Uses `createTRPCClient`, not `createTRPCProxyClient`"
 			},
 			{
 				"name": "correct_import",
-				"weight": 0.2,
+				"weight": 0.21,
 				"description": "Imports from `@trpc/client`"
 			},
 			{
 				"name": "no_hallucination",
-				"weight": 0.2,
+				"weight": 0.15,
 				"description": "No invented APIs"
 			}
 		]
@@ -54,6 +54,8 @@
 	"common_hallucinations": [
 		"`createTRPCClient({ transformer: superjson, links: [...] })` (v10 location)",
 		"Using `createTRPCProxyClient` (v10 name, renamed in v11)",
-		"Putting transformer at both levels"
+		"Putting transformer at both levels",
+		"Using `createTRPCReact().createClient()` (React Query integration, not standalone client)",
+		"Importing from `@trpc/react-query` instead of `@trpc/client`"
 	]
 }

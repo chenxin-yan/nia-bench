@@ -48,27 +48,27 @@
 		"criteria": [
 			{
 				"name": "useeffect_pattern",
-				"weight": 0.3,
+				"weight": 0.28,
 				"description": "Uses useEffect for data fetching"
 			},
 			{
 				"name": "usestate_for_state",
-				"weight": 0.2,
+				"weight": 0.19,
 				"description": "Uses useState for loading/error/data"
 			},
 			{
 				"name": "no_react18_hooks",
-				"weight": 0.25,
+				"weight": 0.24,
 				"description": "No useTransition, useId, useDeferredValue"
 			},
 			{
 				"name": "no_react19_hooks",
-				"weight": 0.15,
+				"weight": 0.14,
 				"description": "No use(), useActionState, useFormStatus"
 			},
 			{
 				"name": "no_hallucination",
-				"weight": 0.1,
+				"weight": 0.15,
 				"description": "No invented patterns"
 			}
 		]

@@ -145,6 +145,25 @@ function concatenateFilesForJudge(
 		.join("\n\n");
 }
 
+/**
+ * Returns true if the AST check type asserts the ABSENCE of something.
+ * When there is no code at all, absence checks are trivially satisfied
+ * (nothing can be present if nothing was generated).
+ */
+function isAbsenceCheckType(type: AstCheck["type"]): boolean {
+	switch (type) {
+		case "import_absent":
+		case "module_import_absent":
+		case "call_absent":
+		case "function_absent":
+		case "property_absent":
+		case "await_absent":
+			return true;
+		default:
+			return false;
+	}
+}
+
 // --- Main Evaluator ---
 
 /**
@@ -193,8 +212,49 @@ export async function evaluateCode(
 		attempts: 1,
 	},
 ): Promise<EvaluationResult> {
-	// --- Layer 1: AST Checks ---
 	const astChecks = task.test_spec.ast_checks;
+	const hasExtractedCode = Object.keys(extractedFiles).length > 0;
+	const isAgentCrash = agentMeta.agentError !== null && !hasExtractedCode;
+
+	// --- Early exit for agent crashes with no code ---
+	// When the agent crashes (e.g., SIGTERM/timeout) and produces no code,
+	// running AST checks and hallucination classification generates misleading
+	// results (phantom hallucinations, incorrect absence-check failures).
+	// Instead, we record a clean zero-score result without false signals.
+	if (isAgentCrash) {
+		const crashMessage = `Agent crashed: ${agentMeta.agentError?.name}: ${agentMeta.agentError?.message}`;
+
+		// All AST checks get a descriptive crash message without false hallucination signals
+		const crashAstResults: AstCheckResult[] = astChecks.map((check) => ({
+			check,
+			passed: false,
+			message: crashMessage,
+		}));
+
+		return {
+			taskId: task.id,
+			condition,
+			runIndex,
+			category: task.category,
+			library: task.library,
+			targetVersion: task.target_version,
+			testScore: 0,
+			judgeScore: 0,
+			finalScore: 0,
+			astResults: crashAstResults,
+			judgeResult: null,
+			hallucinations: { types: [], details: [] },
+			extractedFiles,
+			prompt: agentMeta.prompt,
+			durationMs: agentMeta.durationMs,
+			agentError: agentMeta.agentError,
+			attempts: agentMeta.attempts,
+			toolCallCount: agentMeta.toolCallCount,
+			toolCallSummary: agentMeta.toolCallSummary,
+		};
+	}
+
+	// --- Layer 1: AST Checks ---
 	const allAstResults: AstCheckResult[] = [];
 
 	// Build a descriptive "no code" message that includes the agent error if available
@@ -210,14 +270,20 @@ export async function evaluateCode(
 			const code = resolveCodeForFile(fileKey, extractedFiles);
 
 			if (code === null) {
-				// No code found for this file — all checks fail
+				// No code found for this file — handle absence checks correctly.
+				// "Absent" checks (import_absent, call_absent, etc.) are trivially
+				// satisfied when there is no code — nothing can be present if nothing
+				// was generated. Only "exists"/"present" checks should fail.
 				for (const check of checks) {
+					const isAbsenceCheck = isAbsenceCheckType(check.type);
 					allAstResults.push({
 						check,
-						passed: false,
-						message: fileKey
-							? `No code found for file '${fileKey}'${agentMeta.agentError ? ` (${noCodeMessage})` : ""}`
-							: noCodeMessage,
+						passed: isAbsenceCheck,
+						message: isAbsenceCheck
+							? `Trivially passed: no code to contain the unwanted pattern`
+							: fileKey
+								? `No code found for file '${fileKey}'${agentMeta.agentError ? ` (${noCodeMessage})` : ""}`
+								: noCodeMessage,
 					});
 				}
 			} else {

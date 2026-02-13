@@ -245,89 +245,101 @@ function classifyAstFailure(
 
 /**
  * Infers whether a wrong API usage is from a newer version (future_api) or
- * older version (outdated_api) based on the task category.
+ * older version (outdated_api) based on the task category and common hallucination hints.
  *
  * - bleeding_edge tasks target the newest version, so wrong APIs are typically outdated
  * - version_locked_write tasks target an older version, so wrong APIs are typically from the future
  * - version_locked_audit tasks can have either direction
+ *
+ * Uses keyword-based inference from common_hallucinations hints rather than
+ * hard-coded version numbers, making it resilient to new libraries/versions.
  */
 function inferVersionDirection(
 	task: Task,
 	apiName: string,
 	category: Task["category"],
 ): HallucinationType {
-	// Check common_hallucinations for hints about version direction
-	const commonHallucinations = task.common_hallucinations
-		.join(" ")
-		.toLowerCase();
 	const lowerApiName = apiName.toLowerCase();
 
-	// Look for explicit version direction hints in common hallucinations
-	if (
-		commonHallucinations.includes("v15") ||
-		commonHallucinations.includes("v14") ||
-		commonHallucinations.includes("v13") ||
-		commonHallucinations.includes("older") ||
-		commonHallucinations.includes("earlier")
-	) {
-		// Common hallucinations mention older version patterns
-		if (category === "bleeding_edge") {
-			return "outdated_api";
-		}
-	}
-
-	if (
-		commonHallucinations.includes("newer") ||
-		commonHallucinations.includes("future")
-	) {
-		if (category === "version_locked_write") {
-			return "future_api";
-		}
-	}
+	// Direction keywords: hints that indicate the hallucination comes from a newer version
+	const FUTURE_KEYWORDS = [
+		"newer",
+		"future",
+		"not available",
+		"not yet",
+		"v11",
+		"v6",
+	];
+	// Direction keywords: hints that indicate the hallucination comes from an older version
+	const PAST_KEYWORDS = [
+		"older",
+		"earlier",
+		"deprecated",
+		"removed",
+		"v3",
+		"v10",
+	];
 
 	// Check if the API name appears in common hallucinations with version context
 	for (const hint of task.common_hallucinations) {
 		const lowerHint = hint.toLowerCase();
-		if (lowerHint.includes(lowerApiName)) {
-			// If the hallucination hint mentions a newer version pattern
-			if (
-				lowerHint.includes("v15") ||
-				lowerHint.includes("v16") ||
-				lowerHint.includes("v19") ||
-				lowerHint.includes("v18") ||
-				lowerHint.includes("newer") ||
-				lowerHint.includes("future")
-			) {
-				return "future_api";
-			}
-			// If the hallucination hint mentions an older version pattern
-			if (
-				lowerHint.includes("v13") ||
-				lowerHint.includes("v14") ||
-				lowerHint.includes("v17") ||
-				lowerHint.includes("older") ||
-				lowerHint.includes("earlier") ||
-				lowerHint.includes("deprecated")
-			) {
-				return "outdated_api";
+		if (!lowerHint.includes(lowerApiName)) continue;
+
+		// Look for direction keywords in the matching hint
+		if (FUTURE_KEYWORDS.some((kw) => lowerHint.includes(kw))) {
+			return "future_api";
+		}
+		if (PAST_KEYWORDS.some((kw) => lowerHint.includes(kw))) {
+			return "outdated_api";
+		}
+
+		// If the hint mentions a version number, compare against the task's target version
+		// to determine if the hallucinated API is from a newer or older version
+		const hintVersionMatch = lowerHint.match(/v(\d+)/);
+		if (hintVersionMatch?.[1]) {
+			const targetMajor = extractMajorVersion(task.target_version);
+			const hintMajor = Number.parseInt(hintVersionMatch[1], 10);
+			if (!Number.isNaN(targetMajor) && !Number.isNaN(hintMajor)) {
+				return hintMajor > targetMajor ? "future_api" : "outdated_api";
 			}
 		}
+	}
+
+	// Fall back: check overall common_hallucinations text for direction keywords
+	const commonText = task.common_hallucinations.join(" ").toLowerCase();
+	if (
+		category === "bleeding_edge" &&
+		PAST_KEYWORDS.some((kw) => commonText.includes(kw))
+	) {
+		return "outdated_api";
+	}
+	if (
+		category === "version_locked_write" &&
+		FUTURE_KEYWORDS.some((kw) => commonText.includes(kw))
+	) {
+		return "future_api";
 	}
 
 	// Default based on category
 	switch (category) {
 		case "bleeding_edge":
-			// Bleeding-edge tasks target newest version — wrong APIs are typically from older versions
 			return "outdated_api";
 		case "version_locked_write":
-			// Version-locked tasks target older versions — wrong APIs are typically from newer versions
 			return "future_api";
 		case "version_locked_audit":
-			// Audit tasks can go either way — default to version_mismatch
 			return "version_mismatch";
 		default:
 			return "version_mismatch";
 	}
+}
+
+/**
+ * Extracts the major version number from a semver-like version string.
+ * E.g., "10.45.0" → 10, "4.2.0" → 4, "16" → 16
+ */
+function extractMajorVersion(version: string): number {
+	const match = version.match(/^(\d+)/);
+	return match?.[1] ? Number.parseInt(match[1], 10) : Number.NaN;
 }
 
 // --- Classification from judge results ---

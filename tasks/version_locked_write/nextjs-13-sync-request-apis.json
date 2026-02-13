@@ -34,22 +34,22 @@
 		"criteria": [
 			{
 				"name": "sync_cookies",
-				"weight": 0.3,
+				"weight": 0.32,
 				"description": "`cookies()` called without `await`"
 			},
 			{
 				"name": "sync_headers",
-				"weight": 0.3,
+				"weight": 0.32,
 				"description": "`headers()` called without `await`"
 			},
 			{
 				"name": "correct_import",
-				"weight": 0.2,
+				"weight": 0.21,
 				"description": "Imports from `next/headers`"
 			},
 			{
 				"name": "no_hallucination",
-				"weight": 0.2,
+				"weight": 0.15,
 				"description": "No v14/15 patterns"
 			}
 		]

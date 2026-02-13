@@ -44,27 +44,27 @@
 		"criteria": [
 			{
 				"name": "output_api",
-				"weight": 0.3,
+				"weight": 0.28,
 				"description": "Uses `Output.object({ schema })` specification — the v6 way to generate structured data"
 			},
 			{
 				"name": "generate_text_not_object",
-				"weight": 0.25,
+				"weight": 0.24,
 				"description": "Uses `generateText` with `output` parameter — not the deprecated `generateObject`"
 			},
 			{
 				"name": "output_destructure",
-				"weight": 0.2,
+				"weight": 0.19,
 				"description": "Destructures `{ output }` from the result — not `{ object }` (v4/v5 pattern)"
 			},
 			{
 				"name": "schema_in_output",
-				"weight": 0.15,
+				"weight": 0.14,
 				"description": "Passes Zod schema inside `Output.object({ schema })` — not as a top-level parameter"
 			},
 			{
 				"name": "no_hallucination",
-				"weight": 0.1,
+				"weight": 0.15,
 				"description": "No deprecated or invented APIs"
 			}
 		]

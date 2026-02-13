@@ -3,7 +3,7 @@
 	"category": "version_locked_write",
 	"library": "trpc",
 	"target_version": "10.45.0",
-	"prompt": "This project uses **tRPC v10**. Create an authentication middleware that checks for a `userId` in the context and extends the context with user data. Use the v10 middleware API with direct `rawInput` access.",
+	"prompt": "This project uses **tRPC v10**. Create an authentication middleware that checks for a `userId` in the context and extends the context with user data. Use the v10 middleware API with direct `rawInput` access.\n\nIMPORTANT: In tRPC v10, `rawInput` is a **synchronous property** on the middleware options object, accessed by destructuring as `({ rawInput, ctx, next }) => ...`. Do NOT use `getRawInput()` — that is a v11 async function that does not exist in v10.",
 	"context": {
 		"package_json": "{\n  \"dependencies\": {\n    \"@trpc/server\": \"10.45.4\",\n    \"@trpc/client\": \"10.45.4\"\n  }\n}"
 	},

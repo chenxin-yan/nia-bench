@@ -202,7 +202,15 @@ export function computeMetrics(results: EvaluationResult[]): MetricsGroup {
 	let totalScore = 0;
 
 	for (const taskResults of taskGroups.values()) {
-		// Average final score across reps for this task
+		// Filter out agent crash runs (no code produced) for hallucination and
+		// compliance metrics — crashes generate zero-score results but should not
+		// be counted as "hallucinations" or version compliance failures since no
+		// code was produced to evaluate.
+		const nonCrashResults = taskResults.filter(
+			(r) => !(r.agentError && Object.keys(r.extractedFiles).length === 0),
+		);
+
+		// Average final score across reps for this task (includes crash runs as 0)
 		const avgFinalScore =
 			taskResults.reduce((sum, r) => sum + r.finalScore, 0) /
 			taskResults.length;
@@ -213,26 +221,29 @@ export function computeMetrics(results: EvaluationResult[]): MetricsGroup {
 			passedTasks++;
 		}
 
-		// Task has hallucinations if a strict majority (> 50%) of reps have >= 1
-		// hallucination. Using strict majority instead of "any" prevents a single
-		// noisy rep from inflating the hallucination rate, especially when judge
-		// disagreements cause spurious hallucination classifications.
-		const repsWithHallucination = taskResults.filter(
-			(r) => r.hallucinations.types.length > 0,
-		).length;
-		const strictMajority = Math.floor(taskResults.length / 2) + 1;
-		if (repsWithHallucination >= strictMajority) {
-			hallucinatedTasks++;
+		// Task has hallucinations if a strict majority (> 50%) of NON-CRASH reps
+		// have >= 1 hallucination. Crash runs are excluded because they produce
+		// no code and thus cannot have real hallucinations.
+		if (nonCrashResults.length > 0) {
+			const repsWithHallucination = nonCrashResults.filter(
+				(r) => r.hallucinations.types.length > 0,
+			).length;
+			const strictMajority = Math.floor(nonCrashResults.length / 2) + 1;
+			if (repsWithHallucination >= strictMajority) {
+				hallucinatedTasks++;
+			}
 		}
 
-		// Task is version-compliant if ALL reps have ALL AST checks passing.
+		// Task is version-compliant if ALL non-crash reps have ALL AST checks passing.
 		// Tasks with no AST checks (e.g. audit tasks) are excluded from the
 		// compliance denominator entirely — they cannot be "compliant" or
 		// "non-compliant" because there is nothing objective to check.
-		const hasAnyAstCheck = taskResults.some((r) => r.astResults.length > 0);
+		const checksResults =
+			nonCrashResults.length > 0 ? nonCrashResults : taskResults;
+		const hasAnyAstCheck = checksResults.some((r) => r.astResults.length > 0);
 		if (hasAnyAstCheck) {
 			tasksWithAstChecks++;
-			const isCompliant = taskResults.every((r) =>
+			const isCompliant = checksResults.every((r) =>
 				r.astResults.every((check) => check.passed),
 			);
 			if (isCompliant) {

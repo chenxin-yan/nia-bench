@@ -1020,7 +1020,7 @@ export async function ensureNiaSetup(
 	// successfully polled). Sources that failed to index are skipped.
 	const readySources = [...alreadyReady, ...polledReady];
 	if (readySources.length === 0) {
-		console.warn("  ⚠ No sources reached ready status — skipping smoke test.");
+		console.warn("  ! No sources reached ready status — skipping smoke test.");
 		return [];
 	}
 
@@ -1037,12 +1037,12 @@ export async function ensureNiaSetup(
 		console.log(`  ✓ ${r.displayName} (healthy, ${r.latencyMs}ms)`);
 	}
 	for (const r of unhealthy) {
-		console.warn(`  ⚠ ${r.displayName}: ${r.issue} (${r.latencyMs}ms)`);
+		console.warn(`  ! ${r.displayName}: ${r.issue} (${r.latencyMs}ms)`);
 	}
 
 	if (unhealthy.length > 0) {
 		console.warn(
-			`\n  ⚠ ${unhealthy.length}/${readiness.length} source(s) may have quality issues.` +
+			`\n  ! ${unhealthy.length}/${readiness.length} source(s) may have quality issues.` +
 				" Agent results for affected libraries may be degraded.",
 		);
 	} else {

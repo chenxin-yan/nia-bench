@@ -15,27 +15,27 @@
 		"criteria": [
 			{
 				"name": "identify_stream_data_removal",
-				"weight": 0.15,
+				"weight": 0.14,
 				"description": "Identifies StreamData class is removed in v5, replaced by createUIMessageStream with writer"
 			},
 			{
 				"name": "identify_response_rename",
-				"weight": 0.15,
+				"weight": 0.14,
 				"description": "Identifies createDataStreamResponse removed and toDataStreamResponse replaced by createUIMessageStreamResponse/toUIMessageStreamResponse"
 			},
 			{
 				"name": "identify_writer_api_change",
-				"weight": 0.15,
+				"weight": 0.14,
 				"description": "Identifies writeData/formatDataStreamPart removed, replaced by writer.write() and mergeIntoDataStream replaced by writer.merge()"
 			},
 			{
 				"name": "identify_chunk_property",
-				"weight": 0.1,
+				"weight": 0.09,
 				"description": "Identifies chunk.textDelta renamed to chunk.text in fullStream"
 			},
 			{
 				"name": "identify_message_type_change",
-				"weight": 0.15,
+				"weight": 0.14,
 				"description": "Identifies Message type renamed to UIMessage with .content replaced by .parts array"
 			},
 			{
@@ -45,7 +45,7 @@
 			},
 			{
 				"name": "no_hallucination",
-				"weight": 0.1,
+				"weight": 0.15,
 				"description": "Does not suggest non-existent APIs or mix v4/v5 patterns in replacements"
 			}
 		]

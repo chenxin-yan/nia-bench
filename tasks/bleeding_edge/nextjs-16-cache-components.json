@@ -50,27 +50,27 @@
 		"criteria": [
 			{
 				"name": "use_cache_directive",
-				"weight": 0.2,
+				"weight": 0.22,
 				"description": "`'use cache'` directive is present at file or function level"
 			},
 			{
 				"name": "cache_life",
-				"weight": 0.2,
+				"weight": 0.21,
 				"description": "Uses `cacheLife()` without `unstable_` prefix"
 			},
 			{
 				"name": "cache_tag",
-				"weight": 0.2,
+				"weight": 0.21,
 				"description": "Uses `cacheTag()` without `unstable_` prefix"
 			},
 			{
 				"name": "update_tag",
-				"weight": 0.2,
+				"weight": 0.21,
 				"description": "Uses `updateTag()` for read-your-writes invalidation"
 			},
 			{
 				"name": "no_hallucination",
-				"weight": 0.2,
+				"weight": 0.15,
 				"description": "No `unstable_` prefixes, no invented cache APIs"
 			}
 		]

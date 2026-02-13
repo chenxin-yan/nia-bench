@@ -28,22 +28,22 @@
 		"criteria": [
 			{
 				"name": "reactdom_render",
-				"weight": 0.4,
-				"description": "Uses `ReactDOM.render()`"
+				"weight": 0.38,
+				"description": "Uses `ReactDOM.render()` or named import `render` from `react-dom` (both are valid React 17 patterns)"
 			},
 			{
 				"name": "correct_import",
-				"weight": 0.3,
+				"weight": 0.28,
 				"description": "Imports from `react-dom`, not `react-dom/client`"
 			},
 			{
 				"name": "no_create_root",
-				"weight": 0.2,
+				"weight": 0.19,
 				"description": "Does not use `createRoot`"
 			},
 			{
 				"name": "no_hallucination",
-				"weight": 0.1,
+				"weight": 0.15,
 				"description": "No invented patterns"
 			}
 		]
