@@ -14,7 +14,7 @@ import type { EvaluatorConfig } from "./evaluator";
 import { evaluateCode } from "./evaluator";
 import { ensureNiaSetup } from "./nia-setup";
 import { generateAndWriteReport } from "./reporter";
-import type { RunMetadata } from "./result-store";
+import type { RunMetadata, SourceReadiness } from "./result-store";
 import {
 	copyWorkdir,
 	createRunDir,
@@ -513,6 +513,7 @@ export async function runBenchmark(config: CliConfig): Promise<void> {
 	);
 
 	// Nia Setup Phase: ensure required docs/repos are indexed before running
+	let sourceReadiness: SourceReadiness[] | undefined;
 	if (
 		conditions.includes("nia") &&
 		!config.skipNiaSetup &&
@@ -522,7 +523,7 @@ export async function runBenchmark(config: CliConfig): Promise<void> {
 		console.log("\n=== Nia Setup Phase ===");
 		console.log("Checking required documentation and repository sources...");
 		try {
-			await ensureNiaSetup(selectedTasks);
+			sourceReadiness = await ensureNiaSetup(selectedTasks);
 			console.log("=== Nia Setup Complete ===\n");
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : String(err);
@@ -591,6 +592,7 @@ export async function runBenchmark(config: CliConfig): Promise<void> {
 		status: "running",
 		completedItems: 0,
 		totalItems: workQueue.length,
+		sourceReadiness,
 	};
 	await writeRunMetadata(runDir, metadata);
 

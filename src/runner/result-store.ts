@@ -13,6 +13,29 @@ import type { EvaluationResult } from "./evaluator";
 // --- Types ---
 
 /**
+ * Smoke-test result for a single Nia source.
+ *
+ * After indexing completes, each source is probed with a lightweight search
+ * query to verify it contains meaningful content (not 404 pages, empty
+ * indices, or error responses). Results are stored in `RunMetadata` so
+ * source quality can be correlated with task-level scores.
+ */
+export interface SourceReadiness {
+	/** Source UUID from the Nia API. */
+	sourceId: string;
+	/** Human-readable name (e.g., "Next.js 16 Docs"). */
+	displayName: string;
+	/** Whether the source was resolved from the global registry. */
+	global: boolean;
+	/** Whether the smoke-test query returned meaningful content. */
+	healthy: boolean;
+	/** Short reason if unhealthy (e.g., "indexed 404 page", "empty content"). */
+	issue?: string;
+	/** Latency of the smoke-test query in ms. */
+	latencyMs: number;
+}
+
+/**
  * Metadata about a benchmark run.
  */
 export interface RunMetadata {
@@ -44,6 +67,8 @@ export interface RunMetadata {
 	completedItems: number;
 	/** Total number of work items */
 	totalItems: number;
+	/** Per-source readiness from the Nia setup smoke test (nia condition only). */
+	sourceReadiness?: SourceReadiness[];
 }
 
 // --- Functions ---

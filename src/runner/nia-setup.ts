@@ -3,6 +3,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import type { Task } from "@/types/task";
 import { AsyncSemaphore, formatDuration } from "./orchestrator";
+import type { SourceReadiness } from "./result-store";
 
 // --- Constants ---
 
@@ -694,6 +695,183 @@ async function pollUntilReady(
 	throw new Error(`${displayName}: timed out waiting for indexing to complete`);
 }
 
+// --- Smoke Test ---
+
+/** Timeout for a single smoke-test query (30 seconds). */
+const SMOKE_TEST_TIMEOUT = 30_000;
+
+/**
+ * Minimal response shape from `POST /search` used during smoke testing.
+ * We only inspect the `sources` array and `content` field.
+ */
+interface NiaSearchResponse {
+	content?: string;
+	sources?: Array<{
+		content?: string;
+		metadata?: Record<string, unknown>;
+	}>;
+	detail?: string;
+}
+
+/**
+ * Patterns that indicate a source contains an error page rather than
+ * meaningful documentation. Matched case-insensitively against the
+ * concatenated source content from the smoke-test query.
+ */
+const ERROR_PAGE_PATTERNS = [
+	/404[\s\S]{0,40}page could not be found/i,
+	/404[\s\S]{0,40}not found/i,
+	/page[\s\S]{0,80}does not exist/i,
+];
+
+/**
+ * Runs a lightweight smoke test against each indexed source to verify it
+ * contains meaningful content.
+ *
+ * For each source, issues a minimal `POST /search` query and checks that:
+ * 1. The API returns a 200 response
+ * 2. The response contains at least one source chunk
+ * 3. The source content is not a 404 / error page
+ *
+ * Sources that fail any check are marked as unhealthy with a descriptive
+ * issue string. Results are returned for storage in `RunMetadata`.
+ *
+ * @param apiKey - Nia API key
+ * @param indexResults - Successfully indexed sources from the setup phase
+ * @param parallel - Max concurrent smoke-test queries (default: 3)
+ * @returns Per-source readiness results
+ */
+export async function smokeTestSources(
+	apiKey: string,
+	indexResults: IndexResult[],
+	parallel = 3,
+): Promise<SourceReadiness[]> {
+	const semaphore = new AsyncSemaphore(parallel);
+
+	const promises = indexResults.map(
+		async (result): Promise<SourceReadiness> => {
+			await semaphore.acquire();
+			const start = Date.now();
+
+			try {
+				const readiness = await probeSource(apiKey, result);
+				return { ...readiness, latencyMs: Date.now() - start };
+			} catch (err) {
+				const msg = err instanceof Error ? err.message : String(err);
+				return {
+					sourceId: result.sourceId,
+					displayName: result.target.displayName,
+					global: result.global,
+					healthy: false,
+					issue: `probe error: ${msg}`,
+					latencyMs: Date.now() - start,
+				};
+			} finally {
+				semaphore.release();
+			}
+		},
+	);
+
+	return Promise.all(promises);
+}
+
+/**
+ * Probes a single source with a minimal search query and classifies
+ * the response as healthy or unhealthy.
+ */
+async function probeSource(
+	apiKey: string,
+	result: IndexResult,
+): Promise<Omit<SourceReadiness, "latencyMs">> {
+	const base: Pick<SourceReadiness, "sourceId" | "displayName" | "global"> = {
+		sourceId: result.sourceId,
+		displayName: result.target.displayName,
+		global: result.global,
+	};
+
+	// Build a minimal search request targeting only this source
+	const body = {
+		mode: "query",
+		messages: [{ role: "user", content: "API reference overview" }],
+		data_sources: [result.sourceId],
+		repositories: [],
+		search_mode: "sources",
+		stream: false,
+		include_sources: true,
+		max_tokens: 200,
+	};
+
+	const controller = new AbortController();
+	const timeoutId = setTimeout(() => controller.abort(), SMOKE_TEST_TIMEOUT);
+
+	let res: Response;
+	try {
+		res = await fetch(`${NIA_BASE_URL}/search`, {
+			method: "POST",
+			headers: {
+				Authorization: `Bearer ${apiKey}`,
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify(body),
+			signal: controller.signal,
+		});
+	} catch (err) {
+		const msg = err instanceof Error ? err.message : String(err);
+		if (msg.includes("abort")) {
+			return { ...base, healthy: false, issue: "query timed out" };
+		}
+		return { ...base, healthy: false, issue: `query failed: ${msg}` };
+	} finally {
+		clearTimeout(timeoutId);
+	}
+
+	if (!res.ok) {
+		return {
+			...base,
+			healthy: false,
+			issue: `query returned HTTP ${res.status}`,
+		};
+	}
+
+	let data: NiaSearchResponse;
+	try {
+		data = (await res.json()) as NiaSearchResponse;
+	} catch {
+		return { ...base, healthy: false, issue: "invalid JSON response" };
+	}
+
+	// Check for API-level error
+	if (data.detail) {
+		return { ...base, healthy: false, issue: `API error: ${data.detail}` };
+	}
+
+	// Check that at least one source chunk was returned
+	if (!data.sources || data.sources.length === 0) {
+		return { ...base, healthy: false, issue: "no content returned" };
+	}
+
+	// Concatenate all source content to check for error pages
+	const allContent = data.sources.map((s) => s.content ?? "").join("\n");
+
+	for (const pattern of ERROR_PAGE_PATTERNS) {
+		if (pattern.test(allContent)) {
+			return { ...base, healthy: false, issue: "indexed 404 page" };
+		}
+	}
+
+	// Check for very thin content (likely a stub or error page)
+	const totalLength = allContent.trim().length;
+	if (totalLength < 50) {
+		return {
+			...base,
+			healthy: false,
+			issue: `content too short (${totalLength} chars)`,
+		};
+	}
+
+	return { ...base, healthy: true };
+}
+
 // --- Main Entry Point ---
 
 /**
@@ -708,6 +886,8 @@ async function pollUntilReady(
  *    globally available.
  * 4. Polls any sources that aren't yet ready using `GET /sources/{id}` for
  *    accurate per-tag/ref status tracking
+ * 5. Smoke-tests each ready source to verify it contains meaningful content
+ *    (not 404 pages, empty indices, or error responses)
  *
  * The global-source-first approach can reduce setup time from hours to seconds
  * for commonly used libraries (React, Next.js, Zod, etc.) that are already
@@ -718,11 +898,12 @@ async function pollUntilReady(
  *
  * @param tasks - Loaded benchmark tasks (used to derive required targets)
  * @param options - Setup options (timeouts, concurrency)
+ * @returns Per-source readiness results from the smoke test
  */
 export async function ensureNiaSetup(
 	tasks: Task[],
 	options: NiaSetupOptions = {},
-): Promise<void> {
+): Promise<SourceReadiness[]> {
 	const maxWaitTime = options.maxWaitTime ?? DEFAULT_MAX_WAIT_TIME;
 	const pollInterval = options.pollInterval ?? DEFAULT_POLL_INTERVAL;
 	const parallel = options.parallel ?? DEFAULT_PARALLEL;
@@ -734,7 +915,7 @@ export async function ensureNiaSetup(
 	const targets = getTargetsForTasks(tasks);
 	if (targets.length === 0) {
 		console.log("  No Nia targets needed for the selected tasks.");
-		return;
+		return [];
 	}
 
 	console.log(
@@ -787,47 +968,86 @@ export async function ensureNiaSetup(
 	const globalCount = results.filter((r) => r.global).length;
 	const privateCount = results.length - globalCount;
 
-	// If everything is already ready, we're done
+	// Track sources that successfully finished polling
+	const polledReady: IndexResult[] = [];
+
+	// If everything is already ready, skip polling
 	if (needsPolling.length === 0) {
 		console.log(
 			`\n  All ${alreadyReady.length} source(s) already indexed` +
 				` (${globalCount} global, ${privateCount} private).`,
 		);
-		return;
+	} else {
+		// Step 4: Poll sources that aren't ready yet using GET /sources/{id}
+		const deadline = Date.now() + maxWaitTime;
+
+		console.log(
+			`\n  Waiting for ${needsPolling.length} source(s) to finish indexing...`,
+		);
+		console.log(
+			`  (timeout: ${formatDuration(maxWaitTime)}, polling every ${formatDuration(pollInterval)})`,
+		);
+
+		const pollPromises = needsPolling.map(async (result) => {
+			try {
+				await pollUntilReady(
+					apiKey,
+					result.sourceId,
+					result.target.displayName,
+					pollInterval,
+					deadline,
+				);
+				polledReady.push(result);
+				console.log(`  ✓ ${result.target.displayName} ready`);
+			} catch (err) {
+				const msg = err instanceof Error ? err.message : String(err);
+				console.warn(`  ! ${msg}`);
+			}
+		});
+		await Promise.allSettled(pollPromises);
+
+		// Summary
+		const elapsed = Date.now() + maxWaitTime - deadline; // time already spent
+		console.log(
+			`\n  Nia setup finished (${formatDuration(elapsed)}). ` +
+				`${alreadyReady.length} cached, ${needsPolling.length} indexed/waited ` +
+				`(${globalCount} global, ${privateCount} private).`,
+		);
 	}
 
-	// Step 4: Poll sources that aren't ready yet using GET /sources/{id}
-	const deadline = Date.now() + maxWaitTime;
+	// Step 5: Smoke test — verify each ready source returns useful content.
+	// Only test sources that reached a ready status (already ready or
+	// successfully polled). Sources that failed to index are skipped.
+	const readySources = [...alreadyReady, ...polledReady];
+	if (readySources.length === 0) {
+		console.warn("  ⚠ No sources reached ready status — skipping smoke test.");
+		return [];
+	}
 
 	console.log(
-		`\n  Waiting for ${needsPolling.length} source(s) to finish indexing...`,
+		`\n  Verifying content quality for ${readySources.length} source(s)...`,
 	);
-	console.log(
-		`  (timeout: ${formatDuration(maxWaitTime)}, polling every ${formatDuration(pollInterval)})`,
-	);
+	const readiness = await smokeTestSources(apiKey, readySources, parallel);
 
-	const pollPromises = needsPolling.map(async (result) => {
-		try {
-			await pollUntilReady(
-				apiKey,
-				result.sourceId,
-				result.target.displayName,
-				pollInterval,
-				deadline,
-			);
-			console.log(`  ✓ ${result.target.displayName} ready`);
-		} catch (err) {
-			const msg = err instanceof Error ? err.message : String(err);
-			console.warn(`  ! ${msg}`);
-		}
-	});
-	await Promise.allSettled(pollPromises);
+	// Log per-source results
+	const healthy = readiness.filter((r) => r.healthy);
+	const unhealthy = readiness.filter((r) => !r.healthy);
 
-	// Summary
-	const elapsed = Date.now() + maxWaitTime - deadline; // time already spent
-	console.log(
-		`\n  Nia setup finished (${formatDuration(elapsed)}). ` +
-			`${alreadyReady.length} cached, ${needsPolling.length} indexed/waited ` +
-			`(${globalCount} global, ${privateCount} private).`,
-	);
+	for (const r of healthy) {
+		console.log(`  ✓ ${r.displayName} (healthy, ${r.latencyMs}ms)`);
+	}
+	for (const r of unhealthy) {
+		console.warn(`  ⚠ ${r.displayName}: ${r.issue} (${r.latencyMs}ms)`);
+	}
+
+	if (unhealthy.length > 0) {
+		console.warn(
+			`\n  ⚠ ${unhealthy.length}/${readiness.length} source(s) may have quality issues.` +
+				" Agent results for affected libraries may be degraded.",
+		);
+	} else {
+		console.log(`\n  All ${readiness.length} source(s) passed smoke test.`);
+	}
+
+	return readiness;
 }
